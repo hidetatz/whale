@@ -3,19 +3,20 @@ package main
 import (
 	"fmt"
 	"math"
+	"sort"
 )
 
-type Tensor struct {
-}
+var EnableBackprop = true
 
 type Variable struct {
 	data    float64
 	grad    *float64
 	creator Function
+	generation int
 }
 
 func NewVar(data float64) *Variable {
-	return &Variable{data: data, grad: nil}
+	return &Variable{data: data}
 }
 
 func (v *Variable) String() string {
@@ -26,12 +27,33 @@ func (v *Variable) ClearGrad() {
 	v.grad = nil
 }
 
+func (v *Variable) SetCreator(creator Function) {
+	v.creator = creator
+	v.generation = creator.GetGeneration() + 1
+}
+
 func (v *Variable) Backward() {
 	if v.grad == nil {
 		g := 1.0
 		v.grad = &g
 	}
-	fs := []Function{v.creator}
+
+	fs := []Function{}
+	uniqueadd := func(f Function) {
+		for _, added := range fs {
+			if added == f {
+				return
+			}
+		}
+		// not added
+		fs = append(fs, f)
+		sort.Slice(fs, func(i, j int) bool {
+			return fs[i].GetGeneration() < fs[j].GetGeneration()
+		})
+	}
+
+	uniqueadd(v.creator)
+
 	for len(fs) > 0 {
 		var last Function
 		last, fs = fs[len(fs)-1], fs[:len(fs)-1] // pop last
@@ -52,7 +74,7 @@ func (v *Variable) Backward() {
 			}
 
 			if x.creator != nil {
-				fs = append(fs, x.creator)
+				uniqueadd(x.creator)
 			}
 		}
 
@@ -63,6 +85,7 @@ type Function interface {
 	Forward(inputs []*Variable) []*Variable
 	GetInputs() []*Variable
 	GetOutputs() []*Variable
+	GetGeneration() int
 	Backward(inputs []float64) []float64
 }
 
@@ -71,17 +94,32 @@ func square(v *Variable) *Variable {
 	return s.Forward([]*Variable{v})[0]
 }
 
+func getMaxGen(vs []*Variable) int {
+	max := 0
+	for _, v := range vs {
+		if v.generation > max {
+			max = v.generation
+		}
+	}
+	return max
+}
+
 type Square struct {
 	inputs  []*Variable
 	outputs []*Variable
+	generation int
 }
 
 func (s *Square) Forward(inputs []*Variable) []*Variable {
-	s.inputs = inputs
 	v := NewVar(math.Pow(inputs[0].data, 2))
-	v.creator = s
-	s.outputs = []*Variable{v}
-	return s.outputs
+	out := []*Variable{v}
+	if EnableBackprop {
+		s.inputs = inputs
+		v.SetCreator(s)
+		s.generation = getMaxGen(inputs)
+		s.outputs = out
+	}
+	return out
 }
 
 func (s *Square) GetInputs() []*Variable {
@@ -90,6 +128,10 @@ func (s *Square) GetInputs() []*Variable {
 
 func (s *Square) GetOutputs() []*Variable {
 	return s.outputs
+}
+
+func (s *Square) GetGeneration() int {
+	return s.generation
 }
 
 func (s *Square) Backward(gy []float64) []float64 {
@@ -104,14 +146,19 @@ func exp(v *Variable) *Variable {
 type Exp struct {
 	inputs  []*Variable
 	outputs []*Variable
+	generation int
 }
 
 func (e *Exp) Forward(inputs []*Variable) []*Variable {
-	e.inputs = inputs
 	v := NewVar(math.Exp(inputs[0].data))
-	v.creator = e
-	e.outputs = []*Variable{v}
-	return e.outputs
+	out := []*Variable{v}
+	if EnableBackprop {
+		e.inputs = inputs
+		v.SetCreator(e)
+		e.generation = getMaxGen(inputs)
+		e.outputs = out
+	}
+	return out
 }
 
 func (e *Exp) GetInputs() []*Variable {
@@ -120,6 +167,10 @@ func (e *Exp) GetInputs() []*Variable {
 
 func (e *Exp) GetOutputs() []*Variable {
 	return e.outputs
+}
+
+func (e *Exp) GetGeneration() int {
+	return e.generation
 }
 
 func (e *Exp) Backward(gy []float64) []float64 {
@@ -134,14 +185,19 @@ func add(x1, x2 *Variable) *Variable {
 type Add struct {
 	inputs  []*Variable
 	outputs []*Variable
+	generation int
 }
 
 func (a *Add) Forward(inputs []*Variable) []*Variable {
-	a.inputs = inputs
 	v := NewVar(inputs[0].data + inputs[1].data)
-	v.creator = a
-	a.outputs = []*Variable{v}
-	return a.outputs
+	out := []*Variable{v}
+	if EnableBackprop {
+		a.inputs = inputs
+		v.SetCreator(a)
+		a.generation = getMaxGen(inputs)
+		a.outputs = out
+	}
+	return out
 }
 
 func (a *Add) GetInputs() []*Variable {
@@ -150,6 +206,10 @@ func (a *Add) GetInputs() []*Variable {
 
 func (a *Add) GetOutputs() []*Variable {
 	return a.outputs
+}
+
+func (a *Add) GetGeneration() int {
+	return a.generation
 }
 
 func (a *Add) Backward(gy []float64) []float64 {
@@ -183,15 +243,16 @@ func main() {
 	// fmt.Println(*x2.grad)
 	// fmt.Println(*x3.grad)
 
-	x := NewVar(3)
-	y := add(x, x)
+	x := NewVar(2)
+	a := square(x)
+	y := add(square(a), square(a))
 	y.Backward()
 
-	fmt.Println(*x.grad)
+	fmt.Println(y, *x.grad)
 
-	x.ClearGrad()
-	y = add(add(x, x), x)
-	y.Backward()
+	// x.ClearGrad()
+	// y = add(add(x, x), x)
+	// y.Backward()
 
-	fmt.Println(*x.grad)
+	// fmt.Println(*x.grad)
 }
