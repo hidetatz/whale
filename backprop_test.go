@@ -85,6 +85,11 @@ func TestGrad(t *testing.T) {
 			},
 			x: []*Variable{NewVar(1), NewVar(1)},
 		},
+		// {
+		// 	name: "matyas",
+		// 	f: "0.26 * (x[0] ** 2 + x[1] ++ 2) - 0.48 * x[0] * x[1]"
+		// 	x: []*Variable{NewVar(1), NewVar(1)},
+		// },
 	}
 
 	for _, tc := range tests {
