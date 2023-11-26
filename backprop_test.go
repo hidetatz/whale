@@ -48,9 +48,9 @@ func TestGrad(t *testing.T) {
 		},
 		{
 			name: "pow",
-			// pow (a^b) requires a and b but grad is calculated on only 1 value (a).
-			// If b is included in x, then this test code fails when calculating diff on b,
-			// so b is not included in x.
+			// pow (a^b) requires a and b but grad is calculated only for a.
+			// If b is included in x below, then this test code fails when calculating diff on b,
+			// so b is directly passed to pow(), instead of being included in x.
 			f: func(x []*Variable) []*Variable { return []*Variable{pow(x[0], NewVar(3))} },
 			x: []*Variable{NewVar(2)},
 		},
