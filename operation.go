@@ -220,3 +220,78 @@ func (p *Pow) Backward(gy ...*Variable) []*Variable {
 func (p *Pow) String() string {
 	return "x ** c"
 }
+
+func Sin_(x *Variable) *Variable {
+	f := NewFunction(&Sin{input: x})
+	return f.forward(x)[0]
+}
+
+type Sin struct {
+	input *Variable
+}
+
+func (s *Sin) Forward(inputs ...*Variable) []*Variable {
+	s.input = inputs[0]
+	v := NewVar(math.Sin(inputs[0].data))
+	out := []*Variable{v}
+	return out
+}
+
+func (s *Sin) Backward(gy ...*Variable) []*Variable {
+	return []*Variable{Mul_(gy[0], Cos_(s.input))}
+}
+
+func (s *Sin) String() string {
+	return "sin"
+}
+
+func Cos_(x *Variable) *Variable {
+	f := NewFunction(&Cos{input: x})
+	return f.forward(x)[0]
+}
+
+type Cos struct {
+	input *Variable
+}
+
+func (c *Cos) Forward(inputs ...*Variable) []*Variable {
+	c.input = inputs[0]
+	v := NewVar(math.Cos(inputs[0].data))
+	out := []*Variable{v}
+	return out
+}
+
+func (c *Cos) Backward(gy ...*Variable) []*Variable {
+	return []*Variable{Mul_(gy[0], Neg_(Sin_(c.input)))}
+}
+
+func (c *Cos) String() string {
+	return "cos"
+}
+
+func Tanh_(x *Variable) *Variable {
+	f := NewFunction(&Tanh{input: x})
+	return f.forward(x)[0]
+}
+
+type Tanh struct {
+	input  *Variable
+	output *Variable
+}
+
+func (t *Tanh) Forward(inputs ...*Variable) []*Variable {
+	t.input = inputs[0]
+	v := NewVar(math.Tanh(inputs[0].data))
+	out := []*Variable{v}
+	t.output = v
+	return out
+}
+
+func (t *Tanh) Backward(gy ...*Variable) []*Variable {
+	y := t.output
+	return []*Variable{Mul_(gy[0], Sub_(NewVar(1), Mul_(y, y)))}
+}
+
+func (t *Tanh) String() string {
+	return "tanh"
+}
