@@ -9,7 +9,7 @@ var EnableBackprop = true
 
 type Variable struct {
 	data       float64
-	grad       *float64
+	grad       *Variable
 	creator    *function
 	generation int
 }
@@ -32,6 +32,18 @@ func (v *Variable) clone() *Variable {
 	}
 }
 
+func (v *Variable) SetData(d float64) {
+	v.data = d
+}
+
+func (v *Variable) GetData() float64 {
+	return v.data
+}
+
+func (v *Variable) GetGrad() *Variable {
+	return v.grad
+}
+
 func (v *Variable) ClearGrad() {
 	v.grad = nil
 }
@@ -43,8 +55,7 @@ func (v *Variable) SetCreator(creator *function) {
 
 func (v *Variable) Backward() {
 	if v.grad == nil {
-		g := 1.0
-		v.grad = &g
+		v.grad = NewVar(1.0)
 	}
 
 	fs := []*function{}
@@ -66,19 +77,18 @@ func (v *Variable) Backward() {
 		var last *function
 		last, fs = fs[len(fs)-1], fs[:len(fs)-1] // pop last
 
-		ys := []float64{}
+		ys := []*Variable{}
 		for _, o := range last.outputs {
-			ys = append(ys, *o.grad)
+			ys = append(ys, o.grad)
 		}
 
 		gxs := last.operation.Backward(ys...)
 		for i, x := range last.inputs {
 			gx := gxs[i]
 			if x.grad == nil {
-				x.grad = &gx
+				x.grad = gx
 			} else {
-				s := *x.grad + gx
-				x.grad = &s
+				x.grad = Add_(x.grad, gx)
 			}
 
 			if x.creator != nil {

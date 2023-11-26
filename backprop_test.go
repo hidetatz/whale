@@ -101,7 +101,7 @@ func TestGrad(t *testing.T) {
 
 			grad := numDiff(t, tc.f, tc.x)
 			for i := range grad {
-				delta := math.Abs(*tc.x[i].grad - grad[i])
+				delta := math.Abs(Sub_(tc.x[i].grad, NewVar(grad[i])).data)
 				if delta > 1e-4 {
 					t.Errorf("backward: %v, numerical diff: %v", *tc.x[i].grad, grad[i])
 				}
@@ -138,4 +138,32 @@ func numDiff(t *testing.T, f func([]*Variable) []*Variable, xs []*Variable) []fl
 	}
 
 	return grad
+}
+
+func TestHigherOrderBackprop(t *testing.T) {
+	f := func(x []*Variable) []*Variable {
+		t1 := Pow_(x[0], NewVar(4))
+		t2 := Pow_(x[0], NewVar(2))
+		t3 := Mul_(NewVar(2), t2)
+		y := Sub_(t1, t3)
+		return []*Variable{y}
+	}
+	x := []*Variable{NewVar(2)}
+
+	for i := 0; i < 10; i++ {
+		y := f(x)[0]
+		x[0].ClearGrad()
+		y.Backward()
+
+		gx := x[0].GetGrad()
+		x[0].ClearGrad()
+		gx.Backward()
+		gx2 := x[0].GetGrad()
+
+		x[0].SetData(x[0].GetData() - (gx.GetData() / gx2.GetData()))
+	}
+
+	if x[0].GetData() != 1 {
+		t.Errorf("failed!")
+	}
 }

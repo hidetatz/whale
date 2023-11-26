@@ -13,7 +13,7 @@ func VisualizeGraph(v *Variable) error {
 	pf := func(f *function) string { return fmt.Sprintf("%d", uintptr(unsafe.Pointer(f))) }
 
 	varToDot := func(v *Variable) string {
-		return fmt.Sprintf("%s [label=\"data %.2f | grad %.2f\", shape=box]\n", pv(v), v.data, *v.grad)
+		return fmt.Sprintf("%s [label=\"data %.2f | grad %.2f\", shape=box]\n", pv(v), v.data, v.grad.data)
 	}
 
 	funcToDot := func(f *function) string {

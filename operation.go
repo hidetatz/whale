@@ -8,7 +8,7 @@ import (
 type Operation interface {
 	fmt.Stringer
 	Forward(inputs ...*Variable) []*Variable
-	Backward(gy ...float64) []float64
+	Backward(gy ...*Variable) []*Variable
 }
 
 /*
@@ -31,8 +31,8 @@ func (s *Square) Forward(inputs ...*Variable) []*Variable {
 	return out
 }
 
-func (s *Square) Backward(gy ...float64) []float64 {
-	return []float64{2 * s.input.data * gy[0]}
+func (s *Square) Backward(gy ...*Variable) []*Variable {
+	return []*Variable{Mul_(Mul_(NewVar(2), s.input), gy[0])}
 }
 
 func (s *Square) String() string {
@@ -49,18 +49,20 @@ func Exp_(v *Variable) *Variable {
 }
 
 type Exp struct {
-	input *Variable
+	input  *Variable
+	output *Variable
 }
 
 func (e *Exp) Forward(inputs ...*Variable) []*Variable {
 	e.input = inputs[0]
 	v := NewVar(math.Exp(e.input.data))
 	out := []*Variable{v}
+	e.output = v
 	return out
 }
 
-func (e *Exp) Backward(gy ...float64) []float64 {
-	return []float64{math.Exp(e.input.data) * gy[0]}
+func (e *Exp) Backward(gy ...*Variable) []*Variable {
+	return []*Variable{Mul_(e.output, gy[0])}
 }
 
 func (e *Exp) String() string {
@@ -87,8 +89,8 @@ func (a *Add) Forward(inputs ...*Variable) []*Variable {
 	return out
 }
 
-func (a *Add) Backward(gy ...float64) []float64 {
-	return []float64{gy[0], gy[0]}
+func (a *Add) Backward(gy ...*Variable) []*Variable {
+	return []*Variable{gy[0], gy[0]}
 }
 
 func (a *Add) String() string {
@@ -111,8 +113,8 @@ func (s *Sub) Forward(inputs ...*Variable) []*Variable {
 	return out
 }
 
-func (s *Sub) Backward(gy ...float64) []float64 {
-	return []float64{gy[0], -gy[0]}
+func (s *Sub) Backward(gy ...*Variable) []*Variable {
+	return []*Variable{gy[0], Neg_(gy[0])}
 }
 
 func (s *Sub) String() string {
@@ -135,9 +137,9 @@ func (m *Mul) Forward(inputs ...*Variable) []*Variable {
 	return out
 }
 
-func (m *Mul) Backward(gy ...float64) []float64 {
-	x0, x1 := m.inputs[0].data, m.inputs[1].data
-	return []float64{gy[0] * x1, gy[0] * x0}
+func (m *Mul) Backward(gy ...*Variable) []*Variable {
+	x0, x1 := m.inputs[0], m.inputs[1]
+	return []*Variable{Mul_(gy[0], x1), Mul_(gy[0], x0)}
 }
 
 func (m *Mul) String() string {
@@ -160,9 +162,9 @@ func (d *Div) Forward(inputs ...*Variable) []*Variable {
 	return out
 }
 
-func (d *Div) Backward(gy ...float64) []float64 {
-	x0, x1 := d.inputs[0].data, d.inputs[1].data
-	return []float64{gy[0] / x1, gy[0] * (-x0 / math.Pow(x1, 2))}
+func (d *Div) Backward(gy ...*Variable) []*Variable {
+	x0, x1 := d.inputs[0], d.inputs[1]
+	return []*Variable{Div_(gy[0], x1), Mul_(gy[0], Div_(Neg_(x0), Pow_(x1, NewVar(2))))}
 }
 
 func (d *Div) String() string {
@@ -185,8 +187,8 @@ func (n *Neg) Forward(inputs ...*Variable) []*Variable {
 	return out
 }
 
-func (n *Neg) Backward(gy ...float64) []float64 {
-	return []float64{-gy[0]}
+func (n *Neg) Backward(gy ...*Variable) []*Variable {
+	return []*Variable{Neg_(gy[0])}
 }
 
 func (n *Neg) String() string {
@@ -210,9 +212,9 @@ func (p *Pow) Forward(inputs ...*Variable) []*Variable {
 	return out
 }
 
-func (p *Pow) Backward(gy ...float64) []float64 {
-	x, c := p.input.data, p.c.data
-	return []float64{c * math.Pow(x, c-1) * gy[0]}
+func (p *Pow) Backward(gy ...*Variable) []*Variable {
+	x, c := p.input, p.c
+	return []*Variable{Mul_(Mul_(c, Pow_(x, Sub_(c, NewVar(1)))), gy[0])}
 }
 
 func (p *Pow) String() string {
