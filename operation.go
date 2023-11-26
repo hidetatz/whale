@@ -1,10 +1,12 @@
 package whale
 
 import (
+	"fmt"
 	"math"
 )
 
 type Operation interface {
+	fmt.Stringer
 	Forward(inputs ...*Variable) []*Variable
 	Backward(gy ...float64) []float64
 }
@@ -13,7 +15,7 @@ type Operation interface {
  * Square
  */
 
-func square(v *Variable) *Variable {
+func Square_(v *Variable) *Variable {
 	f := NewFunction(&Square{})
 	return f.forward(v)[0]
 }
@@ -33,11 +35,15 @@ func (s *Square) Backward(gy ...float64) []float64 {
 	return []float64{2 * s.input.data * gy[0]}
 }
 
+func (s *Square) String() string {
+	return "** 2"
+}
+
 /*
  * Exp
  */
 
-func exp(v *Variable) *Variable {
+func Exp_(v *Variable) *Variable {
 	f := NewFunction(&Exp{})
 	return f.forward(v)[0]
 }
@@ -57,11 +63,15 @@ func (e *Exp) Backward(gy ...float64) []float64 {
 	return []float64{math.Exp(e.input.data) * gy[0]}
 }
 
+func (e *Exp) String() string {
+	return "e ** x"
+}
+
 /*
  * Add, Sub, Mul, Div, Pow
  */
 
-func add(x1, x2 *Variable) *Variable {
+func Add_(x1, x2 *Variable) *Variable {
 	f := NewFunction(&Add{})
 	return f.forward(x1, x2)[0]
 }
@@ -81,7 +91,11 @@ func (a *Add) Backward(gy ...float64) []float64 {
 	return []float64{gy[0], gy[0]}
 }
 
-func sub(x1, x2 *Variable) *Variable {
+func (a *Add) String() string {
+	return "+"
+}
+
+func Sub_(x1, x2 *Variable) *Variable {
 	f := NewFunction(&Sub{})
 	return f.forward(x1, x2)[0]
 }
@@ -101,7 +115,11 @@ func (s *Sub) Backward(gy ...float64) []float64 {
 	return []float64{gy[0], -gy[0]}
 }
 
-func mul(x1, x2 *Variable) *Variable {
+func (s *Sub) String() string {
+	return "-"
+}
+
+func Mul_(x1, x2 *Variable) *Variable {
 	f := NewFunction(&Mul{})
 	return f.forward(x1, x2)[0]
 }
@@ -122,7 +140,11 @@ func (m *Mul) Backward(gy ...float64) []float64 {
 	return []float64{gy[0] * x1, gy[0] * x0}
 }
 
-func div(x1, x2 *Variable) *Variable {
+func (m *Mul) String() string {
+	return "*"
+}
+
+func Div_(x1, x2 *Variable) *Variable {
 	f := NewFunction(&Div{})
 	return f.forward(x1, x2)[0]
 }
@@ -143,7 +165,11 @@ func (d *Div) Backward(gy ...float64) []float64 {
 	return []float64{gy[0] / x1, gy[0] * (-x0 / math.Pow(x1, 2))}
 }
 
-func neg(x *Variable) *Variable {
+func (d *Div) String() string {
+	return "/"
+}
+
+func Neg_(x *Variable) *Variable {
 	f := NewFunction(&Neg{})
 	return f.forward(x)[0]
 }
@@ -163,7 +189,11 @@ func (n *Neg) Backward(gy ...float64) []float64 {
 	return []float64{-gy[0]}
 }
 
-func pow(x, c *Variable) *Variable {
+func (n *Neg) String() string {
+	return "-x"
+}
+
+func Pow_(x, c *Variable) *Variable {
 	f := NewFunction(&Pow{c: c})
 	return f.forward(x)[0]
 }
@@ -183,4 +213,8 @@ func (p *Pow) Forward(inputs ...*Variable) []*Variable {
 func (p *Pow) Backward(gy ...float64) []float64 {
 	x, c := p.input.data, p.c.data
 	return []float64{c * math.Pow(x, c-1) * gy[0]}
+}
+
+func (p *Pow) String() string {
+	return "x ** c"
 }

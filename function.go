@@ -24,6 +24,10 @@ func (f *function) forward(inputs ...*Variable) []*Variable {
 	return outputs
 }
 
+func (f *function) String() string {
+	return f.operation.String()
+}
+
 func getMaxGen(vs []*Variable) int {
 	max := 0
 	for _, v := range vs {

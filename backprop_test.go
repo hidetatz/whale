@@ -13,37 +13,37 @@ func TestGrad(t *testing.T) {
 	}{
 		{
 			name: "square",
-			f:    func(x []*Variable) []*Variable { return []*Variable{square(x[0])} },
+			f:    func(x []*Variable) []*Variable { return []*Variable{Square_(x[0])} },
 			x:    []*Variable{NewVar(2)},
 		},
 		{
 			name: "exp",
-			f:    func(x []*Variable) []*Variable { return []*Variable{exp(x[0])} },
+			f:    func(x []*Variable) []*Variable { return []*Variable{Exp_(x[0])} },
 			x:    []*Variable{NewVar(2)},
 		},
 		{
 			name: "add",
-			f:    func(x []*Variable) []*Variable { return []*Variable{add(x[0], x[1])} },
+			f:    func(x []*Variable) []*Variable { return []*Variable{Add_(x[0], x[1])} },
 			x:    []*Variable{NewVar(2), NewVar(3)},
 		},
 		{
 			name: "sub",
-			f:    func(x []*Variable) []*Variable { return []*Variable{sub(x[0], x[1])} },
+			f:    func(x []*Variable) []*Variable { return []*Variable{Sub_(x[0], x[1])} },
 			x:    []*Variable{NewVar(2), NewVar(3)},
 		},
 		{
 			name: "mul",
-			f:    func(x []*Variable) []*Variable { return []*Variable{mul(x[0], x[1])} },
+			f:    func(x []*Variable) []*Variable { return []*Variable{Mul_(x[0], x[1])} },
 			x:    []*Variable{NewVar(2), NewVar(3)},
 		},
 		{
 			name: "div",
-			f:    func(x []*Variable) []*Variable { return []*Variable{div(x[0], x[1])} },
+			f:    func(x []*Variable) []*Variable { return []*Variable{Div_(x[0], x[1])} },
 			x:    []*Variable{NewVar(2), NewVar(3)},
 		},
 		{
 			name: "neg",
-			f:    func(x []*Variable) []*Variable { return []*Variable{neg(x[0])} },
+			f:    func(x []*Variable) []*Variable { return []*Variable{Neg_(x[0])} },
 			x:    []*Variable{NewVar(2)},
 		},
 		{
@@ -51,15 +51,15 @@ func TestGrad(t *testing.T) {
 			// pow (a^b) requires a and b but grad is calculated only for a.
 			// If b is included in x below, then this test code fails when calculating diff on b,
 			// so b is directly passed to pow(), instead of being included in x.
-			f: func(x []*Variable) []*Variable { return []*Variable{pow(x[0], NewVar(3))} },
+			f: func(x []*Variable) []*Variable { return []*Variable{Pow_(x[0], NewVar(3))} },
 			x: []*Variable{NewVar(2)},
 		},
 		{
 			name: "combined 1",
 			f: func(x []*Variable) []*Variable {
-				a := add(x[0], x[1])
-				b := mul(a, x[2])
-				y := div(b, x[3])
+				a := Add_(x[0], x[1])
+				b := Mul_(a, x[2])
+				y := Div_(b, x[3])
 				return []*Variable{y}
 			},
 			x: []*Variable{NewVar(2), NewVar(3), NewVar(4), NewVar(5)},
@@ -67,7 +67,7 @@ func TestGrad(t *testing.T) {
 		{
 			name: "sphere",
 			f: func(x []*Variable) []*Variable {
-				y := add(square(x[0]), square(x[1]))
+				y := Add_(Square_(x[0]), Square_(x[1]))
 				return []*Variable{y}
 			},
 			x: []*Variable{NewVar(1), NewVar(1)},
@@ -75,12 +75,12 @@ func TestGrad(t *testing.T) {
 		{
 			name: "matyas",
 			f: func(x []*Variable) []*Variable {
-				t1 := pow(x[0], NewVar(2))
-				t2 := pow(x[1], NewVar(2))
-				t3 := mul(NewVar(0.26), add(t1, t2))
-				t4 := mul(NewVar(0.48), x[0])
-				t5 := mul(t4, x[1])
-				y := sub(t3, t5)
+				t1 := Pow_(x[0], NewVar(2))
+				t2 := Pow_(x[1], NewVar(2))
+				t3 := Mul_(NewVar(0.26), Add_(t1, t2))
+				t4 := Mul_(NewVar(0.48), x[0])
+				t5 := Mul_(t4, x[1])
+				y := Sub_(t3, t5)
 				return []*Variable{y}
 			},
 			x: []*Variable{NewVar(1), NewVar(1)},
