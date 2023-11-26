@@ -64,6 +64,27 @@ func TestGrad(t *testing.T) {
 			},
 			x: []*Variable{NewVar(2), NewVar(3), NewVar(4), NewVar(5)},
 		},
+		{
+			name: "sphere",
+			f: func(x []*Variable) []*Variable {
+				y := add(square(x[0]), square(x[1]))
+				return []*Variable{y}
+			},
+			x: []*Variable{NewVar(1), NewVar(1)},
+		},
+		{
+			name: "matyas",
+			f: func(x []*Variable) []*Variable {
+				t1 := pow(x[0], NewVar(2))
+				t2 := pow(x[1], NewVar(2))
+				t3 := mul(NewVar(0.26), add(t1, t2))
+				t4 := mul(NewVar(0.48), x[0])
+				t5 := mul(t4, x[1])
+				y := sub(t3, t5)
+				return []*Variable{y}
+			},
+			x: []*Variable{NewVar(1), NewVar(1)},
+		},
 	}
 
 	for _, tc := range tests {
