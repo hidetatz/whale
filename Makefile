@@ -2,7 +2,7 @@ format:
 	goimports -w .
 
 test:
-	go test ./*.go
+	go test ./...
 
 testv:
-	go test -v ./*.go
+	go test -v ./...
