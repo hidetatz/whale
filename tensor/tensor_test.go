@@ -478,3 +478,251 @@ func TestTransposeAxes(t *testing.T) {
 		})
 	}
 }
+
+func TestRepeat(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      []float64
+		shape     []int
+		times     int
+		axis      int
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:  "vector",
+			data:  seq(0, 4),
+			shape: []int{4},
+			times: 2,
+			axis:  0,
+			expected: &Tensor{
+				data:    []float64{0, 0, 1, 1, 2, 2, 3, 3},
+				shape:   []int{8},
+				strides: []int{1},
+			},
+		},
+		{
+			name:  "2d",
+			data:  seq(0, 4),
+			shape: []int{2, 2},
+			times: 2,
+			axis:  0,
+			expected: &Tensor{
+				data:    []float64{0, 1, 0, 1, 2, 3, 2, 3},
+				shape:   []int{4, 2},
+				strides: []int{2, 1},
+			},
+		},
+		{
+			name:  "2d 2",
+			data:  seq(0, 4),
+			shape: []int{2, 2},
+			times: 2,
+			axis:  1,
+			expected: &Tensor{
+				data:    []float64{0, 0, 1, 1, 2, 2, 3, 3},
+				shape:   []int{2, 4},
+				strides: []int{4, 1},
+			},
+		},
+		{
+			name:  "3d",
+			data:  seq(0, 8),
+			shape: []int{2, 2, 2},
+			times: 2,
+			axis:  0,
+			expected: &Tensor{
+				data:    []float64{0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7},
+				shape:   []int{4, 2, 2},
+				strides: []int{4, 2, 1},
+			},
+		},
+		{
+			name:  "3d 2",
+			data:  seq(0, 8),
+			shape: []int{2, 2, 2},
+			times: 2,
+			axis:  1,
+			expected: &Tensor{
+				data:    []float64{0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7},
+				shape:   []int{2, 4, 2},
+				strides: []int{8, 2, 1},
+			},
+		},
+		{
+			name:  "3d 3",
+			data:  seq(0, 8),
+			shape: []int{2, 2, 2},
+			times: 2,
+			axis:  2,
+			expected: &Tensor{
+				data:    []float64{0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7},
+				shape:   []int{2, 2, 4},
+				strides: []int{8, 4, 1},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, _ := Nd(tc.data, tc.shape...)
+			got, err := got.Repeat(tc.times, tc.axis)
+			if (err != nil) != tc.expectErr {
+				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
+			}
+			if tc.expected != nil {
+				if !tc.expected.Equals(got) {
+					t.Errorf("expected %v but got %v", tc.expected, got)
+				}
+			}
+		})
+	}
+}
+
+func TestTile(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      []float64
+		shape     []int
+		times     []int
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:  "vector",
+			data:  seq(0, 4),
+			shape: []int{4},
+			times: []int{2, 2},
+			expected: &Tensor{
+				data:    []float64{0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
+				shape:   []int{2, 8},
+				strides: []int{8, 1},
+			},
+		},
+		{
+			name:  "2d",
+			data:  seq(0, 4),
+			shape: []int{2, 2},
+			times: []int{2, 1},
+			expected: &Tensor{
+				data:    []float64{0, 1, 2, 3, 0, 1, 2, 3},
+				shape:   []int{4, 2},
+				strides: []int{2, 1},
+			},
+		},
+		{
+			name:  "2d 2",
+			data:  seq(0, 4),
+			shape: []int{2, 2},
+			times: []int{2, 2},
+			expected: &Tensor{
+				data:    []float64{0, 1, 0, 1, 2, 3, 2, 3, 0, 1, 0, 1, 2, 3, 2, 3},
+				shape:   []int{4, 4},
+				strides: []int{4, 1},
+			},
+		},
+		{
+			name:  "2d 3",
+			data:  seq(0, 4),
+			shape: []int{2, 2},
+			times: []int{1, 1},
+			expected: &Tensor{
+				data:    []float64{0, 1, 2, 3},
+				shape:   []int{2, 2},
+				strides: []int{2, 1},
+			},
+		},
+		{
+			name:  "3d 1",
+			data:  seq(0, 8),
+			shape: []int{2, 2, 2},
+			times: []int{2, 1, 2},
+			expected: &Tensor{
+				data:    []float64{0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7},
+				shape:   []int{4, 2, 4},
+				strides: []int{8, 4, 1},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, _ := Nd(tc.data, tc.shape...)
+			got, err := got.Tile(tc.times...)
+			if (err != nil) != tc.expectErr {
+				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
+			}
+			if tc.expected != nil {
+				if !tc.expected.Equals(got) {
+					t.Errorf("expected %v but got %v", tc.expected, got)
+				}
+			}
+		})
+	}
+}
+
+func TestBroadcastTo(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      []float64
+		shape     []int
+		btshape   []int
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:    "vector",
+			data:    seq(0, 4),
+			shape:   []int{4},
+			btshape: []int{2, 4},
+			expected: &Tensor{
+				data:    []float64{0, 1, 2, 3, 0, 1, 2, 3},
+				shape:   []int{2, 4},
+				strides: []int{4, 1},
+			},
+		},
+		{
+			name:    "2d",
+			data:    seq(0, 4),
+			shape:   []int{2, 2},
+			btshape: []int{2, 2, 2},
+			expected: &Tensor{
+				data:    []float64{0, 1, 2, 3, 0, 1, 2, 3},
+				shape:   []int{2, 2, 2},
+				strides: []int{4, 2, 1},
+			},
+		},
+		{
+			name:    "3d",
+			data:    seq(0, 8),
+			shape:   []int{2, 2, 2},
+			btshape: []int{4, 2, 2, 2},
+			expected: &Tensor{
+				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+				shape:   []int{4, 2, 2, 2},
+				strides: []int{8, 4, 2, 1},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, _ := Nd(tc.data, tc.shape...)
+			got, err := got.BroadcastTo(tc.btshape...)
+			if (err != nil) != tc.expectErr {
+				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
+			}
+			if tc.expected != nil {
+				if !tc.expected.Equals(got) {
+					t.Errorf("expected %v but got %v", tc.expected, got)
+				}
+			}
+		})
+	}
+}

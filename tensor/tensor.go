@@ -249,33 +249,125 @@ func (t *Tensor) TransposeAxes(axes ...int) (*Tensor, error) {
 	return nt, nil
 }
 
-//	func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
-//		if total(t.shape) > total(shape) {
-//			return nil, fmt.Errorf("cannot broadcast: ndim must be smaller then the given one")
-//		}
-//
-//		newshape := make([]int, len(t.shape))
-//		copy(newshape, t.shape)
-//		if len(t.shape) != len(shape) {
-//			delta := len(shape) - len(newshape)
-//			for i := 0; i < delta; i++ {
-//				// push 1 to the head until the dim gets the same
-//				newshape = append([]int{1}, newshape...)
-//			}
-//		}
-//
-//		nt, err := t.Reshape(newshape...)
-//		if err != nil {
-//			return nil, err
-//		}
-//		fmt.Println(nt, nt.data, nt.shape, nt.Dim(), shape)
-//		nt, err = nt.Tile(shape...)
-//		if err != nil {
-//			return nil, err
-//		}
-//
-//		return nt, nil
-//	}
+func (t *Tensor) Iterator(axis int) (*Iterator, error) {
+	if axis > len(t.strides) {
+		return nil, fmt.Errorf("axis mismatch")
+	}
+
+	return &Iterator{t: t, axis: axis}, nil
+}
+
+func (t *Tensor) Repeat(times, axis int) (*Tensor, error) {
+	newshape := t.copyShape()
+	newshape[axis] *= times
+
+	newdata := []float64{}
+
+	iter, err := t.Iterator(axis)
+	if err != nil {
+		return nil, err
+	}
+
+	for iter.HasNext() {
+		data := iter.Next()
+		for i := 0; i < times; i++ {
+			newdata = append(newdata, data...)
+		}
+	}
+
+	return Nd(newdata, newshape...)
+}
+
+func (t *Tensor) Tile(times ...int) (*Tensor, error) {
+	newshape := t.copyShape()
+	if len(t.shape) != len(times) {
+		delta := len(times) - len(t.shape)
+		for i := 0; i < delta; i++ {
+			// push 1 to the head until the dim gets the same
+			newshape = append([]int{1}, newshape...)
+		}
+	}
+
+	nt, err := t.Reshape(newshape...)
+	if err != nil {
+		return nil, err
+	}
+
+	tmpshape := nt.copyShape()
+	tmpt := nt
+	for axis, time := range times {
+		tmpshape[axis] *= time
+		tmpdata := []float64{}
+
+		iter, err := tmpt.Iterator(axis - 1)
+		if err != nil {
+			return nil, err
+		}
+
+		for iter.HasNext() {
+			data := iter.Next()
+			for i := 0; i < time; i++ {
+				tmpdata = append(tmpdata, data...)
+			}
+		}
+
+		tt, err := Nd(tmpdata, tmpshape...)
+		if err != nil {
+			return nil, err
+		}
+		tmpt = tt
+	}
+
+	return tmpt, nil
+}
+
+func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
+	if len(t.shape) > len(shape) {
+		return nil, fmt.Errorf("cannot broadcast: invalid shape")
+	}
+
+	newshape := make([]int, len(t.shape))
+	copy(newshape, t.shape)
+	if len(t.shape) != len(shape) {
+		delta := len(shape) - len(t.shape)
+		for i := 0; i < delta; i++ {
+			// push 1 to the head until the dim gets the same
+			newshape = append([]int{1}, newshape...)
+		}
+	}
+
+	nt, err := t.Reshape(newshape...)
+	if err != nil {
+		return nil, err
+	}
+
+	tile := []int{}
+	for i := range shape {
+		if shape[i] == newshape[i] {
+			tile = append(tile, 1)
+			continue
+		}
+
+		if shape[i] != 1 && newshape[i] != 1 {
+			return nil, fmt.Errorf("cannot broadcast: either dim must be 1 (original: %v, target: %v)", shape[i], newshape[i])
+		}
+
+		tile = append(tile, shape[i]/newshape[i])
+	}
+
+	nt, err = nt.Tile(tile...)
+	if err != nil {
+		return nil, err
+	}
+
+	return nt, nil
+}
+
+func (t *Tensor) copyShape() []int {
+	ns := make([]int, len(t.shape))
+	copy(ns, t.shape)
+	return ns
+}
 
 func total(shape []int) int {
 	total := 1
@@ -284,39 +376,3 @@ func total(shape []int) int {
 	}
 	return total
 }
-
-// func (t *Tensor) Tile(newShape ...int) (*Tensor, error) {
-// 	newSize := total(newShape)
-// 	newData := make([]float64, newSize)
-//
-// 	broadcastIndex := func(idx int, shape []int) int {
-// 		var result int
-// 		for i, s := range shape {
-// 			result += (idx / total(shape[i+1:])) % s * total(newShape[i+1:])
-// 		}
-// 		return result
-// 	}
-//
-// 	for i := 0; i < newSize; i++ {
-// 		sourceIndex := broadcastIndex(i, newShape)
-// 		newData[i] = t.data[sourceIndex]
-// 	}
-//
-// 	// for i := 0; i < len(newShape); i++ {
-// 	// 	if newShape[i] == t.shape[i] {
-// 	// 		continue
-// 	// 	}
-//
-// 	// 	if t.shape[i] == 1 {
-// 	// 		for j := 0; j < t.shape[i]; j++ {
-// 	// 			copy(newData[j*newSize:(j+1)*newSize], t.data[j*total(t.shape[i+1:]):(j+1)*total(t.shape[i+1:])])
-// 	// 		}
-//
-// 	// 		continue
-// 	// 	}
-//
-// 	// 	return nil, fmt.Errorf("cannot tile: the length of %dd is %d, but 1 is expected.", i, newShape[i])
-// 	// }
-//
-// 	return &Tensor{data: newData, shape: newShape, dim: len(newShape)}, nil
-// }
