@@ -3,18 +3,20 @@ package whale
 import (
 	"fmt"
 	"sort"
+
+	"github.com/hidetatz/whale/tensor"
 )
 
 var EnableBackprop = true
 
 type Variable struct {
-	data       float64
+	data       *tensor.Tensor
 	grad       *Variable
 	creator    *function
 	generation int
 }
 
-func NewVar(data float64) *Variable {
+func NewVar(data *tensor.Tensor) *Variable {
 	return &Variable{data: data}
 }
 
@@ -25,7 +27,7 @@ func (v *Variable) String() string {
 func (v *Variable) clone() *Variable {
 	g := *v.grad
 	return &Variable{
-		data:       v.data,
+		data:       data.Copy(),
 		grad:       &g,
 		creator:    v.creator,
 		generation: v.generation,

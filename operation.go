@@ -3,6 +3,8 @@ package whale
 import (
 	"fmt"
 	"math"
+
+	"github.com/hidetatz/whale/tensor"
 )
 
 type Operation interface {
@@ -26,13 +28,13 @@ type Square struct {
 
 func (s *Square) Forward(inputs ...*Variable) []*Variable {
 	s.input = inputs[0]
-	v := NewVar(math.Pow(s.input.data, 2))
+	v := NewVar(tensor.Pow(s.input.data, 2))
 	out := []*Variable{v}
 	return out
 }
 
 func (s *Square) Backward(gy ...*Variable) []*Variable {
-	return []*Variable{Mul_(Mul_(NewVar(2), s.input), gy[0])}
+	return []*Variable{Mul_(Mul_(NewVar(tensor.FromScalar(2)), s.input), gy[0])}
 }
 
 func (s *Square) String() string {
