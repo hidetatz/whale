@@ -38,7 +38,7 @@ func (s *Square) Backward(gy ...*Variable) []*Variable {
 }
 
 func (s *Square) String() string {
-	return "** 2"
+	return "^2"
 }
 
 /*
@@ -57,7 +57,7 @@ type Exp struct {
 
 func (e *Exp) Forward(inputs ...*Variable) []*Variable {
 	e.input = inputs[0]
-	v := NewVar(math.Exp(e.input.data))
+	v := NewVar(tensor.Exp(e.input.data))
 	out := []*Variable{v}
 	e.output = v
 	return out
