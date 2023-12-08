@@ -74,6 +74,14 @@ func Ones(shape ...int) (*Tensor, error) {
 	return Nd(data, shape...)
 }
 
+func All(v float64, shape ...int) (*Tensor, error) {
+	data := make([]float64, total(shape))
+	for i := range data {
+		data[i] = v
+	}
+	return Nd(data, shape...)
+}
+
 func seq(from, to int) []float64 {
 	r := make([]float64, to-from)
 	for i := from; i < to; i++ {

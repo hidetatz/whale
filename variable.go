@@ -27,7 +27,7 @@ func (v *Variable) String() string {
 func (v *Variable) clone() *Variable {
 	g := *v.grad
 	return &Variable{
-		data:       data.Copy(),
+		data:       v.data.Copy(),
 		grad:       &g,
 		creator:    v.creator,
 		generation: v.generation,

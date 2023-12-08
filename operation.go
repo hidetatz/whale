@@ -2,7 +2,6 @@ package whale
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/hidetatz/whale/tensor"
 )
@@ -34,7 +33,8 @@ type Square struct {
 
 func (s *Square) Forward(inputs ...*Variable) []*Variable {
 	s.input = inputs[0]
-	v := NewVar(device.Pow(s.input.data, 2))
+	y, _ := tensor.All(2, s.input.data.Shape()...)
+	v := NewVar(device.Pow(s.input.data, y))
 	out := []*Variable{v}
 	return out
 }
@@ -172,7 +172,7 @@ func (d *Div) Forward(inputs ...*Variable) []*Variable {
 
 func (d *Div) Backward(gy ...*Variable) []*Variable {
 	x0, x1 := d.inputs[0], d.inputs[1]
-	return []*Variable{Div_(gy[0], x1), Mul_(gy[0], Div_(Neg_(x0), Pow_(x1, NewVar(2))))}
+	return []*Variable{Div_(gy[0], x1), Mul_(gy[0], Div_(Neg_(x0), Pow_(x1, NewVar(tensor.FromScalar(2)))))}
 }
 
 func (d *Div) String() string {
@@ -190,7 +190,7 @@ type Neg struct {
 
 func (n *Neg) Forward(inputs ...*Variable) []*Variable {
 	n.input = inputs[0]
-	v := NewVar(-inputs[0].data)
+	v := NewVar(device.Neg(inputs[0].data))
 	out := []*Variable{v}
 	return out
 }
@@ -215,18 +215,18 @@ type Pow struct {
 
 func (p *Pow) Forward(inputs ...*Variable) []*Variable {
 	p.input = inputs[0]
-	v := NewVar(math.Pow(inputs[0].data, p.c.data))
+	v := NewVar(device.Pow(inputs[0].data, p.c.data))
 	out := []*Variable{v}
 	return out
 }
 
 func (p *Pow) Backward(gy ...*Variable) []*Variable {
 	x, c := p.input, p.c
-	return []*Variable{Mul_(Mul_(c, Pow_(x, Sub_(c, NewVar(1)))), gy[0])}
+	return []*Variable{Mul_(Mul_(c, Pow_(x, Sub_(c, NewVar(tensor.FromScalar(1))))), gy[0])}
 }
 
 func (p *Pow) String() string {
-	return "x ** c"
+	return "x^c"
 }
 
 func Sin_(x *Variable) *Variable {
@@ -240,7 +240,7 @@ type Sin struct {
 
 func (s *Sin) Forward(inputs ...*Variable) []*Variable {
 	s.input = inputs[0]
-	v := NewVar(math.Sin(inputs[0].data))
+	v := NewVar(device.Sin(inputs[0].data))
 	out := []*Variable{v}
 	return out
 }
@@ -264,7 +264,7 @@ type Cos struct {
 
 func (c *Cos) Forward(inputs ...*Variable) []*Variable {
 	c.input = inputs[0]
-	v := NewVar(math.Cos(inputs[0].data))
+	v := NewVar(device.Cos(inputs[0].data))
 	out := []*Variable{v}
 	return out
 }
@@ -289,7 +289,7 @@ type Tanh struct {
 
 func (t *Tanh) Forward(inputs ...*Variable) []*Variable {
 	t.input = inputs[0]
-	v := NewVar(math.Tanh(inputs[0].data))
+	v := NewVar(device.Tanh(inputs[0].data))
 	out := []*Variable{v}
 	t.output = v
 	return out
@@ -297,7 +297,7 @@ func (t *Tanh) Forward(inputs ...*Variable) []*Variable {
 
 func (t *Tanh) Backward(gy ...*Variable) []*Variable {
 	y := t.output
-	return []*Variable{Mul_(gy[0], Sub_(NewVar(1), Mul_(y, y)))}
+	return []*Variable{Mul_(gy[0], Sub_(NewVar(tensor.FromScalar(1)), Mul_(y, y)))}
 }
 
 func (t *Tanh) String() string {
