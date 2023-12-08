@@ -18,7 +18,7 @@ func TestFromScalar(t *testing.T) {
 			name: "simple",
 			arg:  0.1,
 			expected: &Tensor{
-				data:    []float64{0.1},
+				Data:    []float64{0.1},
 				shape:   nil,
 				strides: nil,
 			},
@@ -50,7 +50,7 @@ func TestFromVector(t *testing.T) {
 			data:  []float64{1, 2, 3},
 			shape: 3,
 			expected: &Tensor{
-				data:    []float64{1, 2, 3},
+				Data:    []float64{1, 2, 3},
 				shape:   []int{3},
 				strides: []int{1},
 			},
@@ -60,7 +60,7 @@ func TestFromVector(t *testing.T) {
 			data:  []float64{},
 			shape: 0,
 			expected: &Tensor{
-				data:    []float64{},
+				Data:    []float64{},
 				shape:   []int{0},
 				strides: []int{1},
 			},
@@ -103,7 +103,7 @@ func TestNd(t *testing.T) {
 			data:  []float64{1, 2, 3, 4},
 			shape: []int{2, 2},
 			expected: &Tensor{
-				data:    []float64{1, 2, 3, 4},
+				Data:    []float64{1, 2, 3, 4},
 				shape:   []int{2, 2},
 				strides: []int{2, 1},
 			},
@@ -113,7 +113,7 @@ func TestNd(t *testing.T) {
 			data:  []float64{1, 2, 3, 4},
 			shape: []int{1, 4},
 			expected: &Tensor{
-				data:    []float64{1, 2, 3, 4},
+				Data:    []float64{1, 2, 3, 4},
 				shape:   []int{1, 4},
 				strides: []int{4, 1},
 			},
@@ -123,7 +123,7 @@ func TestNd(t *testing.T) {
 			data:  []float64{1, 2, 3, 4},
 			shape: []int{4, 1},
 			expected: &Tensor{
-				data:    []float64{1, 2, 3, 4},
+				Data:    []float64{1, 2, 3, 4},
 				shape:   []int{4, 1},
 				strides: []int{1, 1},
 			},
@@ -133,7 +133,7 @@ func TestNd(t *testing.T) {
 			data:  []float64{1, 2, 3, 4},
 			shape: []int{4, 1, 1},
 			expected: &Tensor{
-				data:    []float64{1, 2, 3, 4},
+				Data:    []float64{1, 2, 3, 4},
 				shape:   []int{4, 1, 1},
 				strides: []int{1, 1, 1},
 			},
@@ -143,7 +143,7 @@ func TestNd(t *testing.T) {
 			data:  []float64{1, 2, 3, 4},
 			shape: []int{2, 2, 1},
 			expected: &Tensor{
-				data:    []float64{1, 2, 3, 4},
+				Data:    []float64{1, 2, 3, 4},
 				shape:   []int{2, 2, 1},
 				strides: []int{2, 1, 1},
 			},
@@ -153,7 +153,7 @@ func TestNd(t *testing.T) {
 			data:  []float64{1, 2, 3, 4},
 			shape: []int{1, 1, 1, 4},
 			expected: &Tensor{
-				data:    []float64{1, 2, 3, 4},
+				Data:    []float64{1, 2, 3, 4},
 				shape:   []int{1, 1, 1, 4},
 				strides: []int{4, 4, 4, 1},
 			},
@@ -190,7 +190,7 @@ func TestFactories(t *testing.T) {
 				return Zeros(2, 2, 2)
 			},
 			expected: &Tensor{
-				data:    []float64{0, 0, 0, 0, 0, 0, 0, 0},
+				Data:    []float64{0, 0, 0, 0, 0, 0, 0, 0},
 				shape:   []int{2, 2, 2},
 				strides: []int{4, 2, 1},
 			},
@@ -201,7 +201,7 @@ func TestFactories(t *testing.T) {
 				return Ones(2, 2, 2)
 			},
 			expected: &Tensor{
-				data:    []float64{1, 1, 1, 1, 1, 1, 1, 1},
+				Data:    []float64{1, 1, 1, 1, 1, 1, 1, 1},
 				shape:   []int{2, 2, 2},
 				strides: []int{4, 2, 1},
 			},
@@ -212,7 +212,7 @@ func TestFactories(t *testing.T) {
 				return ArangeTo(8)
 			},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{8},
 				strides: []int{1},
 			},
@@ -223,7 +223,7 @@ func TestFactories(t *testing.T) {
 				return ArangeFrom(4, 12)
 			},
 			expected: &Tensor{
-				data:    []float64{4, 5, 6, 7, 8, 9, 10, 11},
+				Data:    []float64{4, 5, 6, 7, 8, 9, 10, 11},
 				shape:   []int{8},
 				strides: []int{1},
 			},
@@ -262,7 +262,7 @@ func TestReshape(t *testing.T) {
 			shape:   []int{8},
 			reshape: []int{4, 2},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{4, 2},
 				strides: []int{2, 1},
 			},
@@ -273,7 +273,7 @@ func TestReshape(t *testing.T) {
 			shape:   []int{2, 4},
 			reshape: []int{4, 2},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{4, 2},
 				strides: []int{2, 1},
 			},
@@ -284,7 +284,7 @@ func TestReshape(t *testing.T) {
 			shape:   []int{2, 4},
 			reshape: []int{1, 2, 4},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{1, 2, 4},
 				strides: []int{8, 4, 1},
 			},
@@ -295,7 +295,7 @@ func TestReshape(t *testing.T) {
 			shape:   []int{2, 2, 2},
 			reshape: []int{1, 2, 4},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{1, 2, 4},
 				strides: []int{8, 4, 1},
 			},
@@ -306,7 +306,7 @@ func TestReshape(t *testing.T) {
 			shape:   []int{2, 2, 2},
 			reshape: []int{1, 1, 2, 4},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{1, 1, 2, 4},
 				strides: []int{8, 8, 4, 1},
 			},
@@ -344,7 +344,7 @@ func TestTranspose(t *testing.T) {
 			data:  []float64{1},
 			shape: nil,
 			expected: &Tensor{
-				data:    []float64{1},
+				Data:    []float64{1},
 				shape:   nil,
 				strides: nil,
 			},
@@ -354,7 +354,7 @@ func TestTranspose(t *testing.T) {
 			data:  seq(0, 8),
 			shape: []int{8},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{8},
 				strides: []int{1},
 			},
@@ -364,7 +364,7 @@ func TestTranspose(t *testing.T) {
 			data:  seq(0, 8),
 			shape: []int{2, 4},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{4, 2},
 				strides: []int{1, 4},
 			},
@@ -374,7 +374,7 @@ func TestTranspose(t *testing.T) {
 			data:  seq(0, 16),
 			shape: []int{2, 2, 4},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
 				shape:   []int{4, 2, 2},
 				strides: []int{1, 4, 8},
 			},
@@ -384,7 +384,7 @@ func TestTranspose(t *testing.T) {
 			data:  seq(0, 16),
 			shape: []int{1, 2, 2, 4},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
 				shape:   []int{4, 2, 2, 1},
 				strides: []int{1, 4, 8, 16},
 			},
@@ -421,7 +421,7 @@ func TestTransposeAxes(t *testing.T) {
 			shape: []int{8},
 			axes:  []int{0},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{8},
 				strides: []int{1},
 			},
@@ -432,7 +432,7 @@ func TestTransposeAxes(t *testing.T) {
 			shape: []int{2, 4},
 			axes:  []int{0, 1},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{2, 4},
 				strides: []int{4, 1},
 			},
@@ -443,7 +443,7 @@ func TestTransposeAxes(t *testing.T) {
 			shape: []int{2, 4},
 			axes:  []int{1, 0},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{4, 2},
 				strides: []int{1, 4},
 			},
@@ -454,7 +454,7 @@ func TestTransposeAxes(t *testing.T) {
 			shape: []int{2, 2, 2},
 			axes:  []int{1, 0, 2},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{2, 2, 2},
 				strides: []int{2, 4, 1},
 			},
@@ -496,7 +496,7 @@ func TestRepeat(t *testing.T) {
 			times: 2,
 			axis:  0,
 			expected: &Tensor{
-				data:    []float64{0, 0, 1, 1, 2, 2, 3, 3},
+				Data:    []float64{0, 0, 1, 1, 2, 2, 3, 3},
 				shape:   []int{8},
 				strides: []int{1},
 			},
@@ -508,7 +508,7 @@ func TestRepeat(t *testing.T) {
 			times: 2,
 			axis:  0,
 			expected: &Tensor{
-				data:    []float64{0, 1, 0, 1, 2, 3, 2, 3},
+				Data:    []float64{0, 1, 0, 1, 2, 3, 2, 3},
 				shape:   []int{4, 2},
 				strides: []int{2, 1},
 			},
@@ -520,7 +520,7 @@ func TestRepeat(t *testing.T) {
 			times: 2,
 			axis:  1,
 			expected: &Tensor{
-				data:    []float64{0, 0, 1, 1, 2, 2, 3, 3},
+				Data:    []float64{0, 0, 1, 1, 2, 2, 3, 3},
 				shape:   []int{2, 4},
 				strides: []int{4, 1},
 			},
@@ -532,7 +532,7 @@ func TestRepeat(t *testing.T) {
 			times: 2,
 			axis:  0,
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7},
 				shape:   []int{4, 2, 2},
 				strides: []int{4, 2, 1},
 			},
@@ -544,7 +544,7 @@ func TestRepeat(t *testing.T) {
 			times: 2,
 			axis:  1,
 			expected: &Tensor{
-				data:    []float64{0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7},
+				Data:    []float64{0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7},
 				shape:   []int{2, 4, 2},
 				strides: []int{8, 2, 1},
 			},
@@ -556,7 +556,7 @@ func TestRepeat(t *testing.T) {
 			times: 2,
 			axis:  2,
 			expected: &Tensor{
-				data:    []float64{0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7},
+				Data:    []float64{0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7},
 				shape:   []int{2, 2, 4},
 				strides: []int{8, 4, 1},
 			},
@@ -596,7 +596,7 @@ func TestTile(t *testing.T) {
 			shape: []int{4},
 			times: []int{2, 2},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
+				Data:    []float64{0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
 				shape:   []int{2, 8},
 				strides: []int{8, 1},
 			},
@@ -607,7 +607,7 @@ func TestTile(t *testing.T) {
 			shape: []int{2, 2},
 			times: []int{2, 1},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 0, 1, 2, 3},
+				Data:    []float64{0, 1, 2, 3, 0, 1, 2, 3},
 				shape:   []int{4, 2},
 				strides: []int{2, 1},
 			},
@@ -618,7 +618,7 @@ func TestTile(t *testing.T) {
 			shape: []int{2, 2},
 			times: []int{2, 2},
 			expected: &Tensor{
-				data:    []float64{0, 1, 0, 1, 2, 3, 2, 3, 0, 1, 0, 1, 2, 3, 2, 3},
+				Data:    []float64{0, 1, 0, 1, 2, 3, 2, 3, 0, 1, 0, 1, 2, 3, 2, 3},
 				shape:   []int{4, 4},
 				strides: []int{4, 1},
 			},
@@ -629,7 +629,7 @@ func TestTile(t *testing.T) {
 			shape: []int{2, 2},
 			times: []int{1, 1},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3},
+				Data:    []float64{0, 1, 2, 3},
 				shape:   []int{2, 2},
 				strides: []int{2, 1},
 			},
@@ -640,7 +640,7 @@ func TestTile(t *testing.T) {
 			shape: []int{2, 2, 2},
 			times: []int{2, 1, 2},
 			expected: &Tensor{
-				data:    []float64{0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7},
+				Data:    []float64{0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7},
 				shape:   []int{4, 2, 4},
 				strides: []int{8, 4, 1},
 			},
@@ -680,7 +680,7 @@ func TestBroadcastTo(t *testing.T) {
 			shape:   []int{4},
 			btshape: []int{2, 4},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 0, 1, 2, 3},
+				Data:    []float64{0, 1, 2, 3, 0, 1, 2, 3},
 				shape:   []int{2, 4},
 				strides: []int{4, 1},
 			},
@@ -691,7 +691,7 @@ func TestBroadcastTo(t *testing.T) {
 			shape:   []int{2, 2},
 			btshape: []int{2, 2, 2},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 0, 1, 2, 3},
+				Data:    []float64{0, 1, 2, 3, 0, 1, 2, 3},
 				shape:   []int{2, 2, 2},
 				strides: []int{4, 2, 1},
 			},
@@ -702,7 +702,7 @@ func TestBroadcastTo(t *testing.T) {
 			shape:   []int{2, 2, 2},
 			btshape: []int{4, 2, 2, 2},
 			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
 				shape:   []int{4, 2, 2, 2},
 				strides: []int{8, 4, 2, 1},
 			},

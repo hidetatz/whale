@@ -13,17 +13,17 @@ func (i *Iterator) HasNext() bool {
 
 	retcnt := i.t.strides[i.axis]
 	offset := i.idx * retcnt
-	return offset < len(i.t.data)
+	return offset < len(i.t.Data)
 }
 
 func (i *Iterator) Next() []float64 {
 	if i.axis == -1 {
 		i.idx++
-		return i.t.data
+		return i.t.Data
 	}
 
 	retcnt := i.t.strides[i.axis]
 	offset := i.idx * retcnt
 	i.idx++
-	return i.t.data[offset : offset+retcnt]
+	return i.t.Data[offset : offset+retcnt]
 }

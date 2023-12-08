@@ -7,6 +7,12 @@ import (
 	"github.com/hidetatz/whale/tensor"
 )
 
+var device Device
+
+func init() {
+	device = &CPU{}
+}
+
 type Operation interface {
 	fmt.Stringer
 	Forward(inputs ...*Variable) []*Variable
@@ -28,7 +34,7 @@ type Square struct {
 
 func (s *Square) Forward(inputs ...*Variable) []*Variable {
 	s.input = inputs[0]
-	v := NewVar(tensor.Pow(s.input.data, 2))
+	v := NewVar(device.Pow(s.input.data, 2))
 	out := []*Variable{v}
 	return out
 }
@@ -57,7 +63,7 @@ type Exp struct {
 
 func (e *Exp) Forward(inputs ...*Variable) []*Variable {
 	e.input = inputs[0]
-	v := NewVar(tensor.Exp(e.input.data))
+	v := NewVar(device.Exp(e.input.data))
 	out := []*Variable{v}
 	e.output = v
 	return out
@@ -68,7 +74,7 @@ func (e *Exp) Backward(gy ...*Variable) []*Variable {
 }
 
 func (e *Exp) String() string {
-	return "e ** x"
+	return "e^x"
 }
 
 /*
@@ -86,7 +92,7 @@ type Add struct {
 
 func (a *Add) Forward(inputs ...*Variable) []*Variable {
 	a.inputs = inputs
-	v := NewVar(inputs[0].data + inputs[1].data)
+	v := NewVar(device.Add(inputs[0].data, inputs[1].data))
 	out := []*Variable{v}
 	return out
 }
@@ -110,7 +116,7 @@ type Sub struct {
 
 func (s *Sub) Forward(inputs ...*Variable) []*Variable {
 	s.inputs = inputs
-	v := NewVar(inputs[0].data - inputs[1].data)
+	v := NewVar(device.Sub(inputs[0].data, inputs[1].data))
 	out := []*Variable{v}
 	return out
 }
@@ -134,7 +140,7 @@ type Mul struct {
 
 func (m *Mul) Forward(inputs ...*Variable) []*Variable {
 	m.inputs = inputs
-	v := NewVar(inputs[0].data * inputs[1].data)
+	v := NewVar(device.Mul(inputs[0].data, inputs[1].data))
 	out := []*Variable{v}
 	return out
 }
@@ -159,7 +165,7 @@ type Div struct {
 
 func (d *Div) Forward(inputs ...*Variable) []*Variable {
 	d.inputs = inputs
-	v := NewVar(inputs[0].data / inputs[1].data)
+	v := NewVar(device.Div(inputs[0].data, inputs[1].data))
 	out := []*Variable{v}
 	return out
 }

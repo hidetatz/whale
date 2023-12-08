@@ -7,20 +7,20 @@ import (
 )
 
 type Tensor struct {
-	data    []float64
+	Data    []float64
 	shape   []int
 	strides []int
 }
 
 func FromScalar(s float64) *Tensor {
-	return &Tensor{data: []float64{s}}
+	return &Tensor{Data: []float64{s}}
 }
 
 func FromVector(v []float64, shape int) (*Tensor, error) {
 	if len(v) != shape {
 		return nil, fmt.Errorf("shape mismatch with vector length")
 	}
-	return &Tensor{data: v, shape: []int{shape}, strides: []int{1}}, nil
+	return &Tensor{Data: v, shape: []int{shape}, strides: []int{1}}, nil
 }
 
 func Nd(data []float64, shape ...int) (*Tensor, error) {
@@ -44,7 +44,7 @@ func Nd(data []float64, shape ...int) (*Tensor, error) {
 		return nil, fmt.Errorf("shape mismatch with data length")
 	}
 
-	t := &Tensor{data: data, shape: shape}
+	t := &Tensor{Data: data, shape: shape}
 
 	product := func(a []int) int {
 		r := 1
@@ -142,7 +142,7 @@ func (t *Tensor) String() string {
 				if i > 0 {
 					sb.WriteString(", ")
 				}
-				sb.WriteString(fmt.Sprintf("%v", t.data[idx]))
+				sb.WriteString(fmt.Sprintf("%v", t.Data[idx]))
 			}
 			sb.WriteString("]\n")
 
@@ -176,7 +176,7 @@ func (t *Tensor) Equals(t2 *Tensor) bool {
 		return false
 	}
 
-	if !slices.Equal(t.data, t2.data) {
+	if !slices.Equal(t.Data, t2.Data) {
 		return false
 	}
 
@@ -188,12 +188,12 @@ func (t *Tensor) Reshape(shape ...int) (*Tensor, error) {
 		return nil, fmt.Errorf("cannot reshape: the data size mismatch")
 	}
 
-	return Nd(t.data, shape...)
+	return Nd(t.Data, shape...)
 }
 
 func (t *Tensor) Copy() *Tensor {
 	return &Tensor{
-		data:    t.data,
+		Data:    t.Data,
 		shape:   t.shape,
 		strides: t.strides,
 	}
