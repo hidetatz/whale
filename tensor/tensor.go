@@ -82,14 +82,6 @@ func All(v float64, shape ...int) (*Tensor, error) {
 	return Nd(data, shape...)
 }
 
-func seq(from, to int) []float64 {
-	r := make([]float64, to-from)
-	for i := from; i < to; i++ {
-		r[i-from] = float64(i)
-	}
-	return r
-}
-
 func ArangeTo(to int) (*Tensor, error) {
 	if to < 0 {
 		return nil, fmt.Errorf("arg should be positive")
@@ -400,6 +392,14 @@ func (t *Tensor) copyShape() []int {
 	ns := make([]int, len(t.shape))
 	copy(ns, t.shape)
 	return ns
+}
+
+func seq(from, to int) []float64 {
+	r := make([]float64, to-from)
+	for i := from; i < to; i++ {
+		r[i-from] = float64(i)
+	}
+	return r
 }
 
 func total(shape []int) int {
