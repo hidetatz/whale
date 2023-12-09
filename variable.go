@@ -34,11 +34,11 @@ func (v *Variable) clone() *Variable {
 	}
 }
 
-func (v *Variable) SetData(d float64) {
-	v.data = d
+func (v *Variable) SetData(t *tensor.Tensor) {
+	v.data = t
 }
 
-func (v *Variable) GetData() float64 {
+func (v *Variable) GetData() *tensor.Tensor {
 	return v.data
 }
 
@@ -57,7 +57,7 @@ func (v *Variable) SetCreator(creator *function) {
 
 func (v *Variable) Backward() {
 	if v.grad == nil {
-		v.grad = NewVar(1.0)
+		v.grad = NewVar(tensor.FromScalar(1.0))
 	}
 
 	fs := []*function{}

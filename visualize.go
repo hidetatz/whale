@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"unsafe"
+
+	"github.com/hidetatz/whale/tensor"
 )
 
 // VisualizeGraph outputs the calculation graph as graph.png on the current directory.
@@ -13,11 +15,11 @@ func VisualizeGraph(v *Variable) error {
 	pf := func(f *function) string { return fmt.Sprintf("%d", uintptr(unsafe.Pointer(f))) }
 
 	varToDot := func(v *Variable) string {
-		grad := 0.0
+		grad := tensor.FromScalar(0.0)
 		if v.grad != nil {
 			grad = v.grad.data
 		}
-		return fmt.Sprintf("%s [label=\"data %.2f | grad %.2f\", shape=box]\n", pv(v), v.data, grad)
+		return fmt.Sprintf("%s [label=\"data %v | grad %v\", shape=box]\n", pv(v), v.data, grad)
 	}
 
 	funcToDot := func(f *function) string {

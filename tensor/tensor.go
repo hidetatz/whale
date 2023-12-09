@@ -120,7 +120,23 @@ func (t *Tensor) Dim() int {
 	return len(t.shape)
 }
 
+func (t *Tensor) IsScalar() bool {
+	return len(t.shape) == 0
+}
+
+func (t *Tensor) IsVector() bool {
+	return len(t.shape) == 1
+}
+
 func (t *Tensor) String() string {
+	if t.IsScalar() {
+		return fmt.Sprintf("%v (scalar)", t.Data[0])
+	}
+
+	if t.IsVector() {
+		return fmt.Sprintf("%v (vector)", t.Data)
+	}
+
 	var sb strings.Builder
 
 	// When the tensor is N-dimension array,
