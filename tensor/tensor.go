@@ -216,10 +216,19 @@ func (t *Tensor) Reshape(shape ...int) (*Tensor, error) {
 }
 
 func (t *Tensor) Copy() *Tensor {
+	ndata := make([]float64, len(t.Data))
+	copy(ndata, t.Data)
+
+	nshape := make([]int, len(t.shape))
+	copy(nshape, t.shape)
+
+	nstrides := make([]int, len(t.strides))
+	copy(nstrides, t.strides)
+
 	return &Tensor{
-		Data:    t.Data,
-		shape:   t.shape,
-		strides: t.strides,
+		Data:    ndata,
+		shape:   nshape,
+		strides: nstrides,
 	}
 }
 

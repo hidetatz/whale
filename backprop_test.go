@@ -1,7 +1,7 @@
 package whale
 
 import (
-	"fmt"
+	// "fmt"
 	"math"
 	"testing"
 
@@ -116,7 +116,7 @@ func TestGrad(t *testing.T) {
 }
 
 // numDiff differentiates x with f by numerical propagation for testing purpose
-func numDiff(t *testing.T, f func([]*Variable) []*Variable, xs []*Variable) []*tensor.Tensor{
+func numDiff(t *testing.T, f func([]*Variable) []*Variable, xs []*Variable) []*tensor.Tensor {
 	h := 1e-4
 	grad := []*tensor.Tensor{}
 

@@ -15,10 +15,12 @@ func main() {
 
 	x := whale.NewVar(tensor.FromScalar(2))
 	fmt.Println(x.GetData())
+	fmt.Println(x.GetGrad())
 	y := f(x)
 	fmt.Println(x.GetData())
 	fmt.Println(x.GetGrad())
 
 	y.Backward()
+	fmt.Println(x.GetData())
 	fmt.Println(x.GetGrad())
 }
