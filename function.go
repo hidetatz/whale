@@ -1,5 +1,10 @@
 package whale
 
+import (
+	"cmp"
+	"slices"
+)
+
 type function struct {
 	inputs     []*Variable
 	outputs    []*Variable
@@ -29,11 +34,7 @@ func (f *function) String() string {
 }
 
 func getMaxGen(vs []*Variable) int {
-	max := 0
-	for _, v := range vs {
-		if v.generation > max {
-			max = v.generation
-		}
-	}
-	return max
+	return slices.MaxFunc(vs, func(a, b *Variable) int {
+		return cmp.Compare(a.generation, b.generation)
+	}).generation
 }

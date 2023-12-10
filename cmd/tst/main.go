@@ -23,4 +23,7 @@ func main() {
 	y.Backward()
 	fmt.Println(x.GetData())
 	fmt.Println(x.GetGrad())
+
+	fmt.Println(y.GetData())
+	fmt.Println(y.GetGrad())
 }

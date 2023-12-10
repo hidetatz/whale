@@ -117,6 +117,7 @@ func TestGrad(t *testing.T) {
 
 // numDiff differentiates x with f by numerical propagation for testing purpose
 func numDiff(t *testing.T, f func([]*Variable) []*Variable, xs []*Variable) []*tensor.Tensor {
+	t.Helper()
 	h := 1e-4
 	grad := []*tensor.Tensor{}
 
