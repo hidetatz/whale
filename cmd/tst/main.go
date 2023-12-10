@@ -8,18 +8,22 @@ import (
 )
 
 func main() {
-	t1, err := tensor.ArangeFrom(1, 25)
+	t1, err := tensor.ArangeFrom(1, 4)
 	if err != nil {
 		panic(err)
 	}
 
-	t1, err = t1.Reshape(3, 2, 4)
+	t2, err := tensor.FromVector([]float64{10}, 1)
 	if err != nil {
 		panic(err)
 	}
 
-	x := whale.NewVar(t1)
-	y := whale.SumAxes_(x, 1, 2, 0)
+	x1 := whale.NewVar(t1)
+	x2 := whale.NewVar(t2)
+	y := whale.Add_(x1, x2)
+	y.Backward()
 
 	fmt.Println(y.GetData())
+	fmt.Println(x1.GetGrad())
+	fmt.Println(x2.GetGrad())
 }
