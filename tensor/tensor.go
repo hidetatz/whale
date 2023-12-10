@@ -61,17 +61,19 @@ func Nd(data []float64, shape ...int) (*Tensor, error) {
 	return t, nil
 }
 
-func Zeros(shape ...int) (*Tensor, error) {
+func Zeros(shape ...int) *Tensor {
 	data := make([]float64, total(shape)) // initialized by 0
-	return Nd(data, shape...)
+	t, _ := Nd(data, shape...)            // error never happens
+	return t
 }
 
-func Ones(shape ...int) (*Tensor, error) {
+func Ones(shape ...int) *Tensor {
 	data := make([]float64, total(shape))
 	for i := range data {
 		data[i] = 1
 	}
-	return Nd(data, shape...)
+	t, _ := Nd(data, shape...) // error never happens
+	return t
 }
 
 func All(v float64, shape ...int) (*Tensor, error) {
@@ -200,11 +202,12 @@ func (t *Tensor) Equals(t2 *Tensor) bool {
 }
 
 func (t *Tensor) Reshape(shape ...int) (*Tensor, error) {
-	if total(t.shape) != total(shape) {
+	t2 := t.Copy()
+	if total(t2.shape) != total(shape) {
 		return nil, fmt.Errorf("cannot reshape: the data size mismatch")
 	}
 
-	return Nd(t.Data, shape...)
+	return Nd(t2.Data, shape...)
 }
 
 func (t *Tensor) Copy() *Tensor {
@@ -344,6 +347,77 @@ func (t *Tensor) Tile(times ...int) (*Tensor, error) {
 	}
 
 	return tmpt, nil
+}
+
+func (t *Tensor) Sum() (*Tensor, error) {
+	var result float64
+	for i := range t.Data {
+		result += t.Data[i]
+	}
+
+	// keepdims
+	shape := []int{}
+	for i := 0; i < len(t.Shape()); i++ {
+		shape = append(shape, 1)
+	}
+
+	return Nd([]float64{result}, shape...)
+}
+
+func (t *Tensor) SumAxis(axis int) (*Tensor, error) {
+	curshape := t.CopyShape()
+	axisdim := curshape[axis]
+
+	datalen := total(t.shape) / axisdim
+	newdata := make([]float64, datalen)
+
+	stride := t.strides[axis]
+	took := []int{}
+	for j := 0; j < datalen; j++ {
+		left := 0
+		for slices.Contains(took, left) {
+			left++
+		}
+
+		result := 0.0
+		for i := 0; i < axisdim; i++ {
+			idx := left + i*stride
+			result += t.Data[idx]
+			took = append(took, idx)
+		}
+
+		newdata[j] = result
+	}
+
+	newshape := append(curshape[:axis], curshape[axis+1:]...)
+
+	return Nd(newdata, newshape...)
+}
+
+func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
+	if len(shape) != len(t.shape) {
+		return nil, fmt.Errorf("cannot sum to %v from %v", shape, t.shape)
+	}
+
+	var nt *Tensor
+	for i := range shape {
+		if t.shape[i] == shape[i] {
+			continue
+		}
+
+		if shape[i] == 1 {
+			n, err := t.SumAxis(i)
+			if err != nil {
+				return nil, err
+			}
+			nt = n
+			break
+		}
+
+		return nil, fmt.Errorf("cannot sum to %v from %v", shape, t.shape)
+	}
+
+	return nt, nil
 }
 
 func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {

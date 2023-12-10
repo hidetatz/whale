@@ -8,37 +8,18 @@ import (
 )
 
 func main() {
-	// f := func(x *whale.Variable) *whale.Variable {
-	// 	y := whale.Square_(x)
-	// 	return y
-	// }
-	t1, err := tensor.Nd([]float64{1, 2, 3, 4, 5, 6}, 2, 3)
+	t1, err := tensor.ArangeFrom(1, 25)
 	if err != nil {
 		panic(err)
 	}
 
-	t2, err := tensor.Nd([]float64{10, 20, 30}, 1, 3)
+	t1, err = t1.Reshape(6, 4)
 	if err != nil {
 		panic(err)
 	}
 
-	x1 := whale.NewVar(t1)
-	x2 := whale.NewVar(t2)
+	x := whale.NewVar(t1)
+	y := whale.SumTo_(x, 6, 1)
 
-	y := whale.Add_(x1, x2)
-
-	fmt.Println(y)
-
-	// fmt.Println(x.GetData())
-	// fmt.Println(x.GetGrad())
-	// y := f(x)
-	// fmt.Println(x.GetData())
-	// fmt.Println(x.GetGrad())
-
-	// y.Backward()
-	// fmt.Println(x.GetData())
-	// fmt.Println(x.GetGrad())
-
-	// fmt.Println(y.GetData())
-	// fmt.Println(y.GetGrad())
+	fmt.Println(y.GetData())
 }

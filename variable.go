@@ -55,9 +55,13 @@ func (v *Variable) SetCreator(creator *function) {
 	v.generation = creator.generation + 1
 }
 
+func (v *Variable) Transpose() *Variable {
+	return Transpose_(v)
+}
+
 func (v *Variable) Backward() {
 	if v.grad == nil {
-		v.grad = NewVar(tensor.FromScalar(1.0))
+		v.grad = NewVar(tensor.Ones(v.data.CopyShape()...))
 	}
 
 	fs := []*function{}
@@ -97,6 +101,5 @@ func (v *Variable) Backward() {
 				uniqueadd(x.creator)
 			}
 		}
-
 	}
 }
