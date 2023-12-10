@@ -283,7 +283,7 @@ func (t *Tensor) Iterator(axis int) (*Iterator, error) {
 }
 
 func (t *Tensor) Repeat(times, axis int) (*Tensor, error) {
-	newshape := t.copyShape()
+	newshape := t.CopyShape()
 	newshape[axis] *= times
 
 	newdata := []float64{}
@@ -304,7 +304,7 @@ func (t *Tensor) Repeat(times, axis int) (*Tensor, error) {
 }
 
 func (t *Tensor) Tile(times ...int) (*Tensor, error) {
-	newshape := t.copyShape()
+	newshape := t.CopyShape()
 	if len(t.shape) != len(times) {
 		delta := len(times) - len(t.shape)
 		for i := 0; i < delta; i++ {
@@ -318,7 +318,7 @@ func (t *Tensor) Tile(times ...int) (*Tensor, error) {
 		return nil, err
 	}
 
-	tmpshape := nt.copyShape()
+	tmpshape := nt.CopyShape()
 	tmpt := nt
 	for axis, time := range times {
 		tmpshape[axis] *= time
@@ -388,7 +388,7 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 	return nt, nil
 }
 
-func (t *Tensor) copyShape() []int {
+func (t *Tensor) CopyShape() []int {
 	ns := make([]int, len(t.shape))
 	copy(ns, t.shape)
 	return ns
