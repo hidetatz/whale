@@ -13,13 +13,13 @@ func main() {
 		panic(err)
 	}
 
-	t1, err = t1.Reshape(6, 4)
+	t1, err = t1.Reshape(3, 2, 4)
 	if err != nil {
 		panic(err)
 	}
 
 	x := whale.NewVar(t1)
-	y := whale.SumTo_(x, 6, 1)
+	y := whale.SumAxes_(x, 1, 2, 0)
 
 	fmt.Println(y.GetData())
 }

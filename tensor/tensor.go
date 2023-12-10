@@ -364,34 +364,46 @@ func (t *Tensor) Sum() (*Tensor, error) {
 	return Nd([]float64{result}, shape...)
 }
 
-func (t *Tensor) SumAxis(axis int) (*Tensor, error) {
+func (t *Tensor) SumAxes(axes ...int) (*Tensor, error) {
 	curshape := t.CopyShape()
-	axisdim := curshape[axis]
 
-	datalen := total(t.shape) / axisdim
-	newdata := make([]float64, datalen)
+	slices.Sort(axes)
+	slices.Reverse(axes) // ordered desc
+	nt := t.Copy()
+	for _, axis := range axes {
+		axisdim := curshape[axis]
 
-	stride := t.strides[axis]
-	took := []int{}
-	for j := 0; j < datalen; j++ {
-		left := 0
-		for slices.Contains(took, left) {
-			left++
+		datalen := total(nt.shape) / axisdim
+		newdata := make([]float64, datalen)
+
+		stride := nt.strides[axis]
+		took := []int{}
+		for j := 0; j < datalen; j++ {
+			left := 0
+			for slices.Contains(took, left) {
+				left++
+			}
+
+			result := 0.0
+			for i := 0; i < axisdim; i++ {
+				idx := left + i*stride
+				result += nt.Data[idx]
+				took = append(took, idx)
+			}
+
+			newdata[j] = result
 		}
 
-		result := 0.0
-		for i := 0; i < axisdim; i++ {
-			idx := left + i*stride
-			result += t.Data[idx]
-			took = append(took, idx)
-		}
+		curshape = append(curshape[:axis], curshape[axis+1:]...)
 
-		newdata[j] = result
+		n, err := Nd(newdata, curshape...)
+		if err != nil {
+			return nil, err
+		}
+		nt = n
 	}
 
-	newshape := append(curshape[:axis], curshape[axis+1:]...)
-
-	return Nd(newdata, newshape...)
+	return nt, nil
 }
 
 func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
@@ -406,7 +418,7 @@ func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
 		}
 
 		if shape[i] == 1 {
-			n, err := t.SumAxis(i)
+			n, err := t.SumAxes(i)
 			if err != nil {
 				return nil, err
 			}

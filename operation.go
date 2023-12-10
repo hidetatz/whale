@@ -142,21 +142,21 @@ func (s *Sum) String() string {
 	return "sum"
 }
 
-func SumAxis_(v *Variable, axis int) *Variable {
-	f := NewFunction(&SumAxis{axis: axis})
+func SumAxes_(v *Variable, axes ...int) *Variable {
+	f := NewFunction(&SumAxes{axes: axes})
 	return f.forward(v)[0]
 }
 
-type SumAxis struct {
+type SumAxes struct {
 	input     *Variable
-	axis      int
+	axes      []int
 	origshape []int
 }
 
-func (s *SumAxis) Forward(inputs ...*Variable) []*Variable {
+func (s *SumAxes) Forward(inputs ...*Variable) []*Variable {
 	s.input = inputs[0]
 	s.origshape = s.input.data.CopyShape()
-	y, err := s.input.data.SumAxis(s.axis)
+	y, err := s.input.data.SumAxes(s.axes...)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -165,7 +165,7 @@ func (s *SumAxis) Forward(inputs ...*Variable) []*Variable {
 	return out
 }
 
-func (s *SumAxis) Backward(gy ...*Variable) []*Variable {
+func (s *SumAxes) Backward(gy ...*Variable) []*Variable {
 	y, err := gy[0].data.BroadcastTo(s.origshape...)
 	if err != nil {
 		panic(err.Error())
@@ -173,8 +173,8 @@ func (s *SumAxis) Backward(gy ...*Variable) []*Variable {
 	return []*Variable{NewVar(y)}
 }
 
-func (s *SumAxis) String() string {
-	return "sumaxis"
+func (s *SumAxes) String() string {
+	return "sumaxes"
 }
 
 func SumTo_(v *Variable, shape ...int) *Variable {
