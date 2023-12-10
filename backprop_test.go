@@ -104,8 +104,6 @@ func TestGrad(t *testing.T) {
 
 			grad := numDiff(t, tc.f, tc.x)
 			for i := range grad {
-				// fmt.Println(tc.x[i].grad.data.Data)
-				// fmt.Println(grad[i].Data)
 				delta := math.Abs(Sub_(tc.x[i].grad, NewVar(grad[i])).data.Data[0])
 				if delta > 1e-4 {
 					t.Errorf("backward: %v, numerical diff: %v", tc.x[i].grad.data.Data[0], grad[i].Data[0])

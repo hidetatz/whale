@@ -275,24 +275,48 @@ func (e *Exp) String() string {
  * Add, Sub, Mul, Div, Pow
  */
 
+func sameSlice(x1, x2 []int) bool {
+	if len(x1) != len(x2) {
+		return false
+	}
+
+	for i := range x1 {
+		if x1[i] != x2[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func Add_(x1, x2 *Variable) *Variable {
 	f := NewFunction(&Add{})
 	return f.forward(x1, x2)[0]
 }
 
 type Add struct {
-	inputs []*Variable
+	inputs  []*Variable
+	x0Shape []int
+	x1Shape []int
 }
 
 func (a *Add) Forward(inputs ...*Variable) []*Variable {
 	a.inputs = inputs
+	a.x0Shape = inputs[0].data.CopyShape()
+	a.x1Shape = inputs[1].data.CopyShape()
 	v := NewVar(device.Add(inputs[0].data, inputs[1].data))
 	out := []*Variable{v}
 	return out
 }
 
 func (a *Add) Backward(gy ...*Variable) []*Variable {
-	return []*Variable{gy[0], gy[0]}
+	gx0, gx1 := gy[0], gy[0]
+	if !sameSlice(a.x0Shape, a.x1Shape) {
+		gx0 = SumTo_(gx0, a.x0Shape...)
+		gx1 = SumTo_(gx1, a.x1Shape...)
+	}
+
+	return []*Variable{gx0, gx1}
 }
 
 func (a *Add) String() string {
@@ -305,18 +329,27 @@ func Sub_(x1, x2 *Variable) *Variable {
 }
 
 type Sub struct {
-	inputs []*Variable
+	inputs  []*Variable
+	x0Shape []int
+	x1Shape []int
 }
 
 func (s *Sub) Forward(inputs ...*Variable) []*Variable {
 	s.inputs = inputs
+	s.x0Shape = inputs[0].data.CopyShape()
+	s.x1Shape = inputs[1].data.CopyShape()
 	v := NewVar(device.Sub(inputs[0].data, inputs[1].data))
 	out := []*Variable{v}
 	return out
 }
 
 func (s *Sub) Backward(gy ...*Variable) []*Variable {
-	return []*Variable{gy[0], Neg_(gy[0])}
+	gx0, gx1 := gy[0], Neg_(gy[0])
+	if !sameSlice(s.x0Shape, s.x1Shape) {
+		gx0 = SumTo_(gx0, s.x0Shape...)
+		gx1 = SumTo_(gx1, s.x1Shape...)
+	}
+	return []*Variable{gx0, gx1}
 }
 
 func (s *Sub) String() string {
@@ -329,11 +362,15 @@ func Mul_(x1, x2 *Variable) *Variable {
 }
 
 type Mul struct {
-	inputs []*Variable
+	inputs  []*Variable
+	x0Shape []int
+	x1Shape []int
 }
 
 func (m *Mul) Forward(inputs ...*Variable) []*Variable {
 	m.inputs = inputs
+	m.x0Shape = inputs[0].data.CopyShape()
+	m.x1Shape = inputs[1].data.CopyShape()
 	v := NewVar(device.Mul(inputs[0].data, inputs[1].data))
 	out := []*Variable{v}
 	return out
@@ -341,7 +378,12 @@ func (m *Mul) Forward(inputs ...*Variable) []*Variable {
 
 func (m *Mul) Backward(gy ...*Variable) []*Variable {
 	x0, x1 := m.inputs[0], m.inputs[1]
-	return []*Variable{Mul_(gy[0], x1), Mul_(gy[0], x0)}
+	gx0, gx1 := Mul_(gy[0], x1), Mul_(gy[0], x0)
+	if !sameSlice(m.x0Shape, m.x1Shape) {
+		gx0 = SumTo_(gx0, m.x0Shape...)
+		gx1 = SumTo_(gx1, m.x1Shape...)
+	}
+	return []*Variable{gx0, gx1}
 }
 
 func (m *Mul) String() string {
@@ -354,11 +396,15 @@ func Div_(x1, x2 *Variable) *Variable {
 }
 
 type Div struct {
-	inputs []*Variable
+	inputs  []*Variable
+	x0Shape []int
+	x1Shape []int
 }
 
 func (d *Div) Forward(inputs ...*Variable) []*Variable {
 	d.inputs = inputs
+	d.x0Shape = inputs[0].data.CopyShape()
+	d.x1Shape = inputs[1].data.CopyShape()
 	v := NewVar(device.Div(inputs[0].data, inputs[1].data))
 	out := []*Variable{v}
 	return out
@@ -366,7 +412,12 @@ func (d *Div) Forward(inputs ...*Variable) []*Variable {
 
 func (d *Div) Backward(gy ...*Variable) []*Variable {
 	x0, x1 := d.inputs[0], d.inputs[1]
-	return []*Variable{Div_(gy[0], x1), Mul_(gy[0], Div_(Neg_(x0), Pow_(x1, NewVar(tensor.FromScalar(2)))))}
+	gx0, gx1 := Div_(gy[0], x1), Mul_(gy[0], Div_(Neg_(x0), Pow_(x1, NewVar(tensor.FromScalar(2)))))
+	if !sameSlice(d.x0Shape, d.x1Shape) {
+		gx0 = SumTo_(gx0, d.x0Shape...)
+		gx1 = SumTo_(gx1, d.x1Shape...)
+	}
+	return []*Variable{gx0, gx1}
 }
 
 func (d *Div) String() string {

@@ -187,7 +187,7 @@ func TestFactories(t *testing.T) {
 		{
 			name: "zeros",
 			factory: func() (*Tensor, error) {
-				return Zeros(2, 2, 2)
+				return Zeros(2, 2, 2), nil
 			},
 			expected: &Tensor{
 				Data:    []float64{0, 0, 0, 0, 0, 0, 0, 0},
@@ -198,7 +198,7 @@ func TestFactories(t *testing.T) {
 		{
 			name: "ones",
 			factory: func() (*Tensor, error) {
-				return Ones(2, 2, 2)
+				return Ones(2, 2, 2), nil
 			},
 			expected: &Tensor{
 				Data:    []float64{1, 1, 1, 1, 1, 1, 1, 1},
