@@ -76,30 +76,39 @@ func Ones(shape ...int) *Tensor {
 	return t
 }
 
-func All(v float64, shape ...int) (*Tensor, error) {
+func All(v float64, shape ...int) *Tensor {
 	data := make([]float64, total(shape))
 	for i := range data {
 		data[i] = v
 	}
-	return Nd(data, shape...)
+	t, _ := Nd(data, shape...) // error never happens
+	return t
 }
 
-func ArangeTo(to int) (*Tensor, error) {
+func ArangeTo(to int) *Tensor {
+	var data []float64
 	if to < 0 {
-		return nil, fmt.Errorf("arg should be positive")
+		data = seq(to, 0)
+		slices.Reverse(data)
+	} else {
+		data = seq(0, to)
 	}
 
-	data := seq(0, to)
-	return FromVector(data, len(data))
+	t, _ := FromVector(data, len(data)) // error never happens
+	return t
 }
 
-func ArangeFrom(from, to int) (*Tensor, error) {
+func ArangeFrom(from, to int) *Tensor {
+	var data []float64
 	if to < from {
-		return nil, fmt.Errorf("from should not be bigger than to")
+		data = seq(to, from)
+		slices.Reverse(data)
+	} else {
+		data = seq(from, to)
 	}
 
-	data := seq(from, to)
-	return FromVector(data, len(data))
+	t, _ := FromVector(data, len(data)) // error never happens
+	return t
 }
 
 func (t *Tensor) Shape() []int {

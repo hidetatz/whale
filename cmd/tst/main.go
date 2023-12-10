@@ -8,11 +8,7 @@ import (
 )
 
 func main() {
-	t1, err := tensor.ArangeFrom(1, 4)
-	if err != nil {
-		panic(err)
-	}
-
+	t1 := tensor.ArangeFrom(1, 4)
 	t2, err := tensor.FromVector([]float64{10}, 1)
 	if err != nil {
 		panic(err)

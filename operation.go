@@ -227,7 +227,7 @@ type Square struct {
 
 func (s *Square) Forward(inputs ...*Variable) []*Variable {
 	s.input = inputs[0]
-	y, _ := tensor.All(2, s.input.data.Shape()...)
+	y := tensor.All(2, s.input.data.Shape()...)
 	v := NewVar(device.Pow(s.input.data, y))
 	out := []*Variable{v}
 	return out

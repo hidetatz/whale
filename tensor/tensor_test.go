@@ -209,7 +209,7 @@ func TestFactories(t *testing.T) {
 		{
 			name: "arange",
 			factory: func() (*Tensor, error) {
-				return ArangeTo(8)
+				return ArangeTo(8), nil
 			},
 			expected: &Tensor{
 				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
@@ -220,7 +220,7 @@ func TestFactories(t *testing.T) {
 		{
 			name: "arange2",
 			factory: func() (*Tensor, error) {
-				return ArangeFrom(4, 12)
+				return ArangeFrom(4, 12), nil
 			},
 			expected: &Tensor{
 				Data:    []float64{4, 5, 6, 7, 8, 9, 10, 11},
