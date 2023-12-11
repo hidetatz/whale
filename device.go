@@ -13,4 +13,5 @@ type Device interface {
 	Sin(t *tensor.Tensor) *tensor.Tensor
 	Cos(t *tensor.Tensor) *tensor.Tensor
 	Tanh(t *tensor.Tensor) *tensor.Tensor
+	MatMul(t1, t2 *tensor.Tensor) *tensor.Tensor
 }

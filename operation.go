@@ -548,3 +548,31 @@ func (t *Tanh) Backward(gy ...*Variable) []*Variable {
 func (t *Tanh) String() string {
 	return "tanh"
 }
+
+func MatMul_(x, w *Variable) *Variable {
+	f := NewFunction(&MatMul{w: w})
+	return f.forward(x)[0]
+}
+
+type MatMul struct {
+	x *Variable
+	w *Variable
+}
+
+func (m *MatMul) Forward(inputs ...*Variable) []*Variable {
+	m.x = inputs[0]
+	v := NewVar(device.MatMul(m.x.data, m.w.data))
+	out := []*Variable{v}
+	return out
+}
+
+func (m *MatMul) Backward(gy ...*Variable) []*Variable {
+	y1, y2 := gy[0], gy[0]
+	gx := MatMul_(y1, m.w.Transpose())
+	gw := MatMul_(m.x.Transpose(), y2)
+	return []*Variable{gx, gw}
+}
+
+func (m *MatMul) String() string {
+	return "matmul"
+}
