@@ -296,15 +296,18 @@ func Add_(x1, x2 *Variable) *Variable {
 }
 
 type Add struct {
-	inputs  []*Variable
-	x0Shape []int
-	x1Shape []int
+	x0      *Variable
+	x1      *Variable
+	x0shape []int
+	x1shape []int
 }
 
 func (a *Add) Forward(inputs ...*Variable) []*Variable {
-	a.inputs = inputs
-	a.x0Shape = inputs[0].data.CopyShape()
-	a.x1Shape = inputs[1].data.CopyShape()
+	a.x0 = inputs[0]
+	a.x1 = inputs[1]
+	a.x0shape = a.x0.data.CopyShape()
+	a.x1shape = a.x1.data.CopyShape()
+
 	v := NewVar(device.Add(inputs[0].data, inputs[1].data))
 	out := []*Variable{v}
 	return out
@@ -312,9 +315,9 @@ func (a *Add) Forward(inputs ...*Variable) []*Variable {
 
 func (a *Add) Backward(gy ...*Variable) []*Variable {
 	gx0, gx1 := gy[0], gy[0]
-	if !sameSlice(a.x0Shape, a.x1Shape) {
-		gx0 = SumTo_(gx0, a.x0Shape...)
-		gx1 = SumTo_(gx1, a.x1Shape...)
+	if !sameSlice(a.x0shape, a.x1shape) {
+		gx0 = SumTo_(gx0, a.x0shape...)
+		gx1 = SumTo_(gx1, a.x1shape...)
 	}
 
 	return []*Variable{gx0, gx1}
