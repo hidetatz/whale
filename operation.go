@@ -24,6 +24,10 @@ type Operation interface {
  */
 
 func Reshape_(v *Variable, shape ...int) *Variable {
+	if sameSlice(v.data.CopyShape(), shape) {
+		return v
+	}
+
 	f := NewFunction(&Reshape{shape: shape})
 	return f.forward(v)[0]
 }
@@ -77,6 +81,10 @@ func (t *Transpose) String() string {
 }
 
 func BroadcastTo_(v *Variable, shape ...int) *Variable {
+	if sameSlice(v.data.CopyShape(), shape) {
+		return v
+	}
+
 	f := NewFunction(&BroadcastTo{shape: shape})
 	return f.forward(v)[0]
 }
@@ -167,6 +175,10 @@ func (s *Sum) String() string {
 }
 
 func SumTo_(v *Variable, shape ...int) *Variable {
+	if sameSlice(v.data.CopyShape(), shape) {
+		return v
+	}
+
 	f := NewFunction(&SumTo{shape: shape})
 	return f.forward(v)[0]
 }
