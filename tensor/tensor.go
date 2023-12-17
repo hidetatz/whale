@@ -358,22 +358,27 @@ func (t *Tensor) Tile(times ...int) (*Tensor, error) {
 	return tmpt, nil
 }
 
-func (t *Tensor) Sum() (*Tensor, error) {
-	var result float64
-	for i := range t.Data {
-		result += t.Data[i]
+func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
+	if len(axes) == 0 {
+		// when axes is empty, sum all.
+		var result float64
+		for i := range t.Data {
+			result += t.Data[i]
+		}
+
+		if keepdims {
+			shape := []int{}
+			for i := 0; i < len(t.Shape()); i++ {
+				shape = append(shape, 1)
+			}
+
+			return Nd([]float64{result}, shape...)
+		}
+
+		return FromScalar(result), nil
 	}
 
-	// keepdims
-	shape := []int{}
-	for i := 0; i < len(t.Shape()); i++ {
-		shape = append(shape, 1)
-	}
-
-	return Nd([]float64{result}, shape...)
-}
-
-func (t *Tensor) SumAxes(axes ...int) (*Tensor, error) {
+	// else, sum by axis
 	curshape := t.CopyShape()
 
 	slices.Sort(axes)
@@ -403,7 +408,13 @@ func (t *Tensor) SumAxes(axes ...int) (*Tensor, error) {
 			newdata[j] = result
 		}
 
-		curshape = append(curshape[:axis], curshape[axis+1:]...)
+		if keepdims {
+			// when keepdims is true, the calculated dimension will be 1.
+			curshape[axis] = 1
+		} else {
+			// else, the calculated dimension is removed.
+			curshape = append(curshape[:axis], curshape[axis+1:]...)
+		}
 
 		n, err := Nd(newdata, curshape...)
 		if err != nil {
@@ -427,7 +438,7 @@ func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
 		}
 
 		if shape[i] == 1 {
-			n, err := t.SumAxes(i)
+			n, err := t.Sum(false, i)
 			if err != nil {
 				return nil, err
 			}

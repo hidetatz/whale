@@ -726,3 +726,144 @@ func TestBroadcastTo(t *testing.T) {
 		})
 	}
 }
+
+func TestSum(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      []float64
+		shape     []int
+		keepdims  bool
+		axes      []int
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:     "vector 1",
+			data:     seq(0, 4),
+			shape:    []int{4},
+			keepdims: false,
+			expected: &Tensor{
+				Data:    []float64{6},
+				shape:   []int{},
+				strides: []int{},
+			},
+		},
+		{
+			name:     "vector 2",
+			data:     seq(0, 4),
+			shape:    []int{4},
+			keepdims: true,
+			expected: &Tensor{
+				Data:    []float64{6},
+				shape:   []int{1},
+				strides: []int{1},
+			},
+		},
+		{
+			name:     "vector 3",
+			data:     seq(0, 4),
+			shape:    []int{4},
+			keepdims: true,
+			axes:     []int{0},
+			expected: &Tensor{
+				Data:    []float64{6},
+				shape:   []int{1},
+				strides: []int{1},
+			},
+		},
+		{
+			name:  "2d 1",
+			data:  seq(0, 6),
+			shape: []int{2, 3},
+			expected: &Tensor{
+				Data:    []float64{15},
+				shape:   []int{},
+				strides: []int{},
+			},
+		},
+		{
+			name:  "2d 1",
+			data:  seq(0, 6),
+			shape: []int{2, 3},
+			expected: &Tensor{
+				Data:    []float64{15},
+				shape:   []int{},
+				strides: []int{},
+			},
+		},
+		{
+			name:     "2d 2",
+			data:     seq(0, 6),
+			shape:    []int{2, 3},
+			keepdims: true,
+			expected: &Tensor{
+				Data:    []float64{15},
+				shape:   []int{1, 1},
+				strides: []int{1, 1},
+			},
+		},
+		{
+			name:  "2d 3",
+			data:  seq(0, 6),
+			shape: []int{2, 3},
+			axes:  []int{0},
+			expected: &Tensor{
+				Data:    []float64{3, 5, 7},
+				shape:   []int{3},
+				strides: []int{1},
+			},
+		},
+		{
+			name:  "2d 4",
+			data:  seq(0, 6),
+			shape: []int{2, 3},
+			axes:  []int{1, 0},
+			expected: &Tensor{
+				Data:    []float64{15},
+				shape:   []int{},
+				strides: []int{},
+			},
+		},
+		{
+			name:     "2d 5",
+			data:     seq(0, 6),
+			shape:    []int{2, 3},
+			axes:     []int{1},
+			keepdims: true,
+			expected: &Tensor{
+				Data:    []float64{3, 12},
+				shape:   []int{2, 1},
+				strides: []int{1, 1},
+			},
+		},
+		{
+			name:     "2d 6",
+			data:     seq(0, 6),
+			shape:    []int{2, 3},
+			axes:     []int{1, 0},
+			keepdims: true,
+			expected: &Tensor{
+				Data:    []float64{15},
+				shape:   []int{1, 1},
+				strides: []int{1, 1},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, _ := Nd(tc.data, tc.shape...)
+			got, err := got.Sum(tc.keepdims, tc.axes...)
+			if (err != nil) != tc.expectErr {
+				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
+			}
+			if tc.expected != nil {
+				if !tc.expected.Equals(got) {
+					t.Errorf("expected %v but got %v", tc.expected, got)
+				}
+			}
+		})
+	}
+}

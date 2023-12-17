@@ -2,6 +2,7 @@ package whale
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/hidetatz/whale/tensor"
 )
@@ -108,20 +109,22 @@ func (b *BroadcastTo) String() string {
  * Sum
  */
 
-func Sum_(v *Variable) *Variable {
-	f := NewFunction(&Sum{})
+func Sum_(v *Variable, keepdims bool, axes ...int) *Variable {
+	f := NewFunction(&Sum{keepdims: keepdims, axes: axes})
 	return f.forward(v)[0]
 }
 
 type Sum struct {
 	input     *Variable
+	keepdims  bool
+	axes      []int
 	origshape []int
 }
 
 func (s *Sum) Forward(inputs ...*Variable) []*Variable {
 	s.input = inputs[0]
 	s.origshape = s.input.data.CopyShape()
-	y, err := s.input.data.Sum()
+	y, err := s.input.data.Sum(s.keepdims, s.axes...)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -131,7 +134,28 @@ func (s *Sum) Forward(inputs ...*Variable) []*Variable {
 }
 
 func (s *Sum) Backward(gy ...*Variable) []*Variable {
-	y, err := gy[0].data.BroadcastTo(s.origshape...)
+	gy0 := gy[0]
+	ndim := len(s.origshape)
+
+	shape := gy0.data.CopyShape()
+	if !(ndim == 0 || len(s.axes) == 0 || s.keepdims) {
+		actualAxes := make([]int, len(s.axes))
+		for i, axis := range s.axes {
+			if axis >= 0 {
+				actualAxes[i] = s.axes[i]
+			} else {
+				actualAxes[i] = s.axes[i] + ndim
+			}
+		}
+		shape = gy0.data.CopyShape()
+		slices.Sort(actualAxes)
+		for _, a := range actualAxes {
+			// insert a
+			shape = append(shape[:1], append([]int{a}, shape[1:]...)...)
+		}
+	}
+
+	y, err := gy0.data.Reshape(shape...)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -140,41 +164,6 @@ func (s *Sum) Backward(gy ...*Variable) []*Variable {
 
 func (s *Sum) String() string {
 	return "sum"
-}
-
-func SumAxes_(v *Variable, axes ...int) *Variable {
-	f := NewFunction(&SumAxes{axes: axes})
-	return f.forward(v)[0]
-}
-
-type SumAxes struct {
-	input     *Variable
-	axes      []int
-	origshape []int
-}
-
-func (s *SumAxes) Forward(inputs ...*Variable) []*Variable {
-	s.input = inputs[0]
-	s.origshape = s.input.data.CopyShape()
-	y, err := s.input.data.SumAxes(s.axes...)
-	if err != nil {
-		panic(err.Error())
-	}
-	v := NewVar(y)
-	out := []*Variable{v}
-	return out
-}
-
-func (s *SumAxes) Backward(gy ...*Variable) []*Variable {
-	y, err := gy[0].data.BroadcastTo(s.origshape...)
-	if err != nil {
-		panic(err.Error())
-	}
-	return []*Variable{NewVar(y)}
-}
-
-func (s *SumAxes) String() string {
-	return "sumaxes"
 }
 
 func SumTo_(v *Variable, shape ...int) *Variable {

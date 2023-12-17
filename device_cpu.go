@@ -186,7 +186,7 @@ func (c *CPU) MatMul(t1, t2 *tensor.Tensor) *tensor.Tensor {
 				result = append(result, t.Data[i*row:i*row+row])
 			}
 			return result
-			
+
 		}
 
 		matrix1 := tomatrix(tc1)
