@@ -38,13 +38,18 @@ type Op interface {
  */
 
 // Reshape reshapes the given tensor to the specified shape.
-func Reshape(v *Variable, shape ...int) *Variable {
+func Reshape(v *Variable, shape ...int) (*Variable, error) {
 	if slices.Equal(v.data.Shape(), shape) {
-		return v
+		return v, nil
 	}
 
 	f := NewFunction(&reshape{origshape: v.data.CopyShape(), shape: shape})
-	return f.forward(v)[0]
+	y, err := f.forward(v)
+	if err != nil {
+		return nil, err
+	}
+
+	return y[0], nil
 }
 
 type reshape struct {
@@ -61,62 +66,83 @@ func (r *reshape) Forward(inputs ...*Variable) ([]*Variable, error) {
 	return asvars(y), nil
 }
 
-func (r *reshape) Backward(gy ...*Variable) []*Variable {
-	return []*Variable{Reshape(gy[0], r.origshape...)}
+func (r *reshape) Backward(gy ...*Variable) ([]*Variable, error) {
+	y, err := Reshape(gy[0], r.origshape...)
+	if err != nil {
+		return nil, fmt.Errorf("reshape backward: %w", err)
+	}
+	return []*Variable{y}, nil
 }
 
 func (r *reshape) String() string { return "reshape" }
 
-func Transpose_(v *Variable) *Variable {
-	f := NewFunction(&Transpose{})
-	return f.forward(v)[0]
+// Transpose transposes the tensor.
+func Transpose(v *Variable) (*Variable, error) {
+	f := NewFunction(&transpose{})
+	y, err := f.forward(v)
+	if err != nil {
+		return nil, err
+	}
+
+	return y[0], nil
 }
 
-type Transpose struct{}
+type transpose struct{}
 
-func (t *Transpose) Forward(inputs ...*Variable) []*Variable {
-	in := inputs[0]
-	return []*Variable{NewVar(in.data.Transpose())}
+func (t *transpose) Forward(inputs ...*Variable) ([]*Variable, error) {
+	return asvars(inputs[0].data.Transpose()), nil
 }
 
-func (t *Transpose) Backward(gy ...*Variable) []*Variable {
-	return []*Variable{Transpose_(gy[0])}
+func (t *transpose) Backward(gy ...*Variable) ([]*Variable, error) {
+	y, err := Transpose(gy[0])
+	if err != nil {
+		return nil, err
+	}
+	return []*Variable{y}, nil
 }
 
-func (t *Transpose) String() string {
+func (t *transpose) String() string {
 	return "T"
 }
 
-func BroadcastTo_(v *Variable, shape ...int) *Variable {
+// BroadcastTo broadcasts the tensor to the given shape.
+func BroadcastTo(v *Variable, shape ...int) (*Variable, error) {
 	if sameSlice(v.data.CopyShape(), shape) {
-		return v
+		return v, nil
 	}
 
-	f := NewFunction(&BroadcastTo{shape: shape})
-	return f.forward(v)[0]
+	f := NewFunction(&broadcastTo{origshape: v.data.CopyShape(), shape: shape})
+	y, err := f.forward(v)
+	if err != nil {
+		return nil, err
+	}
+
+	return y[0], nil
 }
 
-type BroadcastTo struct {
-	origShape []int
+type broadcastTo struct {
+	origshape []int
 	shape     []int
 }
 
-func (b *BroadcastTo) Forward(inputs ...*Variable) []*Variable {
-	in := inputs[0]
-	b.origShape = in.data.CopyShape()
-	y, err := in.data.BroadcastTo(b.shape...)
+func (b *broadcastTo) Forward(inputs ...*Variable) ([]*Variable, error) {
+	y, err := inputs[0].data.BroadcastTo(b.shape...)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("BroadcastTo: %w", err)
 	}
 
-	return []*Variable{NewVar(y)}
+	return asvars(y), nil
 }
 
-func (b *BroadcastTo) Backward(gy ...*Variable) []*Variable {
-	return []*Variable{SumTo_(gy[0], b.origShape...)}
+func (b *broadcastTo) Backward(gy ...*Variable) ([]*Variable, error) {
+	y, err := SumTo(gy[0], b.origshape...)
+	if err != nil {
+		return nil, fmt.Errorf("BroadcastTo Backward: %w", err)
+	}
+	return []*Variable{y}, nil
 }
 
-func (b *BroadcastTo) String() string {
+func (b *broadcastTo) String() string {
 	return "BroadcastTo"
 }
 
@@ -181,42 +207,44 @@ func (s *Sum) String() string {
 	return "sum"
 }
 
-func SumTo_(v *Variable, shape ...int) *Variable {
-	if sameSlice(v.data.CopyShape(), shape) {
-		return v
+func SumTo(v *Variable, shape ...int) (*Variable, error) {
+	if slices.Equal(v.data.CopyShape(), shape) {
+		return v, nil
 	}
 
-	f := NewFunction(&SumTo{shape: shape})
-	return f.forward(v)[0]
+	f := NewFunction(&sumTo{origshape: v.data.CopyShape(), shape: shape})
+	y, err := f.forward(v)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return y[0], nil
 }
 
-type SumTo struct {
-	input     *Variable
+type sumTo struct {
 	shape     []int
 	origshape []int
 }
 
-func (s *SumTo) Forward(inputs ...*Variable) []*Variable {
-	s.input = inputs[0]
-	s.origshape = s.input.data.CopyShape()
-	y, err := s.input.data.SumTo(s.shape...)
+func (s *sumTo) Forward(inputs ...*Variable) ([]*Variable, error) {
+	y, err := inputs[0].data.SumTo(s.shape...)
 	if err != nil {
-		panic(err.Error())
+		return nil, fmt.Errorf("SumTo: %w")
 	}
-	v := NewVar(y)
-	out := []*Variable{v}
-	return out
+
+	return asvars(y), nil
 }
 
-func (s *SumTo) Backward(gy ...*Variable) []*Variable {
+func (s *sumTo) Backward(gy ...*Variable) ([]*Variable, error) {
 	y, err := gy[0].data.BroadcastTo(s.origshape...)
 	if err != nil {
-		panic(err.Error())
+		return nil, fmt.Errorf("SumTo Backward: %w", err)
 	}
-	return []*Variable{NewVar(y)}
+	return asvars(y), nil
 }
 
-func (s *SumTo) String() string {
+func (s *sumTo) String() string {
 	return "sumto"
 }
 
@@ -309,8 +337,8 @@ func (a *Add) Forward(inputs ...*Variable) []*Variable {
 func (a *Add) Backward(gy ...*Variable) []*Variable {
 	gx0, gx1 := gy[0], gy[0]
 	if !sameSlice(a.x0shape, a.x1shape) {
-		gx0 = SumTo_(gx0, a.x0shape...)
-		gx1 = SumTo_(gx1, a.x1shape...)
+		gx0 = SumTo(gx0, a.x0shape...)
+		gx1 = SumTo(gx1, a.x1shape...)
 	}
 
 	return []*Variable{gx0, gx1}
