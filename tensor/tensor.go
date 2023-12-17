@@ -465,10 +465,6 @@ func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
 		}
 	}
 
-	if len(shape) != len(t.shape) {
-		return nil, fmt.Errorf("cannot sum to %v from %v", shape, t.shape)
-	}
-
 	y, err := t.Sum(true, append(leadAxis, axes...)...)
 	if err != nil {
 		return nil, err
