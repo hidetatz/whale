@@ -9,15 +9,15 @@ type function struct {
 	inputs     []*Variable
 	outputs    []*Variable
 	generation int
-	operation  Operation
+	op Op
 }
 
-func NewFunction(op Operation) *function {
-	return &function{operation: op}
+func NewFunction(op Op) *function {
+	return &function{op : op}
 }
 
 func (f *function) forward(inputs ...*Variable) []*Variable {
-	outputs := f.operation.Forward(inputs...)
+	outputs := f.op.Forward(inputs...)
 	if EnableBackprop {
 		f.inputs = inputs
 		for _, o := range outputs {
@@ -30,7 +30,7 @@ func (f *function) forward(inputs ...*Variable) []*Variable {
 }
 
 func (f *function) String() string {
-	return f.operation.String()
+	return f.op.String()
 }
 
 func getMaxGen(vs []*Variable) int {

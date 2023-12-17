@@ -88,7 +88,7 @@ func (v *Variable) Backward() {
 			ys = append(ys, o.grad)
 		}
 
-		gxs := last.operation.Backward(ys...)
+		gxs := last.op.Backward(ys...)
 		for i, x := range last.inputs {
 			gx := gxs[i]
 			if x.grad == nil {

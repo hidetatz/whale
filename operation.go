@@ -13,10 +13,16 @@ func init() {
 	device = &CPU{}
 }
 
-type Operation interface {
+// Op is an arbitrary operation which accepts tensors as arguments,
+// and returns computed tensors.
+type Op interface {
 	fmt.Stringer
+	
+	// Forward computes tensors.
 	Forward(inputs ...*Variable) []*Variable
-	Backward(gy ...*Variable) []*Variable
+
+	// Backward computes the derivative for the operation.
+	Backward(grads ...*Variable) []*Variable
 }
 
 /*
