@@ -426,30 +426,59 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	return nt, nil
 }
 
+func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
+	curshape := t.CopyShape()
+	for _, axis := range axes {
+		if curshape[axis] != 1 {
+			return nil, fmt.Errorf("Squeeze: axis which is not 1 is specified")
+		}
+	}
+
+	newshape := []int{}
+	for i, dim := range curshape {
+		if dim != 1 {
+			newshape = append(newshape, dim)
+			continue
+		}
+
+		if len(axes) != 0 && !slices.Contains(axes, i) {
+			newshape = append(newshape, dim)
+		}
+	}
+
+	return Nd(t.Data, newshape...)
+}
+
 func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
+	ndim := len(shape)
+	lead := t.Dim() - ndim
+	leadAxis := seqi(0, lead)
+
+	var axes []int
+	for i, dim := range shape {
+		if dim == 1 {
+			axes = append(axes, i+lead)
+		}
+	}
+
 	if len(shape) != len(t.shape) {
 		return nil, fmt.Errorf("cannot sum to %v from %v", shape, t.shape)
 	}
 
-	var nt *Tensor
-	for i := range shape {
-		if t.shape[i] == shape[i] {
-			continue
-		}
-
-		if shape[i] == 1 {
-			n, err := t.Sum(false, i)
-			if err != nil {
-				return nil, err
-			}
-			nt = n
-			break
-		}
-
-		return nil, fmt.Errorf("cannot sum to %v from %v", shape, t.shape)
+	y, err := t.Sum(true, append(leadAxis, axes...)...)
+	if err != nil {
+		return nil, err
 	}
 
-	return nt, nil
+	if lead > 0 {
+		y2, err := y.Squeeze(leadAxis...)
+		if err != nil {
+			return nil, err
+		}
+		y = y2
+	}
+
+	return y, nil
 }
 
 func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
@@ -504,6 +533,14 @@ func seq(from, to int) []float64 {
 	r := make([]float64, to-from)
 	for i := from; i < to; i++ {
 		r[i-from] = float64(i)
+	}
+	return r
+}
+
+func seqi(from, to int) []int {
+	r := make([]int, to-from)
+	for i := from; i < to; i++ {
+		r[i-from] = i
 	}
 	return r
 }

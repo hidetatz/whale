@@ -970,3 +970,171 @@ func TestSum(t *testing.T) {
 		})
 	}
 }
+
+func TestSqueeze(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      []float64
+		shape     []int
+		axes      []int
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:  "2d 1",
+			data:  seq(0, 6),
+			shape: []int{2, 3},
+			axes:  []int{},
+			expected: &Tensor{
+				Data:    []float64{0, 1, 2, 3, 4, 5},
+				shape:   []int{2, 3},
+				strides: []int{3, 1},
+			},
+		},
+		{
+			name:  "3d 2",
+			data:  seq(0, 6),
+			shape: []int{1, 2, 3},
+			axes:  []int{},
+			expected: &Tensor{
+				Data:    []float64{0, 1, 2, 3, 4, 5},
+				shape:   []int{2, 3},
+				strides: []int{3, 1},
+			},
+		},
+		{
+			name:  "3d 3",
+			data:  seq(0, 6),
+			shape: []int{1, 6, 1},
+			axes:  []int{},
+			expected: &Tensor{
+				Data:    []float64{0, 1, 2, 3, 4, 5},
+				shape:   []int{6},
+				strides: []int{1},
+			},
+		},
+		{
+			name:  "3d 4",
+			data:  seq(0, 6),
+			shape: []int{1, 6, 1},
+			axes:  []int{0},
+			expected: &Tensor{
+				Data:    []float64{0, 1, 2, 3, 4, 5},
+				shape:   []int{6, 1},
+				strides: []int{1, 1},
+			},
+		},
+		{
+			name:  "3d 5",
+			data:  seq(0, 6),
+			shape: []int{1, 6, 1},
+			axes:  []int{2},
+			expected: &Tensor{
+				Data:    []float64{0, 1, 2, 3, 4, 5},
+				shape:   []int{1, 6},
+				strides: []int{6, 1},
+			},
+		},
+		{
+			name:  "3d 6",
+			data:  seq(0, 6),
+			shape: []int{1, 6, 1},
+			axes:  []int{0, 2},
+			expected: &Tensor{
+				Data:    []float64{0, 1, 2, 3, 4, 5},
+				shape:   []int{6},
+				strides: []int{1},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, _ := Nd(tc.data, tc.shape...)
+			got, err := got.Squeeze(tc.axes...)
+			if (err != nil) != tc.expectErr {
+				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
+			}
+			if tc.expected != nil {
+				if !tc.expected.Equals(got) {
+					t.Errorf("expected %v but got %v", tc.expected, got)
+				}
+			}
+		})
+	}
+}
+
+func TestSumTo(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      []float64
+		shape     []int
+		stshape   []int
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:    "2d 1",
+			data:    seq(0, 6),
+			shape:   []int{2, 3},
+			stshape: []int{1, 3},
+			expected: &Tensor{
+				Data:    []float64{3, 5, 7},
+				shape:   []int{1, 3},
+				strides: []int{3, 1},
+			},
+		},
+		{
+			name:    "2d 2",
+			data:    seq(0, 6),
+			shape:   []int{2, 3},
+			stshape: []int{2, 1},
+			expected: &Tensor{
+				Data:    []float64{3, 12},
+				shape:   []int{2, 1},
+				strides: []int{1, 1},
+			},
+		},
+		{
+			name:    "2d 3",
+			data:    seq(0, 6),
+			shape:   []int{2, 3},
+			stshape: []int{1, 1},
+			expected: &Tensor{
+				Data:    []float64{15},
+				shape:   []int{1, 1},
+				strides: []int{1, 1},
+			},
+		},
+		{
+			name:    "3d 1",
+			data:    seq(0, 24),
+			shape:   []int{2, 3, 4},
+			stshape: []int{2, 1, 1},
+			expected: &Tensor{
+				Data:    []float64{66, 210},
+				shape:   []int{2, 1, 1},
+				strides: []int{1, 1, 1},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, _ := Nd(tc.data, tc.shape...)
+			got, err := got.SumTo(tc.stshape...)
+			if (err != nil) != tc.expectErr {
+				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
+			}
+			if tc.expected != nil {
+				if !tc.expected.Equals(got) {
+					t.Errorf("expected %v but got %v", tc.expected, got)
+				}
+			}
+		})
+	}
+}
