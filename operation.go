@@ -13,6 +13,10 @@ func init() {
 	device = &CPU{}
 }
 
+func sameSlice(x1, x2 []int) bool {
+	return slices.Equal(x1, x2)
+}
+
 // Op is an arbitrary operation which accepts tensors as arguments,
 // and returns computed tensors.
 type Op interface {
@@ -281,20 +285,6 @@ func (e *Exp) String() string {
 /*
  * Add, Sub, Mul, Div, Pow
  */
-
-func sameSlice(x1, x2 []int) bool {
-	if len(x1) != len(x2) {
-		return false
-	}
-
-	for i := range x1 {
-		if x1[i] != x2[i] {
-			return false
-		}
-	}
-
-	return true
-}
 
 func Add_(x1, x2 *Variable) *Variable {
 	f := NewFunction(&Add{})
