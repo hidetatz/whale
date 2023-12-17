@@ -17,6 +17,10 @@ func sameSlice(x1, x2 []int) bool {
 	return slices.Equal(x1, x2)
 }
 
+func asvars(t *tensor.Tensor) []*Variable {
+	return []*Variable{NewVar(t)}
+}
+
 // Op is an arbitrary operation which accepts tensors as arguments,
 // and returns computed tensors.
 type Op interface {
@@ -33,40 +37,38 @@ type Op interface {
  * Tensor modification
  */
 
-func Reshape_(v *Variable, shape ...int) *Variable {
-	if sameSlice(v.data.CopyShape(), shape) {
+func Reshape(v *Variable, shape ...int) *Variable {
+	if slices.Equal(v.data.Shape(), shape) {
 		return v
 	}
 
-	f := NewFunction(&Reshape{shape: shape})
+	f := NewFunction(&reshape{origshape: v.data.CopyShape(), shape: shape})
 	return f.forward(v)[0]
 }
 
-type Reshape struct {
-	input     *Variable
+type reshape struct {
+	// input     *Variable
 	origshape []int
 	shape     []int
 }
 
-func (r *Reshape) Forward(inputs ...*Variable) []*Variable {
-	r.input = inputs[0]
-	r.origshape = inputs[0].data.CopyShape()
-	y, err := r.input.data.Reshape(r.shape...)
+func (r *reshape) Forward(inputs ...*Variable) []*Variable {
+	// x = inputs[0]
+	// r.origshape = inputs[0].data.CopyShape()
+	y, err := inputs[0].data.Reshape(r.shape...)
 	if err != nil {
 		panic(err.Error())
 	}
-	v := NewVar(y)
-	out := []*Variable{v}
-	return out
+	return asvars(y)
 }
 
-func (r *Reshape) Backward(gy ...*Variable) []*Variable {
+func (r *reshape) Backward(gy ...*Variable) []*Variable {
 	return []*Variable{
-		Reshape_(gy[0], r.origshape...),
+		Reshape(gy[0], r.origshape...),
 	}
 }
 
-func (r *Reshape) String() string {
+func (r *reshape) String() string {
 	return "reshape"
 }
 
