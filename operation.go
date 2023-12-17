@@ -554,8 +554,8 @@ func (t *Tanh) String() string {
 }
 
 func MatMul_(x, w *Variable) *Variable {
-	f := NewFunction(&MatMul{w: w})
-	return f.forward(x)[0]
+	f := NewFunction(&MatMul{})
+	return f.forward(x, w)[0]
 }
 
 type MatMul struct {
@@ -565,15 +565,18 @@ type MatMul struct {
 
 func (m *MatMul) Forward(inputs ...*Variable) []*Variable {
 	m.x = inputs[0]
-	v := NewVar(device.MatMul(m.x.data, m.w.data))
+	m.w = inputs[1]
+	y := device.Dot(m.x.data, m.w.data)
+	v := NewVar(y)
 	out := []*Variable{v}
 	return out
 }
 
 func (m *MatMul) Backward(gy ...*Variable) []*Variable {
-	y1, y2 := gy[0], gy[0]
-	gx := MatMul_(y1, m.w.Transpose())
-	gw := MatMul_(m.x.Transpose(), y2)
+	wt := m.w.Transpose()
+	xt := m.x.Transpose()
+	gx := MatMul_(gy[0], wt)
+	gw := MatMul_(xt, gy[0])
 	return []*Variable{gx, gw}
 }
 

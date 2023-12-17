@@ -131,6 +131,10 @@ func (t *Tensor) IsVector() bool {
 	return len(t.shape) == 1
 }
 
+func (t *Tensor) RawString() string {
+	return fmt.Sprintf("Tensor{Data: %v, shape: %v, strides: %v}", t.Data, t.shape, t.strides)
+}
+
 func (t *Tensor) String() string {
 	if t.IsScalar() {
 		return fmt.Sprintf("%v (scalar)", t.Data[0])
@@ -187,7 +191,7 @@ func (t *Tensor) String() string {
 			w(nindex)
 		}
 
-		sb.WriteString(fmt.Sprintf("%s]\n", indent))
+		sb.WriteString(fmt.Sprintf("%s]", indent))
 	}
 
 	w([]int{})
@@ -526,6 +530,12 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 func (t *Tensor) CopyShape() []int {
 	ns := make([]int, len(t.shape))
 	copy(ns, t.shape)
+	return ns
+}
+
+func (t *Tensor) CopyStrides() []int {
+	ns := make([]int, len(t.strides))
+	copy(ns, t.strides)
 	return ns
 }
 

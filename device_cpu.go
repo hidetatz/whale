@@ -160,15 +160,28 @@ func (c *CPU) Tanh(t *tensor.Tensor) *tensor.Tensor {
 	return result
 }
 
-func (c *CPU) MatMul(t1, t2 *tensor.Tensor) *tensor.Tensor {
+func (c *CPU) Dot(t1, t2 *tensor.Tensor) *tensor.Tensor {
 	tc1 := t1.Copy()
 	tc2 := t2.Copy()
 
+	if tc1.IsScalar() && tc2.IsScalar() {
+		return tensor.FromScalar(tc1.Data[0] * tc2.Data[0])
+	}
+
 	if tc1.IsVector() && tc2.IsVector() {
-		for i := range tc1.Data {
-			tc1.Data[i] = tc1.Data[i] * tc2.Data[i]
+		if tc1.Shape()[0] != tc2.Shape()[0] {
+			panic("cannot compute vector inner product")
 		}
-		return tc1
+
+		newdata := make([]float64, len(tc1.Data))
+		for i := range tc1.Data {
+			newdata[i] = tc1.Data[i] * tc2.Data[i]
+		}
+		t, err := tensor.FromVector(newdata, len(newdata))
+		if err != nil {
+			panic(err)
+		}
+		return t
 	}
 
 	if tc1.Dim() == 2 && tc2.Dim() == 2 {
@@ -179,13 +192,22 @@ func (c *CPU) MatMul(t1, t2 *tensor.Tensor) *tensor.Tensor {
 		}
 
 		tomatrix := func(t *tensor.Tensor) [][]float64 {
+			data := t.Data
 			shape := t.CopyShape()
+			strides := t.CopyStrides()
 			col, row := shape[0], shape[1]
-			result := [][]float64{}
+			stride1, stride2 := strides[0], strides[1]
+			matrix := make([][]float64, col)
 			for i := 0; i < col; i++ {
-				result = append(result, t.Data[i*row:i*row+row])
+				record := make([]float64, row)
+
+				for j := 0; j < row; j++ {
+					record[j] = data[i*stride1+j*stride2]
+				}
+
+				matrix[i] = record
 			}
-			return result
+			return matrix
 
 		}
 
@@ -196,11 +218,14 @@ func (c *CPU) MatMul(t1, t2 *tensor.Tensor) *tensor.Tensor {
 
 		result := matmul(matrix1, matrix2)
 		data := flatten(result)
-		t, _ := tensor.Nd(data, targetShape...)
+		t, err := tensor.Nd(data, targetShape...)
+		if err != nil {
+			panic(err)
+		}
 		return t
 	}
 
-	panic("matmul is possible only for vector x vector or 2d x 2d")
+	panic("matmul is possible only for scalar x scalar or vector x vector or 2d x 2d")
 }
 
 func flatten(matrix [][]float64) []float64 {
