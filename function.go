@@ -9,11 +9,11 @@ type function struct {
 	inputs     []*Variable
 	outputs    []*Variable
 	generation int
-	op Op
+	op         Op
 }
 
 func NewFunction(op Op) *function {
-	return &function{op : op}
+	return &function{op: op}
 }
 
 func (f *function) forward(inputs ...*Variable) []*Variable {

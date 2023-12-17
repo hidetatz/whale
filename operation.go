@@ -25,7 +25,7 @@ func asvars(t *tensor.Tensor) []*Variable {
 // and returns computed tensors.
 type Op interface {
 	fmt.Stringer
-	
+
 	// Forward computes tensors.
 	Forward(inputs ...*Variable) ([]*Variable, error)
 
