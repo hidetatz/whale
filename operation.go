@@ -27,16 +27,17 @@ type Op interface {
 	fmt.Stringer
 	
 	// Forward computes tensors.
-	Forward(inputs ...*Variable) []*Variable
+	Forward(inputs ...*Variable) ([]*Variable, error)
 
 	// Backward computes the derivative for the operation.
-	Backward(grads ...*Variable) []*Variable
+	Backward(grads ...*Variable) ([]*Variable, error)
 }
 
 /*
  * Tensor modification
  */
 
+// Reshape reshapes the given tensor to the specified shape.
 func Reshape(v *Variable, shape ...int) *Variable {
 	if slices.Equal(v.data.Shape(), shape) {
 		return v
@@ -47,30 +48,24 @@ func Reshape(v *Variable, shape ...int) *Variable {
 }
 
 type reshape struct {
-	// input     *Variable
 	origshape []int
 	shape     []int
 }
 
-func (r *reshape) Forward(inputs ...*Variable) []*Variable {
-	// x = inputs[0]
-	// r.origshape = inputs[0].data.CopyShape()
+func (r *reshape) Forward(inputs ...*Variable) ([]*Variable, error) {
 	y, err := inputs[0].data.Reshape(r.shape...)
 	if err != nil {
-		panic(err.Error())
+		return nil, fmt.Errorf("reshape: %w", err)
 	}
-	return asvars(y)
+
+	return asvars(y), nil
 }
 
 func (r *reshape) Backward(gy ...*Variable) []*Variable {
-	return []*Variable{
-		Reshape(gy[0], r.origshape...),
-	}
+	return []*Variable{Reshape(gy[0], r.origshape...)}
 }
 
-func (r *reshape) String() string {
-	return "reshape"
-}
+func (r *reshape) String() string { return "reshape" }
 
 func Transpose_(v *Variable) *Variable {
 	f := NewFunction(&Transpose{})
