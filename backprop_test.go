@@ -8,7 +8,7 @@ import (
 	"github.com/hidetatz/whale/tensor"
 )
 
-func TestGrad(t *testing.T) {
+func TestOp(t *testing.T) {
 	tests := []struct {
 		name string
 		f    func([]*Variable) []*Variable

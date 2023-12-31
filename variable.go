@@ -55,11 +55,7 @@ func (v *Variable) SetCreator(creator *function) {
 	v.generation = creator.generation + 1
 }
 
-func (v *Variable) Transpose() *Variable {
-	return Transpose_(v)
-}
-
-func (v *Variable) Backward() {
+func (v *Variable) Backward() error {
 	if v.grad == nil {
 		v.grad = NewVar(tensor.Ones(v.data.CopyShape()...))
 	}
@@ -88,13 +84,22 @@ func (v *Variable) Backward() {
 			ys = append(ys, o.grad)
 		}
 
-		gxs := last.op.Backward(ys...)
+		gxs, err := last.op.Backward(ys...)
+		if err != nil {
+			return err
+		}
+
 		for i, x := range last.inputs {
 			gx := gxs[i]
 			if x.grad == nil {
 				x.grad = gx
 			} else {
-				x.grad = Add_(x.grad, gx)
+				xg, err := Add(x.grad, gx)
+				if err != nil {
+					return err
+				}
+
+				x.grad = xg
 			}
 
 			if x.creator != nil {
@@ -102,4 +107,6 @@ func (v *Variable) Backward() {
 			}
 		}
 	}
+
+	return nil
 }

@@ -216,7 +216,7 @@ func (c *CPU) Dot(t1, t2 *tensor.Tensor) *tensor.Tensor {
 
 		targetShape := []int{shape1[0], shape2[1]}
 
-		result := matmul(matrix1, matrix2)
+		result := calcMatmul(matrix1, matrix2)
 		data := flatten(result)
 		t, err := tensor.Nd(data, targetShape...)
 		if err != nil {
@@ -236,7 +236,7 @@ func flatten(matrix [][]float64) []float64 {
 	return result
 }
 
-func matmul(matrixA, matrixB [][]float64) [][]float64 {
+func calcMatmul(matrixA, matrixB [][]float64) [][]float64 {
 	rowsA, colsA := len(matrixA), len(matrixA[0])
 	rowsB, colsB := len(matrixB), len(matrixB[0])
 

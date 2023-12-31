@@ -24,8 +24,14 @@ func main() {
 	}
 	x0 := whale.NewVar(t1)
 	x1 := whale.NewVar(t2)
-	y := whale.MatMul_(x0, x1)
-	y.Backward()
+	y, err := whale.MatMul(x0, x1)
+	if err != nil {
+		panic(err)
+	}
+	err = y.Backward()
+	if err != nil {
+		panic(err)
+	}
 
 	p(y)
 	p(x0)
