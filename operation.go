@@ -262,7 +262,6 @@ type square struct {
 }
 
 func (s *square) Forward(inputs ...*Variable) ([]*Variable, error) {
-	// y := tensor.All(2, inputs[0].data.CopyShape()...)
 	return asvars(device.Pow(s.input.data, tensor.FromScalar(2))), nil
 }
 
