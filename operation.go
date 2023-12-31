@@ -94,6 +94,7 @@ func (t *transpose) Backward(gy ...*Variable) ([]*Variable, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return []*Variable{y}, nil
 }
 
