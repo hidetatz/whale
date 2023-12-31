@@ -229,7 +229,7 @@ type sumTo struct {
 func (s *sumTo) Forward(inputs ...*Variable) ([]*Variable, error) {
 	y, err := inputs[0].data.SumTo(s.shape...)
 	if err != nil {
-		return nil, fmt.Errorf("SumTo: %w")
+		return nil, fmt.Errorf("SumTo: %w", err)
 	}
 
 	return asvars(y), nil
