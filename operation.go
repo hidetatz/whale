@@ -472,8 +472,8 @@ func Div(x0, x1 *Variable) (*Variable, error) {
 }
 
 type div struct {
-	x0 *Variable
-	x1 *Variable
+	x0      *Variable
+	x1      *Variable
 	x0shape []int
 	x1shape []int
 }
@@ -537,7 +537,7 @@ func Neg(x *Variable) (*Variable, error) {
 	return y[0], nil
 }
 
-type neg struct {}
+type neg struct{}
 
 func (n *neg) Forward(inputs ...*Variable) ([]*Variable, error) {
 	return asvars(device.Neg(inputs[0].data)), nil
