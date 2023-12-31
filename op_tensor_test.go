@@ -61,13 +61,13 @@ func vs(vs ...*Variable) []*Variable {
 
 func TestReshape(t *testing.T) {
 	tests := []struct {
-		name     string
-		in       *tensor.Tensor
-		shape    []int
+		name  string
+		in    *tensor.Tensor
+		shape []int
 
 		// verification
 		expected *tensor.Tensor
-		grad *tensor.Tensor
+		grad     *tensor.Tensor
 
 		// dezero verification
 		dezero string
@@ -98,12 +98,12 @@ func TestReshape(t *testing.T) {
 
 func TestTranspose(t *testing.T) {
 	tests := []struct {
-		name     string
-		in       *tensor.Tensor
+		name string
+		in   *tensor.Tensor
 
 		// verification
 		expected *tensor.Tensor
-		grad *tensor.Tensor
+		grad     *tensor.Tensor
 
 		// dezero verification
 		dezero string
