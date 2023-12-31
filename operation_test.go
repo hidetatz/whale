@@ -43,6 +43,15 @@ func TestSingleOperations(t *testing.T) {
 			expected: arng(t, 1, 13, 2, 2, 3).Transpose(),
 			grad:     ones(t, 2, 2, 3),
 		},
+		{
+			name:     "broadcastto",
+			fn:       BroadcastTo,
+			in:       arng(t, 1, 7, 2, 3),
+			extra:    []any{[]int{3, 2, 3}},
+			variable: true,
+			expected: nd(t, []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, 3, 2, 3),
+			grad:     nd(t, []float64{3, 3, 3, 3, 3, 3}, 2, 3),
+		},
 	}
 
 	for _, tc := range tests {
