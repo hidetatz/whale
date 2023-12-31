@@ -57,7 +57,7 @@ func (v *Variable) SetCreator(creator *function) {
 
 func (v *Variable) Backward() error {
 	if v.grad == nil {
-		v.grad = NewVar(tensor.Ones(v.data.CopyShape()...))
+		v.grad = NewVar(tensor.OnesLike(v.data))
 	}
 
 	fs := []*function{}

@@ -67,6 +67,15 @@ func Zeros(shape ...int) *Tensor {
 	return t
 }
 
+func ZerosLike(t *Tensor) *Tensor {
+	nt := t.Copy()
+	for i := range nt.Data {
+		nt.Data[i] = 0
+	}
+
+	return nt
+}
+
 func Ones(shape ...int) *Tensor {
 	data := make([]float64, total(shape))
 	for i := range data {
@@ -74,6 +83,15 @@ func Ones(shape ...int) *Tensor {
 	}
 	t, _ := Nd(data, shape...) // error never happens
 	return t
+}
+
+func OnesLike(t *Tensor) *Tensor {
+	nt := t.Copy()
+	for i := range nt.Data {
+		nt.Data[i] = 1
+	}
+
+	return nt
 }
 
 func All(v float64, shape ...int) *Tensor {
