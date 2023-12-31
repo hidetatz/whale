@@ -7,60 +7,10 @@ import (
 	"github.com/hidetatz/whale/tensor"
 )
 
-func arng(t *testing.T, from, to int, shape ...int) *tensor.Tensor {
-	t.Helper()
-	tsr, _ := tensor.ArangeFrom(from, to).Reshape(shape...)
-	return tsr
-}
-
-func ones(t *testing.T, shape ...int) *tensor.Tensor {
-	t.Helper()
-	return tensor.Ones(shape...)
-}
-
-func verify(t *testing.T, in, out []*Variable, expected, expectedGrad []*tensor.Tensor) {
-	t.Helper()
-
-	// check calc output
-	if len(expected) != len(out) {
-		t.Errorf("result length mismatch expected %v but got %v", len(expected), len(out))
-	}
-
-	for i := range expected {
-		if !expected[i].Equals(out[i].data) {
-			t.Errorf("expected %v but got %v", expected[i], out[i].data)
-		}
-	}
-
-	// check gradient
-	for _, o := range out {
-		if err := o.Backward(); err != nil {
-			t.Errorf("unexpected err on backward: %v", err)
-		}
-	}
-
-	if len(expectedGrad) != len(in) {
-		t.Errorf("grad length mismatch expected %v but got %v", len(expectedGrad), len(in))
-	}
-
-	for i := range expectedGrad {
-		if !expectedGrad[i].Equals(in[i].grad.data) {
-			t.Errorf("grad: expected %v but got %v", expectedGrad[i].RawString(), in[i].grad.data.RawString())
-		}
-	}
-}
-
-// makes slice of tensors
-func ts(tensors ...*tensor.Tensor) []*tensor.Tensor {
-	return tensors
-}
-
-// makes slice of variable
-func vs(vs ...*Variable) []*Variable {
-	return vs
-}
-
-func TestOperations(t *testing.T) {
+// Tests each calculation function correctness.
+// Detailed operation test should be done in tensor/device tests.
+// This test should focus on the correctness of forward/backward implementation.
+func TestSingleOperations(t *testing.T) {
 	tests := []struct {
 		name string
 
@@ -139,4 +89,70 @@ func TestOperations(t *testing.T) {
 			verify(t, vs(x), vs(y), ts(tc.expected), ts(tc.grad))
 		})
 	}
+}
+
+// do this:
+//   - check output is the same as expected
+//   - call Backward() for each output
+//   - check gradient of input is the same as expected
+func verify(t *testing.T, in, out []*Variable, expected, expectedGrad []*tensor.Tensor) {
+	t.Helper()
+
+	// check calc output
+	if len(expected) != len(out) {
+		t.Errorf("result length mismatch expected %v but got %v", len(expected), len(out))
+	}
+
+	for i := range expected {
+		if !expected[i].Equals(out[i].data) {
+			t.Errorf("expected %v but got %v", expected[i], out[i].data)
+		}
+	}
+
+	// check gradient
+	for _, o := range out {
+		if err := o.Backward(); err != nil {
+			t.Errorf("unexpected err on backward: %v", err)
+		}
+	}
+
+	if len(expectedGrad) != len(in) {
+		t.Errorf("grad length mismatch expected %v but got %v", len(expectedGrad), len(in))
+	}
+
+	for i := range expectedGrad {
+		if !expectedGrad[i].Equals(in[i].grad.data) {
+			t.Errorf("grad: expected %v but got %v", expectedGrad[i].RawString(), in[i].grad.data.RawString())
+		}
+	}
+}
+
+/*
+ * tensor factory helpers
+ */
+func nd(t *testing.T, data []float64, shape ...int) *tensor.Tensor {
+	t.Helper()
+	tsr, _ := tensor.Nd(data, shape...)
+	return tsr
+}
+
+func arng(t *testing.T, from, to int, shape ...int) *tensor.Tensor {
+	t.Helper()
+	tsr, _ := tensor.ArangeFrom(from, to).Reshape(shape...)
+	return tsr
+}
+
+func ones(t *testing.T, shape ...int) *tensor.Tensor {
+	t.Helper()
+	return tensor.Ones(shape...)
+}
+
+// makes slice of tensors
+func ts(tensors ...*tensor.Tensor) []*tensor.Tensor {
+	return tensors
+}
+
+// makes slice of variable
+func vs(vs ...*Variable) []*Variable {
+	return vs
 }
