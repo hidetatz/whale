@@ -93,6 +93,20 @@ func TestSingleOperations(t *testing.T) {
 			expected:     ts(nd(t, []float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
 			expectedGrad:     ts(nd(t, []float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
 		},
+		{
+			name:         "add",
+			fn:           Add,
+			in:           ts(arng(t, 1, 7, 2, 3), arng(t, 7, 13, 2, 3)),
+			expected:     ts(nd(t, []float64{8, 10, 12, 14, 16, 18}, 2, 3)),
+			expectedGrad: ts(ones(t, 2, 3), ones(t, 2, 3)),
+		},
+		{
+			name:         "add2",
+			fn:           Add,
+			in:           ts(arng(t, 1, 7, 2, 3), scalar(t, 2)),
+			expected:     ts(nd(t, []float64{3, 4, 5, 6, 7, 8}, 2, 3)),
+			expectedGrad: ts(ones(t, 2, 3), scalar(t, 6)),
+		},
 	}
 
 

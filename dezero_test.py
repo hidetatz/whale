@@ -52,3 +52,23 @@ y.backward()
 p("exp y", y.data)
 p("exp x.grad", x.grad.data)
 print("-------")
+
+# add
+x1 = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+x2 = dezero.Variable(np.arange(7, 13).reshape(2, 3))
+y = x1 + x2
+y.backward()
+p("add y", y.data)
+p("add x1.grad", x1.grad.data)
+p("add x2.grad", x2.grad.data)
+print("-------")
+
+# add2
+x1 = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+x2 = dezero.Variable(np.array(1))
+y = x1 + x2
+y.backward()
+p("add2 y", y.data)
+p("add2 x1.grad", x1.grad.data)
+p("add2 x2.grad", x2.grad.data)
+print("-------")
