@@ -50,6 +50,42 @@ func TestSingleOperations(t *testing.T) {
 			expected:     ts(nd(t, []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, 3, 2, 3)),
 			expectedGrad: ts(nd(t, []float64{3, 3, 3, 3, 3, 3}, 2, 3)),
 		},
+		{
+			name:         "sum",
+			fn:           Sum,
+			in:           ts(arng(t, 1, 7, 2, 3)),
+			extra:        []any{false, []int{0}},
+			variable:     true,
+			expected:     ts(nd(t, []float64{5, 7, 9}, 3)),
+			expectedGrad: ts(ones(t, 2, 3)),
+		},
+		{
+			name:         "sum2",
+			fn:           Sum,
+			in:           ts(arng(t, 1, 7, 2, 3)),
+			extra:        []any{false, []int{1}},
+			variable:     true,
+			expected:     ts(nd(t, []float64{6, 15}, 2)),
+			expectedGrad: ts(ones(t, 2, 3)),
+		},
+		{
+			name:         "sum3",
+			fn:           Sum,
+			in:           ts(arng(t, 1, 7, 2, 3)),
+			extra:        []any{true, []int{1}},
+			variable:     true,
+			expected:     ts(nd(t, []float64{6, 15}, 2, 1)),
+			expectedGrad: ts(ones(t, 2, 3)),
+		},
+		{
+			name:         "sumTo",
+			fn:           SumTo,
+			in:           ts(arng(t, 1, 7, 2, 3)),
+			extra:        []any{[]int{1, 3}},
+			variable:     true,
+			expected:     ts(nd(t, []float64{5, 7, 9}, 1, 3)),
+			expectedGrad: ts(ones(t, 2, 3)),
+		},
 	}
 
 	for _, tc := range tests {
