@@ -86,7 +86,15 @@ func TestSingleOperations(t *testing.T) {
 			expected:     ts(nd(t, []float64{5, 7, 9}, 1, 3)),
 			expectedGrad: ts(ones(t, 2, 3)),
 		},
+		{
+			name:         "exp",
+			fn:           Exp,
+			in:           ts(arng(t, 1, 7, 2, 3)),
+			expected:     ts(nd(t, []float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
+			expectedGrad:     ts(nd(t, []float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
+		},
 	}
+
 
 	for _, tc := range tests {
 		tc := tc

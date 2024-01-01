@@ -302,7 +302,6 @@ func Exp(v *Variable) (*Variable, error) {
 }
 
 type exp struct {
-	// einput  *Variable
 	output *Variable
 }
 

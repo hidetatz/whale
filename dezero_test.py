@@ -44,3 +44,11 @@ y.backward()
 p("sum_to y", y.data)
 p("sum_to x.grad", x.grad.data)
 print("-------")
+
+# exp
+x = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+y = F.exp(x)
+y.backward()
+p("exp y", y.data)
+p("exp x.grad", x.grad.data)
+print("-------")
