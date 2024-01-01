@@ -73,8 +73,8 @@ func (r *reshape) Backward(gy ...*Variable) ([]*Variable, error) {
 func (r *reshape) String() string { return "reshape" }
 
 // Transpose transposes the tensor.
-func Transpose(v *Variable) (*Variable, error) {
-	f := NewFunction(&transpose{})
+func Transpose(v *Variable, axes ...int) (*Variable, error) {
+	f := NewFunction(&transpose{axes: axes})
 	y, err := f.forward(v)
 	if err != nil {
 		return nil, err
@@ -83,10 +83,16 @@ func Transpose(v *Variable) (*Variable, error) {
 	return y[0], nil
 }
 
-type transpose struct{}
+type transpose struct {
+	axes []int
+}
 
 func (t *transpose) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(inputs[0].data.Transpose()), nil
+	tr, err := inputs[0].data.Transpose(t.axes...)
+	if err != nil {
+		return nil, err
+	}
+	return []*Variable{NewVar(tr)}, nil
 }
 
 func (t *transpose) Backward(gy ...*Variable) ([]*Variable, error) {

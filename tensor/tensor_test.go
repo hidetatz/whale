@@ -383,11 +383,35 @@ func TestReshape(t *testing.T) {
 
 func TestTranspose(t *testing.T) {
 	tests := []struct {
-		name     string
-		data     []float64
-		shape    []int
-		expected *Tensor
+		name      string
+		data      []float64
+		shape     []int
+		axes      []int
+		expectErr bool
+		expected  *Tensor
 	}{
+		{
+			name:  "scalar",
+			data:  []float64{3},
+			shape: []int{},
+			axes:  []int{},
+			expected: &Tensor{
+				Data:    []float64{3},
+				shape:   []int{},
+				strides: []int{},
+			},
+		},
+		{
+			name:  "vector",
+			data:  seq(0, 8),
+			shape: []int{8},
+			axes:  []int{0},
+			expected: &Tensor{
+				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
+				shape:   []int{8},
+				strides: []int{1},
+			},
+		},
 		{
 			name:  "scalar",
 			data:  []float64{1},
@@ -438,54 +462,6 @@ func TestTranspose(t *testing.T) {
 				strides: []int{1, 4, 8, 16},
 			},
 		},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, _ := Nd(tc.data, tc.shape...)
-			got = got.Transpose()
-			if tc.expected != nil {
-				if !tc.expected.Equals(got) {
-					t.Errorf("expected %v but got %v", tc.expected, got)
-				}
-			}
-		})
-	}
-}
-
-func TestTransposeAxes(t *testing.T) {
-	tests := []struct {
-		name      string
-		data      []float64
-		shape     []int
-		axes      []int
-		expectErr bool
-		expected  *Tensor
-	}{
-		{
-			name:  "scalar",
-			data:  []float64{3},
-			shape: []int{},
-			axes:  []int{},
-			expected: &Tensor{
-				Data:    []float64{3},
-				shape:   []int{},
-				strides: []int{},
-			},
-		},
-		{
-			name:  "vector",
-			data:  seq(0, 8),
-			shape: []int{8},
-			axes:  []int{0},
-			expected: &Tensor{
-				Data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
-				shape:   []int{8},
-				strides: []int{1},
-			},
-		},
 		{
 			name:  "2d nochange",
 			data:  seq(0, 8),
@@ -526,7 +502,7 @@ func TestTransposeAxes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, _ := Nd(tc.data, tc.shape...)
-			got, err := got.TransposeAxes(tc.axes...)
+			got, err := got.Transpose(tc.axes...)
 			if (err != nil) != tc.expectErr {
 				t.Errorf("unexpected error: expected: %v but got %v", tc.expectErr, err)
 			}

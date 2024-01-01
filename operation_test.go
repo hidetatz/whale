@@ -38,7 +38,7 @@ func TestSingleOperations(t *testing.T) {
 			name:         "transpose",
 			fn:           Transpose,
 			in:           ts(arng(t, 1, 13, 2, 2, 3)),
-			expected:     ts(arng(t, 1, 13, 2, 2, 3).Transpose()),
+			expected:     ts(trans(t, arng(t, 1, 13, 2, 2, 3))),
 			expectedGrad: ts(ones(t, 2, 2, 3)),
 		},
 		{
@@ -258,6 +258,12 @@ func arng(t *testing.T, from, to int, shape ...int) *tensor.Tensor {
 func ones(t *testing.T, shape ...int) *tensor.Tensor {
 	t.Helper()
 	return tensor.Ones(shape...)
+}
+
+func trans(t *testing.T, orig *tensor.Tensor, axes ...int) *tensor.Tensor {
+	t.Helper()
+	tr, _ := orig.Transpose(axes...)
+	return tr
 }
 
 // makes slice of tensors

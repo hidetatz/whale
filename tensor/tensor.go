@@ -258,14 +258,13 @@ func (t *Tensor) Copy() *Tensor {
 	}
 }
 
-func (t *Tensor) Transpose() *Tensor {
-	nt := t.Copy()
-	slices.Reverse(nt.shape)
-	slices.Reverse(nt.strides)
-	return nt
-}
-
-func (t *Tensor) TransposeAxes(axes ...int) (*Tensor, error) {
+func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
+	if len(axes) == 0 {
+		nt := t.Copy()
+		slices.Reverse(nt.shape)
+		slices.Reverse(nt.strides)
+		return nt, nil
+	}
 	// check axes validity.
 	// Let's say the dimension is 5,
 	// axes must be the arbitrarily sorted slice of [0, 1, 2, 3, 4].
