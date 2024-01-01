@@ -21,36 +21,36 @@ func TestSingleOperations(t *testing.T) {
 		// flag if the last param of arguments is variable length
 		variable bool
 
-		expected *tensor.Tensor
-		grad     *tensor.Tensor
+		expected     *tensor.Tensor
+		expectedGrad *tensor.Tensor
 
 		// dezero verification
 		dezero string
 	}{
 		{
-			name:     "reshape",
-			fn:       Reshape,
-			in:       arng(t, 1, 13, 2, 2, 3),
-			extra:    []any{[]int{6, 2}},
-			variable: true,
-			expected: arng(t, 1, 13, 6, 2),
-			grad:     ones(t, 2, 2, 3),
+			name:         "reshape",
+			fn:           Reshape,
+			in:           arng(t, 1, 13, 2, 2, 3),
+			extra:        []any{[]int{6, 2}},
+			variable:     true,
+			expected:     arng(t, 1, 13, 6, 2),
+			expectedGrad: ones(t, 2, 2, 3),
 		},
 		{
-			name:     "transpose",
-			fn:       Transpose,
-			in:       arng(t, 1, 13, 2, 2, 3),
-			expected: arng(t, 1, 13, 2, 2, 3).Transpose(),
-			grad:     ones(t, 2, 2, 3),
+			name:         "transpose",
+			fn:           Transpose,
+			in:           arng(t, 1, 13, 2, 2, 3),
+			expected:     arng(t, 1, 13, 2, 2, 3).Transpose(),
+			expectedGrad: ones(t, 2, 2, 3),
 		},
 		{
-			name:     "broadcastto",
-			fn:       BroadcastTo,
-			in:       arng(t, 1, 7, 2, 3),
-			extra:    []any{[]int{3, 2, 3}},
-			variable: true,
-			expected: nd(t, []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, 3, 2, 3),
-			grad:     nd(t, []float64{3, 3, 3, 3, 3, 3}, 2, 3),
+			name:         "broadcastto",
+			fn:           BroadcastTo,
+			in:           arng(t, 1, 7, 2, 3),
+			extra:        []any{[]int{3, 2, 3}},
+			variable:     true,
+			expected:     nd(t, []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, 3, 2, 3),
+			expectedGrad: nd(t, []float64{3, 3, 3, 3, 3, 3}, 2, 3),
 		},
 	}
 
@@ -95,7 +95,7 @@ func TestSingleOperations(t *testing.T) {
 				}
 			}
 
-			verify(t, vs(x), vs(y), ts(tc.expected), ts(tc.grad))
+			verify(t, vs(x), vs(y), ts(tc.expected), ts(tc.expectedGrad))
 		})
 	}
 }
