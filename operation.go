@@ -183,20 +183,13 @@ func (s *sum) Backward(gy ...*Variable) ([]*Variable, error) {
 	ndim := len(s.origshape)
 
 	shape := gy0.data.CopyShape()
-	if !(ndim == 0 || len(s.axes) == 0 || s.keepdims) {
-		actualAxes := make([]int, len(s.axes))
-		for i, axis := range s.axes {
-			if axis >= 0 {
-				actualAxes[i] = s.axes[i]
-			} else {
-				actualAxes[i] = s.axes[i] + ndim
-			}
-		}
-		shape = gy0.data.CopyShape()
-		slices.Sort(actualAxes)
-		for _, a := range actualAxes {
+	if ndim != 0 && len(s.axes) != 0 && !s.keepdims {
+		sorted := make([]int, len(s.axes))
+		copy(sorted, s.axes)
+		slices.Sort(sorted)
+		for _, a := range sorted {
 			// insert a
-			shape = append(shape[:1], append([]int{a}, shape[1:]...)...)
+			shape = append(shape[:a], append([]int{1}, shape[a:]...)...)
 		}
 	}
 
@@ -205,7 +198,12 @@ func (s *sum) Backward(gy ...*Variable) ([]*Variable, error) {
 		return nil, fmt.Errorf("Sum Backward: %w", err)
 	}
 
-	return asvars(y), nil
+	gx, err := BroadcastTo(NewVar(y), s.origshape...)
+	if err != nil {
+		return nil, fmt.Errorf("Sum Backward: %w", err)
+	}
+
+	return []*Variable{gx}, nil
 }
 
 func (s *sum) String() string {

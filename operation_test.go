@@ -145,14 +145,14 @@ func verify(t *testing.T, in, out []*Variable, expected, expectedGrad []*tensor.
 	}
 }
 
-type dzr struct {
-	y    []float64
-	ySp  []float64
-	ySt  []float64
-	xG   []float64
-	xGSp []float64
-	xGSt []float64
-}
+// type dzr struct {
+// 	y    []float64
+// 	ySp  []float64
+// 	ySt  []float64
+// 	xG   []float64
+// 	xGSp []float64
+// 	xGSt []float64
+// }
 
 // 1 input, 1 output
 // func verifyDezeroS(t *testing.T, name string, x, y []string, expected, expectedGrad []*tensor.Tensor) {
@@ -243,6 +243,11 @@ func check[S ~[]E, E comparable](t *testing.T, expected, got S, name string) {
 /*
  * tensor factory helpers
  */
+func scalar(t *testing.T, data float64) *tensor.Tensor {
+	t.Helper()
+	return tensor.FromScalar(data)
+}
+
 func nd(t *testing.T, data []float64, shape ...int) *tensor.Tensor {
 	t.Helper()
 	tsr, _ := tensor.Nd(data, shape...)
