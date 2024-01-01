@@ -165,3 +165,11 @@ y.backward()
 p("cos y", y.data)
 p("cos x.grad", x.grad.data)
 print("-------")
+
+# tanh
+x = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+y = F.tanh(x)
+y.backward()
+p("tanh y", y.data)
+p("tanh x.grad", x.grad.data)
+print("-------")
