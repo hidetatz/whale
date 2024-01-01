@@ -91,7 +91,7 @@ func TestSingleOperations(t *testing.T) {
 			fn:           Exp,
 			in:           ts(arng(t, 1, 7, 2, 3)),
 			expected:     ts(nd(t, []float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
-			expectedGrad:     ts(nd(t, []float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
+			expectedGrad: ts(nd(t, []float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
 		},
 		{
 			name:         "add",
@@ -115,14 +115,48 @@ func TestSingleOperations(t *testing.T) {
 			expectedGrad: ts(ones(t, 2, 3), nd(t, []float64{-1, -1, -1, -1, -1, -1}, 2, 3)),
 		},
 		{
-			name:         "add2",
+			name:         "sub2",
 			fn:           Sub,
 			in:           ts(arng(t, 1, 7, 2, 3), scalar(t, 2)),
 			expected:     ts(nd(t, []float64{-1, 0, 1, 2, 3, 4}, 2, 3)),
 			expectedGrad: ts(ones(t, 2, 3), scalar(t, -6)),
 		},
+		{
+			name:         "mul",
+			fn:           Mul,
+			in:           ts(arng(t, 1, 7, 2, 3), arng(t, 7, 13, 2, 3)),
+			expected:     ts(nd(t, []float64{7, 16, 27, 40, 55, 72}, 2, 3)),
+			expectedGrad: ts(arng(t, 7, 13, 2, 3), arng(t, 1, 7, 2, 3)),
+		},
+		{
+			name:         "mul2",
+			fn:           Mul,
+			in:           ts(arng(t, 1, 7, 2, 3), scalar(t, 2)),
+			expected:     ts(nd(t, []float64{2, 4, 6, 8, 10, 12}, 2, 3)),
+			expectedGrad: ts(nd(t, []float64{2, 2, 2, 2, 2, 2}, 2, 3), scalar(t, 21)),
+		},
+		{
+			name: "div",
+			fn:   Div,
+			in: ts(
+				nd(t, []float64{2, 4, 6, 8, 10, 12}, 2, 3),
+				nd(t, []float64{1, 2, 3, 4, 5, 6}, 2, 3),
+			),
+			expected: ts(
+				nd(t, []float64{2, 2, 2, 2, 2, 2}, 2, 3)),
+			expectedGrad: ts(
+				nd(t, []float64{1, 0.5, 0.3333333333333333, 0.25, 0.2, 0.166666666666666666}, 2, 3),
+				nd(t, []float64{-2.0, -1.0, -0.6666666666666666, -0.5, -0.4, - 0.3333333333333333}, 2, 3),
+			),
+		},
+		{
+			name:         "div2",
+			fn:           Div,
+			in:           ts(arng(t, 1, 7, 2, 3), scalar(t, 2)),
+			expected:     ts(nd(t, []float64{0.5, 1, 1.5, 2, 2.5, 3}, 2, 3)),
+			expectedGrad: ts(nd(t, []float64{0.5, 0.5, 0.5, 0.5, 0.5, 0.5}, 2, 3), scalar(t, -5.25)),
+		},
 	}
-
 
 	for _, tc := range tests {
 		tc := tc

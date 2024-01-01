@@ -92,3 +92,43 @@ p("sub2 y", y.data)
 p("sub2 x1.grad", x1.grad.data)
 p("sub2 x2.grad", x2.grad.data)
 print("-------")
+
+# mul
+x1 = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+x2 = dezero.Variable(np.arange(7, 13).reshape(2, 3))
+y = x1 * x2
+y.backward()
+p("mul y", y.data)
+p("mul x1.grad", x1.grad.data)
+p("mul x2.grad", x2.grad.data)
+print("-------")
+
+# mul2
+x1 = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+x2 = dezero.Variable(np.array(2))
+y = x1 * x2
+y.backward()
+p("mul2 y", y.data)
+p("mul2 x1.grad", x1.grad.data)
+p("mul2 x2.grad", x2.grad.data)
+print("-------")
+
+# div
+x1 = dezero.Variable(np.array([[2, 4, 6], [8, 10, 12]]))
+x2 = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+y = x1 / x2
+y.backward()
+p("div y", y.data)
+p("div x1.grad", x1.grad.data)
+p("div x2.grad", x2.grad.data)
+print("-------")
+
+# div2
+x1 = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+x2 = dezero.Variable(np.array(2))
+y = x1 / x2
+y.backward()
+p("div2 y", y.data)
+p("div2 x1.grad", x1.grad.data)
+p("div2 x2.grad", x2.grad.data)
+print("-------")
