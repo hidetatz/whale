@@ -2,6 +2,7 @@ package whale
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/hidetatz/whale/tensor"
@@ -15,42 +16,45 @@ func TestSingleOperations(t *testing.T) {
 		name string
 
 		fn any
-		in *tensor.Tensor
+		in []*tensor.Tensor
 		// extra arguments to the fn
 		extra []any
 		// flag if the last param of arguments is variable length
 		variable bool
 
-		expected     *tensor.Tensor
-		expectedGrad *tensor.Tensor
+		expected     []*tensor.Tensor
+		expectedGrad []*tensor.Tensor
 
 		// dezero verification
-		dezero string
+		dezeroX []string
+		dezeroY []string
 	}{
 		{
 			name:         "reshape",
 			fn:           Reshape,
-			in:           arng(t, 1, 13, 2, 2, 3),
+			in:           ts(arng(t, 1, 13, 2, 2, 3)),
 			extra:        []any{[]int{6, 2}},
 			variable:     true,
-			expected:     arng(t, 1, 13, 6, 2),
-			expectedGrad: ones(t, 2, 2, 3),
+			expected:     ts(arng(t, 1, 13, 6, 2)),
+			expectedGrad: ts(ones(t, 2, 2, 3)),
+			dezeroX:      []string{"np.arange(1, 13).reshape(2, 2, 3)"},
+			dezeroY:      []string{"x.reshape(6, 2)"},
 		},
 		{
 			name:         "transpose",
 			fn:           Transpose,
-			in:           arng(t, 1, 13, 2, 2, 3),
-			expected:     arng(t, 1, 13, 2, 2, 3).Transpose(),
-			expectedGrad: ones(t, 2, 2, 3),
+			in:           ts(arng(t, 1, 13, 2, 2, 3)),
+			expected:     ts(arng(t, 1, 13, 2, 2, 3).Transpose()),
+			expectedGrad: ts(ones(t, 2, 2, 3)),
 		},
 		{
 			name:         "broadcastto",
 			fn:           BroadcastTo,
-			in:           arng(t, 1, 7, 2, 3),
+			in:           ts(arng(t, 1, 7, 2, 3)),
 			extra:        []any{[]int{3, 2, 3}},
 			variable:     true,
-			expected:     nd(t, []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, 3, 2, 3),
-			expectedGrad: nd(t, []float64{3, 3, 3, 3, 3, 3}, 2, 3),
+			expected:     ts(nd(t, []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, 3, 2, 3)),
+			expectedGrad: ts(nd(t, []float64{3, 3, 3, 3, 3, 3}, 2, 3)),
 		},
 	}
 
@@ -59,14 +63,19 @@ func TestSingleOperations(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			x := NewVar(tc.in)
+			xs := make([]*Variable, len(tc.in))
+			args := []reflect.Value{}
+			for i, in := range tc.in {
+				v := NewVar(in)
+				xs[i] = v
+				args = append(args, reflect.ValueOf(v))
+			}
 
-			f := reflect.ValueOf(tc.fn)
-
-			args := []reflect.Value{reflect.ValueOf(x)}
 			for _, e := range tc.extra {
 				args = append(args, reflect.ValueOf(e))
 			}
+
+			f := reflect.ValueOf(tc.fn)
 
 			var results []reflect.Value
 			if tc.variable {
@@ -79,11 +88,7 @@ func TestSingleOperations(t *testing.T) {
 				t.Errorf("unexpected return length: %v", len(results))
 			}
 
-			y, ok := results[0].Interface().(*Variable)
-			if !ok {
-				t.Errorf("unexpected first-returned value: %v", results[0])
-			}
-
+			// check err
 			if !results[1].IsNil() {
 				err, ok := results[1].Interface().(error)
 				if !ok {
@@ -95,7 +100,17 @@ func TestSingleOperations(t *testing.T) {
 				}
 			}
 
-			verify(t, vs(x), vs(y), ts(tc.expected), ts(tc.expectedGrad))
+			// check returned
+			y, ok := results[0].Interface().(*Variable)
+			if !ok {
+				t.Errorf("unexpected first-returned value: %v", results[0])
+			}
+
+			verify(t, xs, vs(y), tc.expected, tc.expectedGrad)
+
+			// if tc.dezeroX != nil && tc.dezeroY != nil {
+			// 	verifyDezeroS(t, tc.name, tc.dezeroX, tc.dezeroY, tc.expected, tc.expectedGrad)
+			// }
 		})
 	}
 }
@@ -133,6 +148,101 @@ func verify(t *testing.T, in, out []*Variable, expected, expectedGrad []*tensor.
 		if !expectedGrad[i].Equals(in[i].grad.data) {
 			t.Errorf("grad: expected %v but got %v", expectedGrad[i].RawString(), in[i].grad.data.RawString())
 		}
+	}
+}
+
+type dzr struct {
+	y    []float64
+	ySp  []float64
+	ySt  []float64
+	xG   []float64
+	xGSp []float64
+	xGSt []float64
+}
+
+// 1 input, 1 output
+// func verifyDezeroS(t *testing.T, name string, x, y []string, expected, expectedGrad []*tensor.Tensor) {
+// 	src := `
+// import dezero
+// import dezero.functions as F
+// import numpy as np
+//
+// x = dezero.Variable(%s)
+// y = %s
+// y.backward()
+// d = y.data
+// g = x.grad.data
+// # use flatten to parse easily on Go side.
+// print(f"{tuple(d.flatten())}_{d.shape}_{d.strides}_{tuple(g.flatten())}_{g.shape}_{g.strides}")
+// `
+// 	pyf := fmt.Sprintf("./python/%s.py", name)
+// 	err := os.WriteFile(pyf, []byte(fmt.Sprintf(src, x, y)), 0755)
+// 	if err != nil {
+// 		t.Errorf("unexpected err on writing python file %s.py: %v", name, err)
+// 		return
+// 	}
+//
+// 	t.Cleanup(func() { os.Remove(pyf) })
+//
+// 	out, err := exec.Command("python", pyf).CombinedOutput()
+// 	if err != nil {
+// 		t.Errorf("unexpected err on executing python %s.py: [%v] %s", name, err, string(out))
+// 		return
+// 	}
+//
+// 	vars := strings.Split(string(out), "_")
+// 	if len(vars) != 6 {
+// 		t.Errorf("unexpected python output %s.py: [%v] %s", name, err, string(out))
+// 		return
+// 	}
+//
+// 	parse := func(t *testing.T, s string, strides bool) []float64 {
+// 		s = strings.TrimLeft(s, "(")
+// 		s = strings.TrimRight(s, ")\n")
+// 		ns := strings.Split(s, ", ")
+// 		result := []float64{}
+// 		for _, n := range ns {
+// 			f, err := strconv.ParseFloat(n, 64)
+// 			if err != nil {
+// 				t.Fatalf("unexpected python output %s.py: fail to parse as float %s", name, n)
+// 			}
+// 			if strides {
+// 				// in numpy, stride is presented as bit count so convert to byte
+// 				f /= 8
+// 			}
+// 			result = append(result, f)
+// 		}
+// 		return result
+// 	}
+//
+// 	r := dzr{
+// 		y:    parse(t, vars[0], false),
+// 		ySp:  parse(t, vars[1], false),
+// 		ySt:  parse(t, vars[2], true),
+// 		xG:   parse(t, vars[3], false),
+// 		xGSp: parse(t, vars[4], false),
+// 		xGSt: parse(t, vars[5], true),
+// 	}
+//
+// 	toint := func(fs []float64) []int {
+// 		is := make([]int, len(fs))
+// 		for i := range fs {
+// 			is[i] = int(fs[i])
+// 		}
+// 		return is
+// 	}
+//
+// 	check(t, expected.Data, r.y, "y")
+// 	check(t, expected.CopyShape(), toint(r.ySp), "y.shape")
+// 	check(t, expected.CopyStrides(), toint(r.ySt), "y.strides")
+// 	check(t, expectedGrad.Data, r.xG, "x.grad")
+// 	check(t, expectedGrad.CopyShape(), toint(r.xGSp), "y.grad.shape")
+// 	check(t, expectedGrad.CopyStrides(), toint(r.xGSt), "y.grad.strides")
+// }
+
+func check[S ~[]E, E comparable](t *testing.T, expected, got S, name string) {
+	if !slices.Equal(expected, got) {
+		t.Fatalf("mismatch with python output (%s): expected: %v, got: %v", name, expected, got)
 	}
 }
 
