@@ -24,10 +24,6 @@ func TestSingleOperations(t *testing.T) {
 
 		expected     []*tensor.Tensor
 		expectedGrad []*tensor.Tensor
-
-		// dezero verification
-		dezeroX []string
-		dezeroY []string
 	}{
 		{
 			name:         "reshape",
@@ -37,8 +33,6 @@ func TestSingleOperations(t *testing.T) {
 			variable:     true,
 			expected:     ts(arng(t, 1, 13, 6, 2)),
 			expectedGrad: ts(ones(t, 2, 2, 3)),
-			dezeroX:      []string{"np.arange(1, 13).reshape(2, 2, 3)"},
-			dezeroY:      []string{"x.reshape(6, 2)"},
 		},
 		{
 			name:         "transpose",
