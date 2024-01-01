@@ -65,10 +65,30 @@ print("-------")
 
 # add2
 x1 = dezero.Variable(np.arange(1, 7).reshape(2, 3))
-x2 = dezero.Variable(np.array(1))
+x2 = dezero.Variable(np.array(2))
 y = x1 + x2
 y.backward()
 p("add2 y", y.data)
 p("add2 x1.grad", x1.grad.data)
 p("add2 x2.grad", x2.grad.data)
+print("-------")
+
+# sub
+x1 = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+x2 = dezero.Variable(np.arange(7, 13).reshape(2, 3))
+y = x1 - x2
+y.backward()
+p("sub y", y.data)
+p("sub x1.grad", x1.grad.data)
+p("sub x2.grad", x2.grad.data)
+print("-------")
+
+# sub2
+x1 = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+x2 = dezero.Variable(np.array(2))
+y = x1 - x2
+y.backward()
+p("sub2 y", y.data)
+p("sub2 x1.grad", x1.grad.data)
+p("sub2 x2.grad", x2.grad.data)
 print("-------")
