@@ -251,42 +251,6 @@ func (s *sumTo) String() string {
 	return "sumto"
 }
 
-func Square(v *Variable) (*Variable, error) {
-	f := NewFunction(&square{input: v})
-	y, err := f.forward(v)
-	if err != nil {
-		return nil, err
-	}
-
-	return y[0], nil
-}
-
-type square struct {
-	input *Variable
-}
-
-func (s *square) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Pow(s.input.data, tensor.FromScalar(2))), nil
-}
-
-func (s *square) Backward(gy ...*Variable) ([]*Variable, error) {
-	m1, err := Mul(NewVar(tensor.FromScalar(2)), s.input)
-	if err != nil {
-		return nil, fmt.Errorf("Square Backward: %w", err)
-	}
-
-	m2, err := Mul(m1, gy[0])
-	if err != nil {
-		return nil, fmt.Errorf("Square Backward: %w", err)
-	}
-
-	return []*Variable{m2}, nil
-}
-
-func (s *square) String() string {
-	return "^2"
-}
-
 /*
  * Exp
  */
