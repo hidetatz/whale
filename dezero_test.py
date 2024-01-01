@@ -173,3 +173,13 @@ y.backward()
 p("tanh y", y.data)
 p("tanh x.grad", x.grad.data)
 print("-------")
+
+# matmul
+x = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+w = dezero.Variable(np.arange(1, 7).reshape(3, 2))
+y = F.matmul(x, w)
+y.backward()
+p("matmul y", y.data)
+p("matmul x.grad", x.grad.data)
+p("matmul w.grad", w.grad.data)
+print("-------")
