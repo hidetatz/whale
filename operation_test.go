@@ -163,6 +163,13 @@ func TestSingleOperations(t *testing.T) {
 			expected:     ts(nd(t, []float64{-1, -2, -3, -4, -5, -6}, 2, 3)),
 			expectedGrad: ts(nd(t, []float64{-1, -1, -1, -1, -1, -1}, 2, 3)),
 		},
+		{
+			name:         "pow",
+			fn:           Pow,
+			in:           ts(arng(t, 1, 7, 2, 3), scalar(t, 2)),
+			expected:     ts(nd(t, []float64{1, 4, 9, 16, 25, 36}, 2, 3)),
+			expectedGrad: ts(nd(t, []float64{2, 4, 6, 8, 10, 12}, 2, 3), nil),
+		},
 	}
 
 	for _, tc := range tests {
@@ -252,8 +259,17 @@ func verify(t *testing.T, in, out []*Variable, expected, expectedGrad []*tensor.
 	}
 
 	for i := range expectedGrad {
-		if !expectedGrad[i].Equals(in[i].grad.data) {
-			t.Errorf("grad: expected %v but got %v", expectedGrad[i].RawString(), in[i].grad.data.RawString())
+		// Comes here on Pow test.
+		// In Pow, the gradient of x is calculated, but c is not. That's why
+		// this check is needed.
+		if expectedGrad[i] == nil {
+			if in[i].grad != nil {
+				t.Errorf("grad: expected nil but got %v", in[i].grad.data.RawString())
+			}
+		} else {
+			if !expectedGrad[i].Equals(in[i].grad.data) {
+				t.Errorf("grad: expected %v but got %v", expectedGrad[i].RawString(), in[i].grad.data.RawString())
+			}
 		}
 	}
 }

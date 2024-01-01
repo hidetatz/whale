@@ -140,3 +140,12 @@ y.backward()
 p("neg y", y.data)
 p("neg x.grad", x.grad.data)
 print("-------")
+
+# pow
+x = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+c = 2
+y = x ** c
+y.backward()
+p("pow y", y.data)
+p("pow x.grad", x.grad.data)
+print("-------")
