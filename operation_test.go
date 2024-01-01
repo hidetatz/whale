@@ -156,6 +156,13 @@ func TestSingleOperations(t *testing.T) {
 			expected:     ts(nd(t, []float64{0.5, 1, 1.5, 2, 2.5, 3}, 2, 3)),
 			expectedGrad: ts(nd(t, []float64{0.5, 0.5, 0.5, 0.5, 0.5, 0.5}, 2, 3), scalar(t, -5.25)),
 		},
+		{
+			name:         "neg",
+			fn:           Neg,
+			in:           ts(arng(t, 1, 7, 2, 3)),
+			expected:     ts(nd(t, []float64{-1, -2, -3, -4, -5, -6}, 2, 3)),
+			expectedGrad: ts(nd(t, []float64{-1, -1, -1, -1, -1, -1}, 2, 3)),
+		},
 	}
 
 	for _, tc := range tests {

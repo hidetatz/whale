@@ -132,3 +132,11 @@ p("div2 y", y.data)
 p("div2 x1.grad", x1.grad.data)
 p("div2 x2.grad", x2.grad.data)
 print("-------")
+
+# neg
+x = dezero.Variable(np.arange(1, 7).reshape(2, 3))
+y = -x
+y.backward()
+p("neg y", y.data)
+p("neg x.grad", x.grad.data)
+print("-------")
