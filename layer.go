@@ -1,8 +1,6 @@
 package whale
 
 import (
-	"fmt"
-
 	"github.com/hidetatz/whale/tensor"
 )
 
@@ -15,21 +13,6 @@ func Linear(x, w, b *Variable) (*Variable, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return y, nil
-}
-
-func Linear2(x, w, b *Variable) (*Variable, error) {
-	t, err := MatMul(x, w)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println(t.GetData().Shape())
-	y, err := Add(t, b)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println(y.GetData().Shape())
 
 	return y, nil
 }
