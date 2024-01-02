@@ -75,13 +75,12 @@ func (p *Plot) Exec() error {
 
 	var in bytes.Buffer
 	in.WriteString(gnuplot)
-	// fmt.Println(gnuplot)
 
 	cmd.Stdin = &in
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("run gnuplot: %w", string(out))
+		return fmt.Errorf("run gnuplot: %s", string(out))
 	}
 
 	return nil
