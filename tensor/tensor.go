@@ -2,6 +2,7 @@ package tensor
 
 import (
 	"fmt"
+	"math/rand"
 	"slices"
 	"strings"
 )
@@ -59,6 +60,15 @@ func Nd(data []float64, shape ...int) (*Tensor, error) {
 	}
 
 	return t, nil
+}
+
+func Rand(shape ...int) *Tensor {
+	data := make([]float64, total(shape))
+	for i := range data {
+		data[i] = rand.Float64()
+	}
+	t, _ := Nd(data, shape...) // error never happens
+	return t
 }
 
 func Zeros(shape ...int) *Tensor {
