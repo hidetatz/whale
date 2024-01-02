@@ -21,7 +21,7 @@ const (
 	H     = 10
 	O     = 1
 	LR    = 0.2
-	iters = 20000
+	iters = 10000
 )
 
 var xt, yt = randdata()
@@ -60,15 +60,23 @@ func main() {
 		}
 	}
 
-	whale.Scatter(xt.Data, yt.Data)
+	p := whale.NewPlot()
+	if err := p.Scatter(xt.Data, yt.Data, "blue"); err != nil {
+		panic(err)
+	}
 
 	t, err := tensor.ArangeBy(0, 1, 0.01).Reshape(100, 1)
 	if err != nil {
 		panic(err)
 	}
+
 	tv := whale.NewVar(t)
 	pred := predict(tv)
-	if err = whale.Scatter(tv.GetData().Data, pred.GetData().Data); err != nil {
+	if err = p.Line(tv.GetData().Data, pred.GetData().Data, "red"); err != nil {
+		panic(err)
+	}
+
+	if err := p.Exec(); err != nil {
 		panic(err)
 	}
 }
