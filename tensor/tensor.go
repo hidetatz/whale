@@ -139,6 +139,16 @@ func ArangeFrom(from, to int) *Tensor {
 	return t
 }
 
+func ArangeBy(from, to, interval float64) *Tensor {
+	data := make([]float64, int((to-from)/interval))
+	for i := range data {
+		data[i] = from + interval*float64(i)
+	}
+
+	t, _ := FromVector(data, len(data)) // error never happens
+	return t
+}
+
 func (t *Tensor) Shape() []int {
 	return t.shape
 }

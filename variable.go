@@ -34,6 +34,15 @@ func (v *Variable) clone() *Variable {
 	}
 }
 
+func (v *Variable) Len() int {
+	return len(v.data.Data)
+}
+
+func (v *Variable) Sub(lr float64) {
+	newData := device.Sub(v.data, device.Mul(v.grad.data, tensor.FromScalar(lr)))
+	v.data = newData
+}
+
 func (v *Variable) SetData(t *tensor.Tensor) {
 	v.data = t
 }
