@@ -27,8 +27,8 @@ type MomentumSGD struct {
 
 func NewMomentumSGD(learnRate, momentum float64) *MomentumSGD {
 	return &MomentumSGD{
-		learnRate: tensor.FromScalar(learnRate), 
-		momentum: tensor.FromScalar(momentum),
+		learnRate:  tensor.FromScalar(learnRate),
+		momentum:   tensor.FromScalar(momentum),
 		velocities: make(map[*Variable]*tensor.Tensor),
 	}
 }

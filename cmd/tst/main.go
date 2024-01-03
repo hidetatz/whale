@@ -16,42 +16,39 @@ func randdata() (*tensor.Tensor, *tensor.Tensor) {
 	return x, y
 }
 
-const (
-	I     = 1
-	H     = 10
-	O     = 1
-	LR    = 0.2
-	iters = 10000
-)
+func Predict(m whale.Model, x *whale.Variable) *whale.Variable {
+	pred, err := m.Train(x)
+	if err != nil {
+		panic(err)
+	}
+	return pred
+}
 
-var xt, yt = randdata()
-var x = whale.NewVar(xt)
-var y = whale.NewVar(yt)
-var w1 = whale.NewVar(device.Mul(tensor.Rand(I, H), tensor.FromScalar(0.01)))
-var b1 = whale.NewVar(tensor.Zeros(H))
-var w2 = whale.NewVar(device.Mul(tensor.Rand(H, O), tensor.FromScalar(0.01)))
-var b2 = whale.NewVar(tensor.Zeros(O))
+func Train(m whale.Model, x, y *whale.Variable) {
+	lossCalc := m.Loss()
+	optim := m.Optimizer()
 
-func main() {
-	// optim := whale.NewMomentumSGD(0.1, 0.9)
-	optim := whale.NewSGD(LR)
-	for i := 0; i < iters; i++ {
-		yPred := predict(x)
-		loss, err := whale.MeanSquaredError(y, yPred)
+	for i := 0; i < 10000; i++ {
+		pred, err := m.Train(x)
 		if err != nil {
 			panic(err)
 		}
 
-		w1.ClearGrad()
-		b1.ClearGrad()
-		w2.ClearGrad()
-		b2.ClearGrad()
+		loss, err := lossCalc.Calculate(pred, y)
+		if err != nil {
+			panic(err)
+		}
+
+		params := m.Params()
+		for _, p := range params {
+			p.ClearGrad()
+		}
+
 		loss.Backward()
 
-		optim.Optimize(w1)
-		optim.Optimize(b1)
-		optim.Optimize(w2)
-		optim.Optimize(b2)
+		for _, p := range params {
+			optim.Optimize(p)
+		}
 
 		if i%100 == 0 {
 			fmt.Println(i)
@@ -61,6 +58,16 @@ func main() {
 			fmt.Println(loss)
 		}
 	}
+}
+
+func main() {
+	xt, yt := randdata()
+	x := whale.NewVar(xt)
+	y := whale.NewVar(yt)
+
+	layer := [][]int{{1, 10}, {10, 1}}
+	mlp := whale.NewMLP(layer, true, whale.NewSigmoid(), whale.NewMSE(), whale.NewSGD(0.2))
+	Train(mlp, x, y)
 
 	p := whale.NewPlot()
 	if err := p.Scatter(xt.Data, yt.Data, "blue"); err != nil {
@@ -71,9 +78,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 	tv := whale.NewVar(t)
-	pred := predict(tv)
+	pred := Predict(mlp, tv)
 	if err = p.Line(tv.GetData().Data, pred.GetData().Data, "red"); err != nil {
 		panic(err)
 	}
@@ -81,21 +87,4 @@ func main() {
 	if err := p.Exec(); err != nil {
 		panic(err)
 	}
-}
-
-func predict(x *whale.Variable) *whale.Variable {
-	y, err := whale.Linear(x, w1, b1)
-	if err != nil {
-		panic(err)
-	}
-	y, err = whale.Sigmoid(y)
-	if err != nil {
-		panic(err)
-	}
-	y, err = whale.Linear(y, w2, b2)
-	if err != nil {
-		panic(err)
-	}
-
-	return y
 }
