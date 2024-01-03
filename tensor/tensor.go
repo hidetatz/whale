@@ -253,7 +253,7 @@ func (t *Tensor) Iterator(axis int) (*Iterator, error) {
 	return &Iterator{t: t, axis: axis}, nil
 }
 
-// Repeat copies the data on axis 
+// Repeat copies the data on axis
 func (t *Tensor) Repeat(times, axis int) (*Tensor, error) {
 	ns := t.CopyShape()
 	ns[axis] *= times
