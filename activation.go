@@ -37,3 +37,38 @@ func (s *Sigmoid) Activate(x *Variable) (*Variable, error) {
 
 	return y, nil
 }
+
+// SoftMax implements softmax for multi dimensional tensor.
+type SoftMax struct {
+	axis []int
+}
+
+// NewSoftMaxWithAxis initializes SoftMax activation with axis specified.
+// This should be used when you want to customize the axis to apply the softmax.
+func NewSoftMaxWithAxis(axis ...int) *SoftMax {
+	return &SoftMax{axis: axis}
+}
+
+// NewSoftMax initializes SoftMax activation.
+func NewSoftMax() *SoftMax {
+	return &SoftMax{axis: []int{1}}
+}
+
+func (s *SoftMax) Activate(x *Variable) (*Variable, error) {
+	y, err := Exp(x)
+	if err != nil {
+		return nil, err
+	}
+
+	sum, err := Sum(y, true, s.axis...)
+	if err != nil {
+		return nil, err
+	}
+
+	d, err := Div(y, sum)
+	if err != nil {
+		return nil, err
+	}
+
+	return d, nil
+}
