@@ -33,6 +33,8 @@ var w2 = whale.NewVar(device.Mul(tensor.Rand(H, O), tensor.FromScalar(0.01)))
 var b2 = whale.NewVar(tensor.Zeros(O))
 
 func main() {
+	// optim := whale.NewMomentumSGD(0.1, 0.9)
+	optim := whale.NewSGD(LR)
 	for i := 0; i < iters; i++ {
 		yPred := predict(x)
 		loss, err := whale.MeanSquaredError(y, yPred)
@@ -46,10 +48,10 @@ func main() {
 		b2.ClearGrad()
 		loss.Backward()
 
-		w1.Sub(LR)
-		b1.Sub(LR)
-		w2.Sub(LR)
-		b2.Sub(LR)
+		optim.Optimize(w1)
+		optim.Optimize(b1)
+		optim.Optimize(w2)
+		optim.Optimize(b2)
 
 		if i%100 == 0 {
 			fmt.Println(i)
