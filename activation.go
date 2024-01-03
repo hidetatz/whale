@@ -6,8 +6,10 @@ type Activation interface {
 	Activate(x *Variable) (*Variable, error)
 }
 
+// Sigmoid implements sigmoid function.
 type Sigmoid struct{}
 
+// NewSigmoid initializes sigmoid activation.
 func NewSigmoid() *Sigmoid {
 	return &Sigmoid{}
 }
