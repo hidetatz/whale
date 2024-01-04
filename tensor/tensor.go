@@ -56,7 +56,7 @@ func Zeros(shape ...int) *Tensor {
 
 // ZerosLike creates a tensor by the given tensor's shape with all values 0.
 func ZerosLike(t *Tensor) *Tensor {
-	return Zeros(t.shape)
+	return Zeros(t.shape...)
 }
 
 // Ones creates a tensor by the given shape with all values 1.
@@ -71,7 +71,7 @@ func Ones(shape ...int) *Tensor {
 
 // OnesLike creates a tensor by the given tensor's shape with all values 1.
 func OnesLike(t *Tensor) *Tensor {
-	return Ones(t.shape)
+	return Ones(t.shape...)
 }
 
 // All creates a tensor by the given shape with given value.
@@ -197,18 +197,18 @@ func (t *Tensor) Copy() *Tensor {
 
 func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 	if len(axes) == 0 {
-		nt := t.Copy()
-		slices.Reverse(nt.shape)
-		slices.Reverse(nt.strides)
-		return nt, nil
+		// if empty, create [0, 1, 2...] slice and reverses it
+		axes = seqi(0, len(t.shape))
+		slices.Reverse(axes)
 	}
+
 	// check axes validity.
 	// Let's say the dimension is 5,
 	// axes must be the arbitrarily sorted slice of [0, 1, 2, 3, 4].
 
 	// First check length
 	if len(axes) != len(t.shape) {
-		return nil, fmt.Errorf("length of axes does not match the shape")
+		return nil, fmt.Errorf("invalid axes length: must be the same as the length of shape")
 	}
 
 	// Second, check if all the values are between 0 to dim.
@@ -218,7 +218,7 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 		}
 		return false
 	}) {
-		return nil, fmt.Errorf("invalid value in axes: must be in 0 to dimension")
+		return nil, fmt.Errorf("invalid value in axes: must be in 0 to dim")
 	}
 
 	// Last, check if all the values are unique.
@@ -227,21 +227,55 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 	slices.Sort(copied)
 	copied = slices.Compact(copied)
 	if len(axes) != len(copied) {
-		fmt.Println(axes, copied)
-		return nil, fmt.Errorf("duplicate value in axes")
+		return nil, fmt.Errorf("invalid value in axes: duplicate value contained")
 	}
 
-	nt := t.Copy()
-	newshape := make([]int, len(nt.shape))
-	newstrides := make([]int, len(nt.strides))
+	// new tensor shape
+	ns := make([]int, len(t.shape))
 	for i := range axes {
-		newshape[i] = t.shape[axes[i]]
-		newstrides[i] = t.strides[axes[i]]
+		ns[i] = t.shape[axes[i]]
 	}
 
-	nt.shape = newshape
-	nt.strides = newstrides
-	return nt, nil
+	type index struct {
+		idx []int
+		val float64
+	}
+
+	indices := []*index{}
+
+	strides := t.strides()
+	var r func(idx []int)
+	r = func(idx []int) {
+		if len(idx) == len(t.shape) {
+			i := 0
+			for j := range idx {
+				i += idx[j] * strides[j]
+			}
+			indices = append(indices, &index{idx: idx, val: t.Data[i]})
+		}
+
+		for i := 0; i < t.shape[len(idx)]; i++ {
+			r(append(idx, i))
+		}
+	}
+
+	r([]int{})
+
+	nd := make([]float64, len(t.Data))
+	for _, idx := range indices {
+		ni := make([]int, len(t.shape))
+		for i := range axes {
+			ni[i] += idx.idx[axes[i]]
+		}
+
+		i := 0
+		for nidx := range ni {
+			i += strides[nidx] * ni[nidx]
+		}
+		nd[i] = idx.val
+	}
+
+	return &Tensor{Data: nd, shape: ns}, nil
 }
 
 // Iterator returns the iterator of the tensor.
@@ -345,13 +379,14 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	slices.Sort(axes)
 	slices.Reverse(axes) // ordered desc
 	nt := t.Copy()
+	strides := t.strides()
 	for _, axis := range axes {
 		axisdim := curshape[axis]
 
 		datalen := total(nt.shape) / axisdim
 		newdata := make([]float64, datalen)
 
-		stride := nt.strides[axis]
+		stride := strides[axis]
 		took := []int{}
 		for j := 0; j < datalen; j++ {
 			left := 0
@@ -528,9 +563,9 @@ func (t *Tensor) CopyShape() []int {
 }
 
 func seq(from, to float64) []float64 {
-	r := make([]float64, to-from)
+	r := make([]float64, int(to-from))
 	for i := from; i < to; i++ {
-		r[i-from] = float64(i)
+		r[int(i-from)] = float64(i)
 	}
 	return r
 }

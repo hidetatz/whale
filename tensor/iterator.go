@@ -11,7 +11,8 @@ func (i *Iterator) HasNext() bool {
 		return i.idx == 0
 	}
 
-	retcnt := i.t.strides[i.axis]
+	strides := i.t.strides()
+	retcnt := strides[i.axis]
 	offset := i.idx * retcnt
 	return offset < len(i.t.Data)
 }
@@ -22,7 +23,8 @@ func (i *Iterator) Next() []float64 {
 		return i.t.Data
 	}
 
-	retcnt := i.t.strides[i.axis]
+	strides := i.t.strides()
+	retcnt := strides[i.axis]
 	offset := i.idx * retcnt
 	i.idx++
 	return i.t.Data[offset : offset+retcnt]
