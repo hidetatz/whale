@@ -252,6 +252,7 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 				i += idx[j] * strides[j]
 			}
 			indices = append(indices, &index{idx: idx, val: t.Data[i]})
+			return
 		}
 
 		for i := 0; i < t.shape[len(idx)]; i++ {
@@ -262,15 +263,20 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 	r([]int{})
 
 	nd := make([]float64, len(t.Data))
+
+	nst := make([]int, len(ns))
+	for i := range nst {
+		nst[i] = total(ns[i+1:])
+	}
 	for _, idx := range indices {
 		ni := make([]int, len(t.shape))
-		for i := range axes {
-			ni[i] += idx.idx[axes[i]]
+		for i, axis := range axes {
+			ni[i] += idx.idx[axis]
 		}
 
 		i := 0
 		for nidx := range ni {
-			i += strides[nidx] * ni[nidx]
+			i += nst[nidx] * ni[nidx]
 		}
 		nd[i] = idx.val
 	}
