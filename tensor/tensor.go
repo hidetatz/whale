@@ -120,12 +120,16 @@ func (t *Tensor) IsVector() bool {
 	return len(t.shape) == 1
 }
 
-func (t *Tensor) strides() []int {
-	s := make([]int, len(t.shape))
+func toStrides(shape []int) []int {
+	s := make([]int, len(shape))
 	for i := range s {
-		s[i] = total(t.shape[i+1:])
+		s[i] = total(shape[i+1:])
 	}
 	return s
+}
+
+func (t *Tensor) strides() []int {
+	return toStrides(t.shape)
 }
 
 // String() implements Stringer interface.
@@ -230,58 +234,62 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 		return nil, fmt.Errorf("invalid value in axes: duplicate value contained")
 	}
 
-	// new tensor shape
-	ns := make([]int, len(t.shape))
+	// do transpose below
+
+	newShape := make([]int, len(t.shape))
 	for i := range axes {
-		ns[i] = t.shape[axes[i]]
+		newShape[i] = t.shape[axes[i]]
 	}
 
-	type index struct {
-		idx []int
-		val float64
+	newStrides := toStrides(newShape)
+
+	curIndices := t.Indices()
+
+	newData := make([]float64, len(t.Data))
+	for _, curidx := range curIndices {
+		newIdx := make([]int, len(t.shape))
+		for i, axis := range axes {
+			newIdx[i] += curidx.Idx[axis]
+		}
+
+		dataIdx := 0
+		for i := range newIdx {
+			dataIdx += newStrides[i] * newIdx[i]
+		}
+		newData[dataIdx] = curidx.Value
 	}
 
-	indices := []*index{}
+	return &Tensor{Data: newData, shape: newShape}, nil
+}
 
+type Index struct {
+	Idx   []int
+	Value float64
+}
+
+func (t *Tensor) Indices() []*Index {
 	strides := t.strides()
-	var r func(idx []int)
-	r = func(idx []int) {
+
+	indices := []*Index{}
+	var f func(idx []int)
+	f = func(idx []int) {
 		if len(idx) == len(t.shape) {
 			i := 0
 			for j := range idx {
 				i += idx[j] * strides[j]
 			}
-			indices = append(indices, &index{idx: idx, val: t.Data[i]})
+			indices = append(indices, &Index{Idx: idx, Value: t.Data[i]})
 			return
 		}
 
 		for i := 0; i < t.shape[len(idx)]; i++ {
-			r(append(idx, i))
+			f(append(idx, i))
 		}
 	}
 
-	r([]int{})
+	f([]int{})
 
-	nd := make([]float64, len(t.Data))
-
-	nst := make([]int, len(ns))
-	for i := range nst {
-		nst[i] = total(ns[i+1:])
-	}
-	for _, idx := range indices {
-		ni := make([]int, len(t.shape))
-		for i, axis := range axes {
-			ni[i] += idx.idx[axis]
-		}
-
-		i := 0
-		for nidx := range ni {
-			i += nst[nidx] * ni[nidx]
-		}
-		nd[i] = idx.val
-	}
-
-	return &Tensor{Data: nd, shape: ns}, nil
+	return indices
 }
 
 // Iterator returns the iterator of the tensor.
@@ -519,15 +527,6 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 	}
 
 	return nt, nil
-}
-
-type Index struct {
-	start int
-	end   int
-}
-
-type Slice struct {
-	index []*Index
 }
 
 // Slice cuts the part of the tensor based on the given indices. The length of indices must be
