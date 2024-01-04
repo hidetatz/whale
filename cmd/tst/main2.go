@@ -12,10 +12,17 @@ func main() {
 		panic(err)
 	}
 
-	t2, err := t.Transpose(2, 1, 0)
+	// t2, err := t.Transpose(2, 1, 0)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	fmt.Println(t)
+
+	t3, err := t.SubTensor([]int{0, 1, 3})
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(t2)
+	fmt.Println(t3)
 }

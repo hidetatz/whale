@@ -301,27 +301,51 @@ func (t *Tensor) Iterator(axis int) (*Iterator, error) {
 	return &Iterator{t: t, axis: axis}, nil
 }
 
-// Repeat copies the data on axis
-func (t *Tensor) Repeat(times, axis int) (*Tensor, error) {
-	ns := t.CopyShape()
-	ns[axis] *= times
-
-	nd := []float64{}
-
-	iter, err := t.Iterator(axis)
-	if err != nil {
-		return nil, err
+func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
+	if len(index) > len(t.shape) {
+		return nil, fmt.Errorf("too many index specified")
 	}
 
-	for iter.HasNext() {
-		data := iter.Next()
-		for i := 0; i < times; i++ {
-			nd = append(nd, data...)
+	curStride := t.strides()
+	newShape := t.CopyShape()[len(index):]
+	length := total(newShape)
+
+	newData := make([]float64, length)
+
+	start := 0
+	for i := range index {
+		if index[i] > t.shape[i]-1 {
+			return nil, fmt.Errorf("index is too big")
 		}
+		start += curStride[i] * index[i]
 	}
-
-	return Nd(nd, ns...)
+	for i := 0; i < length; i++ {
+		newData[i] = t.Data[start+i]
+	}
+	return Nd(newData, newShape...)
 }
+
+// Repeat copies the data on axis
+// func (t *Tensor) Repeat(repeats []int, axis int) (*Tensor, error) {
+// 	ns := t.CopyShape()
+// 	ns[axis] *= times
+//
+// 	nd := []float64{}
+//
+// 	iter, err := t.Iterator(axis)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	for iter.HasNext() {
+// 		data := iter.Next()
+// 		for i := 0; i < times; i++ {
+// 			nd = append(nd, data...)
+// 		}
+// 	}
+//
+// 	return Nd(nd, ns...)
+// }
 
 func (t *Tensor) Tile(times ...int) (*Tensor, error) {
 	newshape := t.CopyShape()
