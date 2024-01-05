@@ -358,22 +358,6 @@ func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 // 	return Nd(nd, ns...)
 // }
 
-func all(n, cnt int) []int {
-	r := make([]int, cnt)
-	for i := 0; i < cnt; i++ {
-		r[i] = n
-	}
-	return r
-}
-
-func repeat(data []float64, cnt int) []float64 {
-	r := []float64{}
-	for i := 0; i < cnt; i++ {
-		r = append(r, data...)
-	}
-	return r
-}
-
 func (t *Tensor) genindex(dim int) [][]int {
 	var indices [][]int
 	index := make([]int, dim)
@@ -638,21 +622,6 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 // 	}
 // }
 
-// func (t *Tensor) SubTensor(idx int) *Tensor {
-// 	ns := t.CopyShape()[1:]
-// 	nst := t.CopyStrides()[1:]
-// 	nd := []float64{}
-//
-// 	l := total(ns)
-// 	start := t.strides[idx] * idx
-// 	step := t.strides[idx+1]
-// 	for i := 0; i < l; i++ {
-// 		nd = append(nd, t.Data[start+i*step])
-// 	}
-//
-// 	return &Tensor{Data: nd, shape: ns, strides: nst}
-// }
-
 func (t *Tensor) CopyShape() []int {
 	ns := make([]int, len(t.Shape))
 	copy(ns, t.Shape)
@@ -681,4 +650,19 @@ func total(shape []int) int {
 		total *= dim
 	}
 	return total
+}
+func all(n, cnt int) []int {
+	r := make([]int, cnt)
+	for i := 0; i < cnt; i++ {
+		r[i] = n
+	}
+	return r
+}
+
+func repeat(data []float64, cnt int) []float64 {
+	r := []float64{}
+	for i := 0; i < cnt; i++ {
+		r = append(r, data...)
+	}
+	return r
 }
