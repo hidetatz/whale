@@ -125,14 +125,6 @@ func (t *Tensor) IsVector() bool {
 	return len(t.Shape) == 1
 }
 
-func toStrides(shape []int) []int {
-	s := make([]int, len(shape))
-	for i := range s {
-		s[i] = total(shape[i+1:])
-	}
-	return s
-}
-
 func (t *Tensor) Strides() []int {
 	return toStrides(t.Shape)
 }
@@ -665,4 +657,12 @@ func repeat(data []float64, cnt int) []float64 {
 		r = append(r, data...)
 	}
 	return r
+}
+
+func toStrides(shape []int) []int {
+	s := make([]int, len(shape))
+	for i := range s {
+		s[i] = total(shape[i+1:])
+	}
+	return s
 }
