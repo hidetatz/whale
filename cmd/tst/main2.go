@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	t, err := tensor.Arange(0, 16, 1, 2, 2, 4)
+	t, err := tensor.Arange(1, 25, 1, 2, 3, 4)
 	if err != nil {
 		panic(err)
 	}
@@ -19,7 +19,7 @@ func main() {
 
 	fmt.Println(t)
 
-	t3, err := t.SubTensor([]int{0, 1, 3})
+	t3, err := t.Tile(2, 2, 2, 2)
 	if err != nil {
 		panic(err)
 	}

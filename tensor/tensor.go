@@ -12,6 +12,11 @@ type Tensor struct {
 	shape []int
 }
 
+// Empty returns empty tensor.
+func Empty() *Tensor {
+	return &Tensor{}
+}
+
 // Scalar returns tensor as scalar.
 func Scalar(s float64) *Tensor {
 	return &Tensor{Data: []float64{s}}
@@ -134,6 +139,10 @@ func (t *Tensor) strides() []int {
 
 // String() implements Stringer interface.
 func (t *Tensor) String() string {
+	if len(t.Data) == 0 {
+		return fmt.Sprintf("[]")
+	}
+
 	if t.IsScalar() {
 		return fmt.Sprintf("%v", t.Data[0])
 	}
@@ -301,6 +310,8 @@ func (t *Tensor) Iterator(axis int) (*Iterator, error) {
 	return &Iterator{t: t, axis: axis}, nil
 }
 
+// SubTensor returns the part of the tensor based on the given index.
+// Returned tensor is newly created one and does not have connection to the origin.
 func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 	if len(index) > len(t.shape) {
 		return nil, fmt.Errorf("too many index specified")
@@ -315,7 +326,7 @@ func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 	start := 0
 	for i := range index {
 		if index[i] > t.shape[i]-1 {
-			return nil, fmt.Errorf("index is too big")
+			return nil, fmt.Errorf("index is too big: %v", index)
 		}
 		start += curStride[i] * index[i]
 	}
@@ -325,7 +336,7 @@ func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 	return Nd(newData, newShape...)
 }
 
-// Repeat copies the data on axis
+// Repeat copies the data on axis.
 // func (t *Tensor) Repeat(repeats []int, axis int) (*Tensor, error) {
 // 	ns := t.CopyShape()
 // 	ns[axis] *= times
@@ -347,43 +358,100 @@ func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 // 	return Nd(nd, ns...)
 // }
 
-func (t *Tensor) Tile(times ...int) (*Tensor, error) {
-	newshape := t.CopyShape()
-	if len(t.shape) != len(times) {
-		delta := len(times) - len(t.shape)
-		for i := 0; i < delta; i++ {
-			// push 1 to the head until the dim gets the same
-			newshape = append([]int{1}, newshape...)
+func all(n, cnt int) []int {
+	r := make([]int, cnt)
+	for i := 0; i < cnt; i++ {
+		r[i] = n
+	}
+	return r
+}
+
+func repeat(data []float64, cnt int) []float64 {
+	r := []float64{}
+	for i := 0; i < cnt; i++ {
+		r = append(r, data...)
+	}
+	return r
+}
+
+func (t *Tensor) genindex(dim int) [][]int {
+	var indices [][]int
+	index := make([]int, dim)
+
+	var generate func(int)
+	generate = func(d int) {
+		if d == dim {
+			indices = append(indices, append([]int{}, index...))
+			return
+		}
+
+		for i := 0; i < t.shape[d]; i++ {
+			index[d] = i
+			generate(d + 1)
 		}
 	}
 
-	nt, err := t.Reshape(newshape...)
-	if err != nil {
-		return nil, err
+	generate(0)
+	return indices
+}
+
+// Tile repeats the tensor by the given reps like tile.
+func (t *Tensor) Tile(reps ...int) (*Tensor, error) {
+	if slices.Contains(reps, 0) {
+		return Empty(), nil
 	}
 
-	tmpshape := nt.CopyShape()
-	tmpt := nt
-	for axis, time := range times {
-		tmpshape[axis] *= time
-		tmpdata := []float64{}
+	shape := t.CopyShape()
 
-		iter, err := tmpt.Iterator(axis - 1)
-		if err != nil {
-			return nil, err
-		}
+	// unify the length of shape and reps
+	if len(shape) < len(reps) {
+		delta := len(reps)-len(shape)
+		shape = append(all(1, delta), shape...)
+	} else if len(reps) < len(shape) {
+		delta := len(shape)-len(reps)
+		reps = append(all(1, delta), reps...)
+	}
 
-		for iter.HasNext() {
-			data := iter.Next()
-			for i := 0; i < time; i++ {
-				tmpdata = append(tmpdata, data...)
+	tmpt := t.Copy()
+
+	var r func(dim int, index []int) []float64
+	r = func(dim int, index []int) []float64 {
+		if len(index) == dim {
+			data := []float64{}
+			tmpd := []float64{}
+			for i := 0; i < tmpt.shape[dim]; i++ {
+				sub, err := tmpt.SubTensor(append(index, i))
+				if err != nil {
+					panic(err)
+				}
+				tmpd = append(tmpd, sub.Data...)
 			}
+			data = append(data, repeat(tmpd, reps[dim])...)
+			return data
 		}
 
-		tt, err := Nd(tmpdata, tmpshape...)
+		data := []float64{}
+		for i := 0; i < tmpt.shape[dim]; i++ {
+			tmpd := r(dim, append(index, i))
+			data = append(data, tmpd...)
+		}
+
+		return data
+	}
+
+	for i := 0; i < len(shape); i++ {
+		indices := tmpt.genindex(i)
+		data := []float64{}
+		for _, index := range indices {
+			data = append(data, r(i, index)...)
+		}
+		shape[i] *= reps[i]
+
+		tt, err := Nd(data, shape...)
 		if err != nil {
 			return nil, err
 		}
+
 		tmpt = tt
 	}
 
