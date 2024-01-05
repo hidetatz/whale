@@ -292,11 +292,11 @@ func verify(t *testing.T, in, out []*Variable, expected, expectedGrad []*tensor.
 		// this check is needed.
 		if expectedGrad[i] == nil {
 			if in[i].grad != nil {
-				t.Errorf("grad: expected nil but got %v", in[i].grad.data.RawString())
+				t.Errorf("grad: expected nil but got %v", in[i].grad.data)
 			}
 		} else {
 			if !expectedGrad[i].Equals(in[i].grad.data) {
-				t.Errorf("grad: expected %v but got %v", expectedGrad[i].RawString(), in[i].grad.data.RawString())
+				t.Errorf("grad: expected %v but got %v", expectedGrad[i], in[i].grad.data)
 			}
 		}
 	}
@@ -402,7 +402,7 @@ func check[S ~[]E, E comparable](t *testing.T, expected, got S, name string) {
  */
 func scalar(t *testing.T, data float64) *tensor.Tensor {
 	t.Helper()
-	return tensor.FromScalar(data)
+	return tensor.Scalar(data)
 }
 
 func nd(t *testing.T, data []float64, shape ...int) *tensor.Tensor {
@@ -413,7 +413,7 @@ func nd(t *testing.T, data []float64, shape ...int) *tensor.Tensor {
 
 func arng(t *testing.T, from, to int, shape ...int) *tensor.Tensor {
 	t.Helper()
-	tsr, _ := tensor.ArangeFrom(from, to).Reshape(shape...)
+	tsr, _ := tensor.Arange(from, to, 1, shape...)
 	return tsr
 }
 

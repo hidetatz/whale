@@ -25,12 +25,12 @@ func (s *Sigmoid) Activate(x *Variable) (*Variable, error) {
 		return nil, err
 	}
 
-	t3, err := Add(NewVar(tensor.FromScalar(1)), t2)
+	t3, err := Add(NewVar(tensor.Scalar(1)), t2)
 	if err != nil {
 		return nil, err
 	}
 
-	y, err := Div(NewVar(tensor.FromScalar(1)), t3)
+	y, err := Div(NewVar(tensor.Scalar(1)), t3)
 	if err != nil {
 		return nil, err
 	}

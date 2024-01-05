@@ -11,7 +11,7 @@ type SGD struct {
 }
 
 func NewSGD(learnRate float64) *SGD {
-	return &SGD{learnRate: tensor.FromScalar(learnRate)}
+	return &SGD{learnRate: tensor.Scalar(learnRate)}
 }
 
 func (s *SGD) Optimize(v *Variable) {
@@ -27,8 +27,8 @@ type MomentumSGD struct {
 
 func NewMomentumSGD(learnRate, momentum float64) *MomentumSGD {
 	return &MomentumSGD{
-		learnRate:  tensor.FromScalar(learnRate),
-		momentum:   tensor.FromScalar(momentum),
+		learnRate:  tensor.Scalar(learnRate),
+		momentum:   tensor.Scalar(momentum),
 		velocities: make(map[*Variable]*tensor.Tensor),
 	}
 }

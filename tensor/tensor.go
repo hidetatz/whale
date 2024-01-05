@@ -9,7 +9,7 @@ import (
 
 type Tensor struct {
 	Data  []float64
-	shape []int
+	Shape []int
 }
 
 // Empty returns empty tensor.
@@ -24,7 +24,7 @@ func Scalar(s float64) *Tensor {
 
 // Vector returns tensor as vector.
 func Vector(v []float64) *Tensor {
-	return &Tensor{Data: v, shape: []int{len(v)}}
+	return &Tensor{Data: v, Shape: []int{len(v)}}
 }
 
 // Nd returns multi dimensional array.
@@ -39,7 +39,7 @@ func Nd(data []float64, shape ...int) (*Tensor, error) {
 		return nil, fmt.Errorf("invalid shape, mismatch with data length")
 	}
 
-	return &Tensor{Data: data, shape: shape}, nil
+	return &Tensor{Data: data, Shape: shape}, nil
 }
 
 // Rand creates a tensor by the given shape with randomized value [0.0, 1.0).
@@ -61,7 +61,7 @@ func Zeros(shape ...int) *Tensor {
 
 // ZerosLike creates a tensor by the given tensor's shape with all values 0.
 func ZerosLike(t *Tensor) *Tensor {
-	return Zeros(t.shape...)
+	return Zeros(t.Shape...)
 }
 
 // Ones creates a tensor by the given shape with all values 1.
@@ -76,7 +76,7 @@ func Ones(shape ...int) *Tensor {
 
 // OnesLike creates a tensor by the given tensor's shape with all values 1.
 func OnesLike(t *Tensor) *Tensor {
-	return Ones(t.shape...)
+	return Ones(t.Shape...)
 }
 
 // All creates a tensor by the given shape with given value.
@@ -112,17 +112,17 @@ func Arange(from, to, interval float64, shape ...int) (*Tensor, error) {
 
 // Dim returns the dimension number.
 func (t *Tensor) Dim() int {
-	return len(t.shape)
+	return len(t.Shape)
 }
 
 // IsScalar returns true if the tensor is internally a scalar.
 func (t *Tensor) IsScalar() bool {
-	return len(t.shape) == 0
+	return len(t.Shape) == 0
 }
 
 // IsVector returns true if the tensor is internally a vector.
 func (t *Tensor) IsVector() bool {
-	return len(t.shape) == 1
+	return len(t.Shape) == 1
 }
 
 func toStrides(shape []int) []int {
@@ -133,8 +133,8 @@ func toStrides(shape []int) []int {
 	return s
 }
 
-func (t *Tensor) strides() []int {
-	return toStrides(t.shape)
+func (t *Tensor) Strides() []int {
+	return toStrides(t.Shape)
 }
 
 // String() implements Stringer interface.
@@ -157,10 +157,10 @@ func (t *Tensor) String() string {
 	w = func(index []int) {
 		indent := strings.Repeat("  ", len(index))
 
-		if len(index) == len(t.shape)-1 {
-			strides := t.strides()
+		if len(index) == len(t.Shape)-1 {
+			strides := t.Strides()
 			vars := []string{}
-			for i := 0; i < t.shape[len(t.shape)-1]; i++ {
+			for i := 0; i < t.Shape[len(t.Shape)-1]; i++ {
 				idx := 0
 				for j := range index {
 					idx += index[j] * strides[j]
@@ -173,7 +173,7 @@ func (t *Tensor) String() string {
 		}
 
 		sb.WriteString(fmt.Sprintf("%s[\n", indent))
-		for i := 0; i < t.shape[len(index)]; i++ {
+		for i := 0; i < t.Shape[len(index)]; i++ {
 			w(append(index, i))
 		}
 
@@ -188,7 +188,7 @@ func (t *Tensor) String() string {
 // Even if they are on the different memory, if their data and shape are the same,
 // it is treated as the same.
 func (t *Tensor) Equals(t2 *Tensor) bool {
-	return slices.Equal(t.shape, t2.shape) && slices.Equal(t.Data, t2.Data)
+	return slices.Equal(t.Shape, t2.Shape) && slices.Equal(t.Data, t2.Data)
 }
 
 // Reshape returns an newly created tensor which has the same data, and the specified shape.
@@ -202,16 +202,16 @@ func (t *Tensor) Copy() *Tensor {
 	ndata := make([]float64, len(t.Data))
 	copy(ndata, t.Data)
 
-	nshape := make([]int, len(t.shape))
-	copy(nshape, t.shape)
+	nshape := make([]int, len(t.Shape))
+	copy(nshape, t.Shape)
 
-	return &Tensor{Data: ndata, shape: nshape}
+	return &Tensor{Data: ndata, Shape: nshape}
 }
 
 func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 	if len(axes) == 0 {
 		// if empty, create [0, 1, 2...] slice and reverses it
-		axes = seqi(0, len(t.shape))
+		axes = seqi(0, len(t.Shape))
 		slices.Reverse(axes)
 	}
 
@@ -220,7 +220,7 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 	// axes must be the arbitrarily sorted slice of [0, 1, 2, 3, 4].
 
 	// First check length
-	if len(axes) != len(t.shape) {
+	if len(axes) != len(t.Shape) {
 		return nil, fmt.Errorf("invalid axes length: must be the same as the length of shape")
 	}
 
@@ -245,9 +245,9 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 
 	// do transpose below
 
-	newShape := make([]int, len(t.shape))
+	newShape := make([]int, len(t.Shape))
 	for i := range axes {
-		newShape[i] = t.shape[axes[i]]
+		newShape[i] = t.Shape[axes[i]]
 	}
 
 	newStrides := toStrides(newShape)
@@ -256,7 +256,7 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 
 	newData := make([]float64, len(t.Data))
 	for _, curidx := range curIndices {
-		newIdx := make([]int, len(t.shape))
+		newIdx := make([]int, len(t.Shape))
 		for i, axis := range axes {
 			newIdx[i] += curidx.Idx[axis]
 		}
@@ -268,7 +268,7 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 		newData[dataIdx] = curidx.Value
 	}
 
-	return &Tensor{Data: newData, shape: newShape}, nil
+	return &Tensor{Data: newData, Shape: newShape}, nil
 }
 
 type Index struct {
@@ -277,12 +277,12 @@ type Index struct {
 }
 
 func (t *Tensor) Indices() []*Index {
-	strides := t.strides()
+	strides := t.Strides()
 
 	indices := []*Index{}
 	var f func(idx []int)
 	f = func(idx []int) {
-		if len(idx) == len(t.shape) {
+		if len(idx) == len(t.Shape) {
 			i := 0
 			for j := range idx {
 				i += idx[j] * strides[j]
@@ -291,7 +291,7 @@ func (t *Tensor) Indices() []*Index {
 			return
 		}
 
-		for i := 0; i < t.shape[len(idx)]; i++ {
+		for i := 0; i < t.Shape[len(idx)]; i++ {
 			f(append(idx, i))
 		}
 	}
@@ -303,7 +303,7 @@ func (t *Tensor) Indices() []*Index {
 
 // Iterator returns the iterator of the tensor.
 func (t *Tensor) Iterator(axis int) (*Iterator, error) {
-	if axis > len(t.shape) {
+	if axis > len(t.Shape) {
 		return nil, fmt.Errorf("axis mismatch")
 	}
 
@@ -313,11 +313,11 @@ func (t *Tensor) Iterator(axis int) (*Iterator, error) {
 // SubTensor returns the part of the tensor based on the given index.
 // Returned tensor is newly created one and does not have connection to the origin.
 func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
-	if len(index) > len(t.shape) {
+	if len(index) > len(t.Shape) {
 		return nil, fmt.Errorf("too many index specified")
 	}
 
-	curStride := t.strides()
+	curStride := t.Strides()
 	newShape := t.CopyShape()[len(index):]
 	length := total(newShape)
 
@@ -325,7 +325,7 @@ func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 
 	start := 0
 	for i := range index {
-		if index[i] > t.shape[i]-1 {
+		if index[i] > t.Shape[i]-1 {
 			return nil, fmt.Errorf("index is too big: %v", index)
 		}
 		start += curStride[i] * index[i]
@@ -385,7 +385,7 @@ func (t *Tensor) genindex(dim int) [][]int {
 			return
 		}
 
-		for i := 0; i < t.shape[d]; i++ {
+		for i := 0; i < t.Shape[d]; i++ {
 			index[d] = i
 			generate(d + 1)
 		}
@@ -405,10 +405,10 @@ func (t *Tensor) Tile(reps ...int) (*Tensor, error) {
 
 	// unify the length of shape and reps
 	if len(shape) < len(reps) {
-		delta := len(reps)-len(shape)
+		delta := len(reps) - len(shape)
 		shape = append(all(1, delta), shape...)
 	} else if len(reps) < len(shape) {
-		delta := len(shape)-len(reps)
+		delta := len(shape) - len(reps)
 		reps = append(all(1, delta), reps...)
 	}
 
@@ -419,7 +419,7 @@ func (t *Tensor) Tile(reps ...int) (*Tensor, error) {
 		if len(index) == dim {
 			data := []float64{}
 			tmpd := []float64{}
-			for i := 0; i < tmpt.shape[dim]; i++ {
+			for i := 0; i < tmpt.Shape[dim]; i++ {
 				sub, err := tmpt.SubTensor(append(index, i))
 				if err != nil {
 					panic(err)
@@ -431,7 +431,7 @@ func (t *Tensor) Tile(reps ...int) (*Tensor, error) {
 		}
 
 		data := []float64{}
-		for i := 0; i < tmpt.shape[dim]; i++ {
+		for i := 0; i < tmpt.Shape[dim]; i++ {
 			tmpd := r(dim, append(index, i))
 			data = append(data, tmpd...)
 		}
@@ -468,7 +468,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 
 		if keepdims {
 			shape := []int{}
-			for i := 0; i < len(t.shape); i++ {
+			for i := 0; i < len(t.Shape); i++ {
 				shape = append(shape, 1)
 			}
 
@@ -485,11 +485,11 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	slices.Sort(axes)
 	slices.Reverse(axes) // ordered desc
 	nt := t.Copy()
-	strides := t.strides()
+	strides := t.Strides()
 	for _, axis := range axes {
 		axisdim := curshape[axis]
 
-		datalen := total(nt.shape) / axisdim
+		datalen := total(nt.Shape) / axisdim
 		newdata := make([]float64, datalen)
 
 		stride := strides[axis]
@@ -580,14 +580,14 @@ func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
 }
 
 func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
-	if len(t.shape) > len(shape) {
+	if len(t.Shape) > len(shape) {
 		return nil, fmt.Errorf("cannot broadcast: invalid shape")
 	}
 
-	newshape := make([]int, len(t.shape))
-	copy(newshape, t.shape)
-	if len(t.shape) != len(shape) {
-		delta := len(shape) - len(t.shape)
+	newshape := make([]int, len(t.Shape))
+	copy(newshape, t.Shape)
+	if len(t.Shape) != len(shape) {
+		delta := len(shape) - len(t.Shape)
 		for i := 0; i < delta; i++ {
 			// push 1 to the head until the dim gets the same
 			newshape = append([]int{1}, newshape...)
@@ -654,8 +654,8 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 // }
 
 func (t *Tensor) CopyShape() []int {
-	ns := make([]int, len(t.shape))
-	copy(ns, t.shape)
+	ns := make([]int, len(t.Shape))
+	copy(ns, t.Shape)
 	return ns
 }
 

@@ -18,7 +18,7 @@ func (m *MSE) Calculate(pred, actual *Variable) (*Variable, error) {
 		return nil, err
 	}
 
-	squ, err := Pow(diff, NewVar(tensor.FromScalar(2)))
+	squ, err := Pow(diff, NewVar(tensor.Scalar(2)))
 	if err != nil {
 		return nil, err
 	}
@@ -28,5 +28,5 @@ func (m *MSE) Calculate(pred, actual *Variable) (*Variable, error) {
 		return nil, err
 	}
 
-	return Div(sm, NewVar(tensor.FromScalar(float64(diff.Len()))))
+	return Div(sm, NewVar(tensor.Scalar(float64(diff.Len()))))
 }

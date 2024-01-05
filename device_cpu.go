@@ -39,7 +39,7 @@ func uniformShape(t1, t2 *tensor.Tensor) (newt1, newt2 *tensor.Tensor, err error
 			continue
 		}
 
-		return nil, nil, fmt.Errorf("broadcasting is impossible for the shape: %v and %v", t1.Shape(), t2.Shape())
+		return nil, nil, fmt.Errorf("broadcasting is impossible for the shape: %v and %v", t1.Shape, t2.Shape)
 	}
 
 	nt1, err := t1.BroadcastTo(shape1...)
@@ -165,11 +165,11 @@ func (c *CPU) Dot(t1, t2 *tensor.Tensor) *tensor.Tensor {
 	tc2 := t2.Copy()
 
 	if tc1.IsScalar() && tc2.IsScalar() {
-		return tensor.FromScalar(tc1.Data[0] * tc2.Data[0])
+		return tensor.Scalar(tc1.Data[0] * tc2.Data[0])
 	}
 
 	if tc1.IsVector() && tc2.IsVector() {
-		if tc1.Shape()[0] != tc2.Shape()[0] {
+		if tc1.Shape[0] != tc2.Shape[0] {
 			panic("cannot compute vector inner product")
 		}
 
@@ -177,11 +177,7 @@ func (c *CPU) Dot(t1, t2 *tensor.Tensor) *tensor.Tensor {
 		for i := range tc1.Data {
 			newdata[i] = tc1.Data[i] * tc2.Data[i]
 		}
-		t, err := tensor.FromVector(newdata, len(newdata))
-		if err != nil {
-			panic(err)
-		}
-		return t
+		return tensor.Vector(newdata)
 	}
 
 	if tc1.Dim() == 2 && tc2.Dim() == 2 {
@@ -194,7 +190,7 @@ func (c *CPU) Dot(t1, t2 *tensor.Tensor) *tensor.Tensor {
 		tomatrix := func(t *tensor.Tensor) [][]float64 {
 			data := t.Data
 			shape := t.CopyShape()
-			strides := t.CopyStrides()
+			strides := t.Strides()
 			col, row := shape[0], shape[1]
 			stride1, stride2 := strides[0], strides[1]
 			matrix := make([][]float64, col)

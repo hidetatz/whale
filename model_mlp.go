@@ -15,7 +15,7 @@ func NewMLP(layers [][]int, bias bool, act Activation, loss LossCalculator, opti
 
 	// init weights and biases
 	for _, l := range layers {
-		w := NewVar(device.Mul(tensor.Rand(l[0], l[1]), tensor.FromScalar(0.01)))
+		w := NewVar(device.Mul(tensor.Rand(l[0], l[1]), tensor.Scalar(0.01)))
 		mlp.weights = append(mlp.weights, w)
 
 		if bias {

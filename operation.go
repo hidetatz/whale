@@ -35,7 +35,7 @@ type Op interface {
 
 // Reshape reshapes the given tensor to the specified shape.
 func Reshape(v *Variable, shape ...int) (*Variable, error) {
-	if slices.Equal(v.data.Shape(), shape) {
+	if slices.Equal(v.data.Shape, shape) {
 		return v, nil
 	}
 
@@ -460,7 +460,7 @@ func (d *div) Backward(gy ...*Variable) ([]*Variable, error) {
 		return nil, err
 	}
 
-	t2, err := Pow(d.x1, NewVar(tensor.FromScalar(2)))
+	t2, err := Pow(d.x1, NewVar(tensor.Scalar(2)))
 	if err != nil {
 		return nil, err
 	}
@@ -543,7 +543,7 @@ func (p *pow) Forward(inputs ...*Variable) ([]*Variable, error) {
 }
 
 func (p *pow) Backward(gy ...*Variable) ([]*Variable, error) {
-	t1, err := Sub(p.c, NewVar(tensor.FromScalar(1)))
+	t1, err := Sub(p.c, NewVar(tensor.Scalar(1)))
 	if err != nil {
 		return nil, fmt.Errorf("Pow Backward: %w", err)
 	}
@@ -672,7 +672,7 @@ func (t *tanh) Backward(gy ...*Variable) ([]*Variable, error) {
 		return nil, fmt.Errorf("Tanh Backward: %w", err)
 	}
 
-	t2, err := Sub(NewVar(tensor.FromScalar(1)), t1)
+	t2, err := Sub(NewVar(tensor.Scalar(1)), t1)
 	if err != nil {
 		return nil, fmt.Errorf("Tanh Backward: %w", err)
 	}

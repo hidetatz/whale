@@ -15,7 +15,7 @@ func VisualizeGraph(v *Variable) error {
 	pf := func(f *function) string { return fmt.Sprintf("%d", uintptr(unsafe.Pointer(f))) }
 
 	varToDot := func(v *Variable) string {
-		grad := tensor.FromScalar(0.0)
+		grad := tensor.Scalar(0.0)
 		if v.grad != nil {
 			grad = v.grad.data
 		}
