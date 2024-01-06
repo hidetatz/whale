@@ -125,11 +125,13 @@ func (t *Tensor) IsVector() bool {
 	return len(t.Shape) == 1
 }
 
+// Strides returns the stride of the tensor.
+// Stride is the intervel count between the next dimension.
 func (t *Tensor) Strides() []int {
 	return toStrides(t.Shape)
 }
 
-// String() implements Stringer interface.
+// String implements Stringer interface.
 func (t *Tensor) String() string {
 	if len(t.Data) == 0 {
 		return fmt.Sprintf("[]")
@@ -185,8 +187,7 @@ func (t *Tensor) Equals(t2 *Tensor) bool {
 
 // Reshape returns an newly created tensor which has the same data, and the specified shape.
 func (t *Tensor) Reshape(shape ...int) (*Tensor, error) {
-	t2 := t.Copy()
-	return Nd(t2.Data, shape...)
+	return Nd(t.Data, shape...)
 }
 
 // Copy creates a copy of the tensor.
@@ -200,6 +201,8 @@ func (t *Tensor) Copy() *Tensor {
 	return &Tensor{Data: ndata, Shape: nshape}
 }
 
+// Transpose transposes the tensor by the given axis.
+// If empty is given, all the axes are reversed.
 func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 	if len(axes) == 0 {
 		// if empty, create [0, 1, 2...] slice and reverses it
@@ -268,6 +271,11 @@ type Index struct {
 	Value float64
 }
 
+func (i *Index) String() string {
+	return fmt.Sprintf("{%v: %v}", i.Idx, i.Value)
+}
+
+// Indices returns every value's index in the tensor.
 func (t *Tensor) Indices() []*Index {
 	strides := t.Strides()
 
@@ -350,7 +358,7 @@ func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 // 	return Nd(nd, ns...)
 // }
 
-func (t *Tensor) genindex(dim int) [][]int {
+func (t *Tensor) genIndices(dim int) [][]int {
 	var indices [][]int
 	index := make([]int, dim)
 
@@ -416,7 +424,7 @@ func (t *Tensor) Tile(reps ...int) (*Tensor, error) {
 	}
 
 	for i := 0; i < len(shape); i++ {
-		indices := tmpt.genindex(i)
+		indices := tmpt.genIndices(i)
 		data := []float64{}
 		for _, index := range indices {
 			data = append(data, r(i, index)...)
@@ -434,6 +442,8 @@ func (t *Tensor) Tile(reps ...int) (*Tensor, error) {
 	return tmpt, nil
 }
 
+// Sum returns the sum of array elements over a given axes.
+// If the empty axes is passed, calculates all values sum.
 func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	if len(axes) == 0 {
 		// when axes is empty, sum all.
@@ -443,62 +453,94 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 		}
 
 		if keepdims {
-			shape := []int{}
-			for i := 0; i < len(t.Shape); i++ {
-				shape = append(shape, 1)
-			}
-
-			return Nd([]float64{result}, shape...)
+			return Nd([]float64{result}, all(1, len(t.Shape))...)
 		}
 
 		return Scalar(result), nil
 	}
 
-	// else, sum by axis
 
-	curshape := t.CopyShape()
+	// check axes
+	copied := make([]int, len(axes))
+	copy(copied, axes)
+	slices.Sort(copied)
+	copied = slices.Compact(copied)
+	if len(copied) != len(axes) {
+		return nil, fmt.Errorf("duplicate value in axes: %v", axes)
+	}
+
+	if slices.ContainsFunc(copied, func(axis int) bool {
+		return axis > len(t.Shape) - 1
+	}) {
+		return nil, fmt.Errorf("axis out of bounds: %v", axes)
+	}
 
 	slices.Sort(axes)
-	slices.Reverse(axes) // ordered desc
+
+	// else, sum by axis
+
+	sumAxis := func(t *Tensor, axis int) []float64 {
+		find := func(idx ...int) float64 {
+			iv := t.Indices()
+			for _, index := range iv {
+				if slices.Equal(index.Idx, idx) {
+					return index.Value
+				}
+			}
+			panic("unexpected to come here")
+		}
+
+		indexValues := t.Indices()
+		indices := make([][]int, len(indexValues))
+		for i, iv := range indexValues {
+			indices[i] = iv.Idx
+		}
+		// unique
+		uindices := [][]int{}
+		for _, index := range indices {
+			ni := append(index[:axis], index[axis+1:]...)
+			found := false
+			for _, ui := range uindices {
+				if slices.Equal(ui, ni) {
+					found = true
+				}
+			}
+
+			if !found {
+				uindices = append(uindices, ni)
+			}
+		}
+
+		dim := t.Shape[axis]
+		result := []float64{}
+		for _, index := range uindices {
+			sum := 0.0
+			for i := 0; i < dim; i++ {
+				copied := make([]int, len(index))
+				copy(copied, index)
+				tmpi := append(copied[:axis], append([]int{i}, copied[axis:]...)...)
+				sum += find(tmpi...)
+			}
+			result = append(result, sum)
+		}
+
+		return result
+	}
+
 	nt := t.Copy()
-	strides := t.Strides()
+
 	for _, axis := range axes {
-		axisdim := curshape[axis]
+		data := sumAxis(nt, axis)
+		nt.Shape[axis] = 1
+		nt.Data = data
+	}
 
-		datalen := total(nt.Shape) / axisdim
-		newdata := make([]float64, datalen)
-
-		stride := strides[axis]
-		took := []int{}
-		for j := 0; j < datalen; j++ {
-			left := 0
-			for slices.Contains(took, left) {
-				left++
-			}
-
-			result := 0.0
-			for i := 0; i < axisdim; i++ {
-				idx := left + i*stride
-				result += nt.Data[idx]
-				took = append(took, idx)
-			}
-
-			newdata[j] = result
+	if !keepdims {
+		if len(nt.Data) == 1 {
+			return Scalar(nt.Data[0]), nil
 		}
 
-		if keepdims {
-			// when keepdims is true, the calculated dimension will be 1.
-			curshape[axis] = 1
-		} else {
-			// else, the calculated dimension is removed.
-			curshape = append(curshape[:axis], curshape[axis+1:]...)
-		}
-
-		n, err := Nd(newdata, curshape...)
-		if err != nil {
-			return nil, err
-		}
-		nt = n
+		return Vector(nt.Data), nil
 	}
 
 	return nt, nil
