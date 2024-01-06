@@ -4,20 +4,22 @@ import (
 	"testing"
 )
 
-func TestFromScalar(t *testing.T) {
+func mustEq(t *testing.T, expected, got *Tensor) {
+	if !expected.Equals(got) {
+		t.Fatalf("expected %v but got %v", expected, got)
+	}
+}
+
+func TestScalar(t *testing.T) {
 	tests := []struct {
 		name     string
 		arg      float64
 		expected *Tensor
 	}{
 		{
-			name: "simple",
-			arg:  0.1,
-			expected: &Tensor{
-				Data:    []float64{0.1},
-				shape:   nil,
-				strides: nil,
-			},
+			name:     "simple",
+			arg:      0.1,
+			expected: &Tensor{Data: []float64{0.1}},
 		},
 	}
 

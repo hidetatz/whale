@@ -464,7 +464,6 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 		return Scalar(result), nil
 	}
 
-
 	// check axes
 	copied := make([]int, len(axes))
 	copy(copied, axes)
@@ -475,7 +474,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	}
 
 	if slices.ContainsFunc(copied, func(axis int) bool {
-		return axis > len(t.Shape) - 1
+		return axis > len(t.Shape)-1
 	}) {
 		return nil, fmt.Errorf("axis out of bounds: %v", axes)
 	}
