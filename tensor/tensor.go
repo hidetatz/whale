@@ -306,15 +306,6 @@ func (t *Tensor) Indices() []*Index {
 	return indices
 }
 
-// Iterator returns the iterator of the tensor.
-func (t *Tensor) Iterator(axis int) (*Iterator, error) {
-	if axis > len(t.Shape) {
-		return nil, fmt.Errorf("axis mismatch")
-	}
-
-	return &Iterator{t: t, axis: axis}, nil
-}
-
 // SubTensor returns the part of the tensor based on the given index.
 // Returned tensor is newly created one and does not have connection to the origin.
 func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
