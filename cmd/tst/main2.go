@@ -7,7 +7,8 @@ import (
 )
 
 func main() {
-	t, err := tensor.Arange(1, 25, 1, 3, 4, 2)
+	t, err := tensor.Arange(0, 16, 1, 1, 2, 2, 4)
+	// t, err := tensor.Arange(0, 16, 1, 2, 2, 4)
 	if err != nil {
 		panic(err)
 	}
@@ -18,8 +19,9 @@ func main() {
 	// }
 
 	fmt.Println(t)
+	// fmt.Println(t.Indices())
 
-	t3, err := t.Sum(true, 2)
+	t3, err := t.Transpose()
 	if err != nil {
 		panic(err)
 	}

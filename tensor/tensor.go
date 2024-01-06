@@ -204,6 +204,10 @@ func (t *Tensor) Copy() *Tensor {
 // Transpose transposes the tensor by the given axis.
 // If empty is given, all the axes are reversed.
 func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
+	if t.IsScalar() {
+		return t.Copy(), nil
+	}
+
 	if len(axes) == 0 {
 		// if empty, create [0, 1, 2...] slice and reverses it
 		axes = seqi(0, len(t.Shape))
@@ -238,7 +242,7 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 		return nil, fmt.Errorf("invalid value in axes: duplicate value contained")
 	}
 
-	// do transpose below
+	// do transpose
 
 	newShape := make([]int, len(t.Shape))
 	for i := range axes {
@@ -546,11 +550,12 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	return nt, nil
 }
 
+// Squeeze removes dimension which is 1.
 func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
 	curshape := t.CopyShape()
 	for _, axis := range axes {
 		if curshape[axis] != 1 {
-			return nil, fmt.Errorf("axis which is not 1 is specified")
+			return nil, fmt.Errorf("non-1 axis is specified")
 		}
 	}
 
@@ -564,6 +569,14 @@ func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
 		if len(axes) != 0 && !slices.Contains(axes, i) {
 			newshape = append(newshape, dim)
 		}
+	}
+
+	if len(newshape) == 0 {
+		return Scalar(t.Data[0]), nil
+	}
+
+	if len(newshape) == 1 {
+		return Vector(t.Data), nil
 	}
 
 	return Nd(t.Data, newshape...)

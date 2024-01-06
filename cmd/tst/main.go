@@ -12,7 +12,7 @@ var device = &whale.CPU{}
 
 func randdata() (*tensor.Tensor, *tensor.Tensor) {
 	x := tensor.Rand(100, 1)
-	y := device.Add(device.Sin(device.Mul(x, device.Mul(tensor.FromScalar(2), tensor.FromScalar(math.Pi)))), tensor.Rand(100, 1))
+	y := device.Add(device.Sin(device.Mul(x, device.Mul(tensor.Scalar(2), tensor.Scalar(math.Pi)))), tensor.Rand(100, 1))
 	return x, y
 }
 
@@ -74,7 +74,7 @@ func main() {
 		panic(err)
 	}
 
-	t, err := tensor.ArangeBy(0, 1, 0.01).Reshape(100, 1)
+	t, err := tensor.Arange(0, 1, 0.01, 100, 1)
 	if err != nil {
 		panic(err)
 	}
