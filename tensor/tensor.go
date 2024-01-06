@@ -333,28 +333,6 @@ func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 	return Nd(newData, newShape...)
 }
 
-// Repeat copies the data on axis.
-// func (t *Tensor) Repeat(repeats []int, axis int) (*Tensor, error) {
-// 	ns := t.CopyShape()
-// 	ns[axis] *= times
-//
-// 	nd := []float64{}
-//
-// 	iter, err := t.Iterator(axis)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	for iter.HasNext() {
-// 		data := iter.Next()
-// 		for i := 0; i < times; i++ {
-// 			nd = append(nd, data...)
-// 		}
-// 	}
-//
-// 	return Nd(nd, ns...)
-// }
-
 func (t *Tensor) genIndices(dim int) [][]int {
 	var indices [][]int
 	index := make([]int, dim)
