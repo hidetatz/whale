@@ -670,9 +670,13 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 // }
 
 func (t *Tensor) CopyShape() []int {
-	ns := make([]int, len(t.Shape))
-	copy(ns, t.Shape)
-	return ns
+	return copySlice(t.Shape)
+}
+
+func copySlice(s []int) []int {
+	c := make([]int, len(s))
+	copy(c, s)
+	return c
 }
 
 func seq(from, to float64) []float64 {
