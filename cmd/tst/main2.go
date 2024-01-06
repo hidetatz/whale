@@ -6,7 +6,7 @@ import (
 	"github.com/hidetatz/whale/tensor"
 )
 
-func main() {
+func main2() {
 	t, err := tensor.Arange(0, 16, 1, 1, 2, 2, 4)
 	// t, err := tensor.Arange(0, 16, 1, 2, 2, 4)
 	if err != nil {
