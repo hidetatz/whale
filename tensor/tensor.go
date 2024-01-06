@@ -187,7 +187,8 @@ func (t *Tensor) Equals(t2 *Tensor) bool {
 
 // Reshape returns an newly created tensor which has the same data, and the specified shape.
 func (t *Tensor) Reshape(shape ...int) (*Tensor, error) {
-	return Nd(t.Data, shape...)
+	t2 := t.Copy()
+	return Nd(t2.Data, shape...)
 }
 
 // Copy creates a copy of the tensor.
