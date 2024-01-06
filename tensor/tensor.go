@@ -287,11 +287,12 @@ func (t *Tensor) Indices() []*Index {
 	var f func(idx []int)
 	f = func(idx []int) {
 		if len(idx) == len(t.Shape) {
+			c := copySlice(idx)
 			i := 0
-			for j := range idx {
-				i += idx[j] * strides[j]
+			for j := range c {
+				i += c[j] * strides[j]
 			}
-			indices = append(indices, &Index{Idx: idx, Value: t.Data[i]})
+			indices = append(indices, &Index{Idx: c, Value: t.Data[i]})
 			return
 		}
 
