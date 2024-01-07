@@ -252,7 +252,7 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 
 	newStrides := toStrides(newShape)
 
-	curIndices := t.Indices()
+	curIndices := t.ValueIndices()
 
 	newData := make([]float64, len(t.Data))
 	for _, curidx := range curIndices {
@@ -271,20 +271,21 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 	return &Tensor{Data: newData, Shape: newShape}, nil
 }
 
-type Index struct {
+// ValueIndex is a pair of value and index ([a, b, c...]) in a tensor.
+type ValueIndex struct {
 	Idx   []int
 	Value float64
 }
 
-func (i *Index) String() string {
+func (i *ValueIndex) String() string {
 	return fmt.Sprintf("{%v: %v}", i.Idx, i.Value)
 }
 
-// Indices returns every value's index in the tensor.
-func (t *Tensor) Indices() []*Index {
+// ValueIndices returns every value's index in the tensor.
+func (t *Tensor) ValueIndices() []*ValueIndex {
 	strides := t.Strides()
 
-	indices := []*Index{}
+	indices := []*ValueIndex{}
 	var f func(idx []int)
 	f = func(idx []int) {
 		if len(idx) == len(t.Shape) {
@@ -293,7 +294,7 @@ func (t *Tensor) Indices() []*Index {
 			for j := range c {
 				i += c[j] * strides[j]
 			}
-			indices = append(indices, &Index{Idx: c, Value: t.Data[i]})
+			indices = append(indices, &ValueIndex{Idx: c, Value: t.Data[i]})
 			return
 		}
 
@@ -331,27 +332,6 @@ func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 		newData[i] = t.Data[start+i]
 	}
 	return Nd(newData, newShape...)
-}
-
-func (t *Tensor) genIndices(dim int) [][]int {
-	var indices [][]int
-	index := make([]int, dim)
-
-	var generate func(int)
-	generate = func(d int) {
-		if d == dim {
-			indices = append(indices, append([]int{}, index...))
-			return
-		}
-
-		for i := 0; i < t.Shape[d]; i++ {
-			index[d] = i
-			generate(d + 1)
-		}
-	}
-
-	generate(0)
-	return indices
 }
 
 // Tile repeats the tensor by the given reps like tile.
@@ -399,7 +379,7 @@ func (t *Tensor) Tile(reps ...int) (*Tensor, error) {
 	}
 
 	for i := 0; i < len(shape); i++ {
-		indices := tmpt.genIndices(i)
+		indices := tmpt.indicesBy(i)
 		data := []float64{}
 		for _, index := range indices {
 			data = append(data, r(i, index)...)
@@ -455,7 +435,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 
 	sumAxis := func(t *Tensor, axis int) []float64 {
 		find := func(idx ...int) float64 {
-			iv := t.Indices()
+			iv := t.ValueIndices()
 			for _, index := range iv {
 				if slices.Equal(index.Idx, idx) {
 					return index.Value
@@ -464,7 +444,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 			panic("unexpected to come here")
 		}
 
-		indexValues := t.Indices()
+		indexValues := t.ValueIndices()
 		indices := make([][]int, len(indexValues))
 		for i, iv := range indexValues {
 			indices[i] = iv.Idx
@@ -620,6 +600,27 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 	}
 
 	return nt, nil
+}
+
+func (t *Tensor) indicesBy(dim int) [][]int {
+	var indices [][]int
+	index := make([]int, dim)
+
+	var generate func(int)
+	generate = func(d int) {
+		if d == dim {
+			indices = append(indices, append([]int{}, index...))
+			return
+		}
+
+		for i := 0; i < t.Shape[d]; i++ {
+			index[d] = i
+			generate(d + 1)
+		}
+	}
+
+	generate(0)
+	return indices
 }
 
 // Slice cuts the part of the tensor based on the given indices. The length of indices must be

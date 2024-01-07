@@ -1,6 +1,7 @@
 package tensor
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -357,9 +358,9 @@ func TestTranspose(t *testing.T) {
 			expected: &Tensor{Data: []float64{0, 1, 2, 3, 4, 5, 6, 7}, Shape: []int{8}},
 		},
 		{
-			name:     "vector err",
-			tensor:   &Tensor{Data: seq(0, 8), Shape: []int{8}},
-			args:     []int{1},
+			name:      "vector err",
+			tensor:    &Tensor{Data: seq(0, 8), Shape: []int{8}},
+			args:      []int{1},
 			expectErr: true,
 		},
 		{
@@ -380,21 +381,21 @@ func TestTranspose(t *testing.T) {
 			expected: &Tensor{Data: []float64{0, 1, 2, 3, 4, 5, 6, 7}, Shape: []int{2, 4}},
 		},
 		{
-			name:     "2d4 error",
-			tensor:   &Tensor{Data: seq(0, 8), Shape: []int{2, 4}},
-			args:     []int{0, 0},
+			name:      "2d4 error",
+			tensor:    &Tensor{Data: seq(0, 8), Shape: []int{2, 4}},
+			args:      []int{0, 0},
 			expectErr: true,
 		},
 		{
-			name:     "2d5 error",
-			tensor:   &Tensor{Data: seq(0, 8), Shape: []int{2, 4}},
-			args:     []int{0, 1, 2},
+			name:      "2d5 error",
+			tensor:    &Tensor{Data: seq(0, 8), Shape: []int{2, 4}},
+			args:      []int{0, 1, 2},
 			expectErr: true,
 		},
 		{
-			name:     "2d6 error",
-			tensor:   &Tensor{Data: seq(0, 8), Shape: []int{2, 4}},
-			args:     []int{0},
+			name:      "2d6 error",
+			tensor:    &Tensor{Data: seq(0, 8), Shape: []int{2, 4}},
+			args:      []int{0},
 			expectErr: true,
 		},
 		{
@@ -405,13 +406,13 @@ func TestTranspose(t *testing.T) {
 		{
 			name:     "3d2",
 			tensor:   &Tensor{Data: seq(0, 16), Shape: []int{2, 2, 4}},
-			args: []int{2, 1, 0},
+			args:     []int{2, 1, 0},
 			expected: &Tensor{Data: []float64{0, 8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15}, Shape: []int{4, 2, 2}},
 		},
 		{
 			name:     "3d3",
 			tensor:   &Tensor{Data: seq(0, 16), Shape: []int{2, 2, 4}},
-			args: []int{0, 1, 2},
+			args:     []int{0, 1, 2},
 			expected: &Tensor{Data: []float64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Shape: []int{2, 2, 4}},
 		},
 		{
@@ -452,6 +453,45 @@ func TestTranspose(t *testing.T) {
 			got, err := tc.tensor.Transpose(tc.args...)
 			checkErr(t, tc.expectErr, err)
 			mustEq(t, tc.expected, got)
+		})
+	}
+}
+
+func TestValueIndices(t *testing.T) {
+	tests := []struct {
+		name     string
+		tensor   *Tensor
+		expected []*ValueIndex
+	}{
+		{
+			name:     "scalar",
+			tensor:   &Tensor{Data: []float64{1}, Shape: []int{}},
+			expected: []*ValueIndex{{[]int{}, 1}},
+		},
+		{
+			name:     "vector",
+			tensor:   &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
+			expected: []*ValueIndex{{[]int{0}, 1}, {[]int{1}, 2}, {[]int{2}, 3}},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := tc.tensor.ValueIndices()
+
+			if len(got) != len(tc.expected) {
+				t.Errorf("expected %v but got %v", tc.expected, got)
+			}
+
+			for i := range got {
+				g := got[i]
+				e := tc.expected[i]
+				if !slices.Equal(g.Idx, e.Idx) || g.Value != e.Value {
+					t.Errorf("expected %v but got %v", e, g)
+				}
+			}
 		})
 	}
 }
