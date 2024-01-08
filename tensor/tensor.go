@@ -494,11 +494,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	}
 
 	if !keepdims {
-		if len(nt.Data) == 1 {
-			return Scalar(nt.Data[0]), nil
-		}
-
-		return Vector(nt.Data), nil
+		return nt.Squeeze(axes...)
 	}
 
 	return nt, nil
