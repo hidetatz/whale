@@ -1211,71 +1211,46 @@ func TestSum(t *testing.T) {
 func TestSqueeze(t *testing.T) {
 	tests := []struct {
 		name      string
-		data      []float64
-		shape     []int
-		axes      []int
+		tensor    *Tensor
+		args      []int
 		expectErr bool
 		expected  *Tensor
 	}{
 		{
-			name:  "2d 1",
-			data:  seq(0, 6),
-			shape: []int{2, 3},
-			axes:  []int{},
-			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 4, 5},
-				Shape: []int{2, 3},
-			},
+			name:     "2d 1",
+			tensor:   &Tensor{Data: seq(0, 6), Shape: []int{2, 3}},
+			args:     []int{},
+			expected: &Tensor{Data: []float64{0, 1, 2, 3, 4, 5}, Shape: []int{2, 3}},
 		},
 		{
-			name:  "3d 2",
-			data:  seq(0, 6),
-			shape: []int{1, 2, 3},
-			axes:  []int{},
-			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 4, 5},
-				Shape: []int{2, 3},
-			},
+			name:     "3d 2",
+			tensor:   &Tensor{Data: seq(0, 6), Shape: []int{1, 2, 3}},
+			args:     []int{},
+			expected: &Tensor{Data: []float64{0, 1, 2, 3, 4, 5}, Shape: []int{2, 3}},
 		},
 		{
-			name:  "3d 3",
-			data:  seq(0, 6),
-			shape: []int{1, 6, 1},
-			axes:  []int{},
-			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 4, 5},
-				Shape: []int{6},
-			},
+			name:     "3d 3",
+			tensor:   &Tensor{Data: seq(0, 6), Shape: []int{1, 6, 1}},
+			args:     []int{},
+			expected: &Tensor{Data: []float64{0, 1, 2, 3, 4, 5}, Shape: []int{6}},
 		},
 		{
-			name:  "3d 4",
-			data:  seq(0, 6),
-			shape: []int{1, 6, 1},
-			axes:  []int{0},
-			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 4, 5},
-				Shape: []int{6, 1},
-			},
+			name:     "3d 4",
+			tensor:   &Tensor{Data: seq(0, 6), Shape: []int{1, 6, 1}},
+			args:     []int{0},
+			expected: &Tensor{Data: []float64{0, 1, 2, 3, 4, 5}, Shape: []int{6, 1}},
 		},
 		{
-			name:  "3d 5",
-			data:  seq(0, 6),
-			shape: []int{1, 6, 1},
-			axes:  []int{2},
-			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 4, 5},
-				Shape: []int{1, 6},
-			},
+			name:     "3d 5",
+			tensor:   &Tensor{Data: seq(0, 6), Shape: []int{1, 6, 1}},
+			args:     []int{2},
+			expected: &Tensor{Data: []float64{0, 1, 2, 3, 4, 5}, Shape: []int{1, 6}},
 		},
 		{
-			name:  "3d 6",
-			data:  seq(0, 6),
-			shape: []int{1, 6, 1},
-			axes:  []int{0, 2},
-			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 4, 5},
-				Shape: []int{6},
-			},
+			name:     "3d 6",
+			tensor:   &Tensor{Data: seq(0, 6), Shape: []int{1, 6, 1}},
+			args:     []int{0, 2},
+			expected: &Tensor{Data: []float64{0, 1, 2, 3, 4, 5}, Shape: []int{6}},
 		},
 	}
 
@@ -1283,16 +1258,9 @@ func TestSqueeze(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, _ := Nd(tc.data, tc.shape...)
-			got, err := got.Squeeze(tc.axes...)
-			if (err != nil) != tc.expectErr {
-				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
-			}
-			if tc.expected != nil {
-				if !tc.expected.Equals(got) {
-					t.Errorf("expected %v but got %v", tc.expected, got)
-				}
-			}
+			got, err := tc.tensor.Squeeze(tc.args...)
+			checkErr(t, tc.expectErr, err)
+			mustEq(t, tc.expected, got)
 		})
 	}
 }
