@@ -31,6 +31,9 @@ func Vector(v []float64) *Tensor {
 // If the shape is empty, the given data is treated as vector.
 func Nd(data []float64, shape ...int) (*Tensor, error) {
 	if len(shape) == 0 {
+		if len(data) == 1 {
+			return Scalar(data[0]), nil
+		}
 		return Vector(data), nil
 	}
 
