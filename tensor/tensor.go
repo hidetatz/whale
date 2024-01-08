@@ -532,6 +532,7 @@ func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
 	return Nd(t.Data, newshape...)
 }
 
+// SumTo tries to sum to be the given shape.
 func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
 	ndim := len(shape)
 	lead := t.Dim() - ndim
@@ -560,19 +561,16 @@ func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
 	return y, nil
 }
 
+// BroadcastTo tries to broadcast the tensor.
 func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 	if len(t.Shape) > len(shape) {
-		return nil, fmt.Errorf("cannot broadcast: invalid shape")
+		return nil, fmt.Errorf("invalid desired shape")
 	}
 
-	newshape := make([]int, len(t.Shape))
-	copy(newshape, t.Shape)
+	newshape := t.CopyShape()
 	if len(t.Shape) != len(shape) {
 		delta := len(shape) - len(t.Shape)
-		for i := 0; i < delta; i++ {
-			// push 1 to the head until the dim gets the same
-			newshape = append([]int{1}, newshape...)
-		}
+		newshape = append(all(1, delta), newshape...)
 	}
 
 	nt, err := t.Reshape(newshape...)
@@ -591,11 +589,10 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 			return nil, fmt.Errorf("cannot broadcast: either dim must be 1 (original: %v, target: %v)", shape[i], newshape[i])
 		}
 
-		tile = append(tile, shape[i]/newshape[i])
+		tile = append(tile, shape[i])
 	}
 
-	nt = nt.Tile(tile...)
-	return nt, nil
+	return nt.Tile(tile...), nil
 }
 
 func (t *Tensor) indicesBy(dim int) [][]int {

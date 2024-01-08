@@ -1268,51 +1268,34 @@ func TestSqueeze(t *testing.T) {
 func TestSumTo(t *testing.T) {
 	tests := []struct {
 		name      string
-		data      []float64
-		shape     []int
-		stshape   []int
+		tensor    *Tensor
+		args      []int
 		expectErr bool
 		expected  *Tensor
 	}{
 		{
-			name:    "2d 1",
-			data:    seq(0, 6),
-			shape:   []int{2, 3},
-			stshape: []int{1, 3},
-			expected: &Tensor{
-				Data:  []float64{3, 5, 7},
-				Shape: []int{1, 3},
-			},
+			name:     "2d 1",
+			tensor:   &Tensor{Data: seq(0, 6), Shape: []int{2, 3}},
+			args:     []int{1, 3},
+			expected: &Tensor{Data: []float64{3, 5, 7}, Shape: []int{1, 3}},
 		},
 		{
-			name:    "2d 2",
-			data:    seq(0, 6),
-			shape:   []int{2, 3},
-			stshape: []int{2, 1},
-			expected: &Tensor{
-				Data:  []float64{3, 12},
-				Shape: []int{2, 1},
-			},
+			name:     "2d 2",
+			tensor:   &Tensor{Data: seq(0, 6), Shape: []int{2, 3}},
+			args:     []int{2, 1},
+			expected: &Tensor{Data: []float64{3, 12}, Shape: []int{2, 1}},
 		},
 		{
-			name:    "2d 3",
-			data:    seq(0, 6),
-			shape:   []int{2, 3},
-			stshape: []int{1, 1},
-			expected: &Tensor{
-				Data:  []float64{15},
-				Shape: []int{1, 1},
-			},
+			name:     "2d 3",
+			tensor:   &Tensor{Data: seq(0, 6), Shape: []int{2, 3}},
+			args:     []int{1, 1},
+			expected: &Tensor{Data: []float64{15}, Shape: []int{1, 1}},
 		},
 		{
-			name:    "3d 1",
-			data:    seq(0, 24),
-			shape:   []int{2, 3, 4},
-			stshape: []int{2, 1, 1},
-			expected: &Tensor{
-				Data:  []float64{66, 210},
-				Shape: []int{2, 1, 1},
-			},
+			name:     "3d 1",
+			tensor:   &Tensor{Data: seq(0, 24), Shape: []int{2, 3, 4}},
+			args:     []int{2, 1, 1},
+			expected: &Tensor{Data: []float64{66, 210}, Shape: []int{2, 1, 1}},
 		},
 	}
 
@@ -1320,16 +1303,9 @@ func TestSumTo(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, _ := Nd(tc.data, tc.shape...)
-			got, err := got.SumTo(tc.stshape...)
-			if (err != nil) != tc.expectErr {
-				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
-			}
-			if tc.expected != nil {
-				if !tc.expected.Equals(got) {
-					t.Errorf("expected %v but got %v", tc.expected, got)
-				}
-			}
+			got, err := tc.tensor.SumTo(tc.args...)
+			checkErr(t, tc.expectErr, err)
+			mustEq(t, tc.expected, got)
 		})
 	}
 }
