@@ -326,8 +326,8 @@ func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 
 	start := 0
 	for i := range index {
-		if index[i] > t.Shape[i]-1 {
-			return nil, fmt.Errorf("index is too big: %v", index)
+		if index[i] > t.Shape[i]-1 || index[i] < 0 {
+			return nil, fmt.Errorf("invalid index: %v", index)
 		}
 		start += curStride[i] * index[i]
 	}
