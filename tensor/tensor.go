@@ -355,6 +355,7 @@ func (t *Tensor) Tile(reps ...int) (*Tensor, error) {
 	}
 
 	tmpt := t.Copy()
+	tmpt.Shape = shape
 
 	var r func(dim int, index []int) []float64
 	r = func(dim int, index []int) []float64 {
