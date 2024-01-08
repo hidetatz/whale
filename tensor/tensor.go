@@ -280,6 +280,10 @@ type ValueIndex struct {
 	Value float64
 }
 
+func (i *ValueIndex) Copy() *ValueIndex {
+	return &ValueIndex{Value: i.Value, Idx: copySlice(i.Idx)}
+}
+
 func (i *ValueIndex) String() string {
 	return fmt.Sprintf("{%v: %v}", i.Idx, i.Value)
 }
@@ -419,8 +423,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	}
 
 	// check axes
-	copied := make([]int, len(axes))
-	copy(copied, axes)
+	copied := copySlice(axes)
 	slices.Sort(copied)
 	copied = slices.Compact(copied)
 	if len(copied) != len(axes) {
@@ -438,9 +441,14 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	// else, sum by axis
 
 	sumAxis := func(t *Tensor, axis int) []float64 {
+		indexValues := t.ValueIndices()
+		civ := make([]*ValueIndex, len(indexValues))
+		for i := range indexValues {
+			civ[i] = indexValues[i].Copy()
+		}
+
 		find := func(idx ...int) float64 {
-			iv := t.ValueIndices()
-			for _, index := range iv {
+			for _, index := range civ {
 				if slices.Equal(index.Idx, idx) {
 					return index.Value
 				}
@@ -448,7 +456,6 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 			panic("unexpected to come here")
 		}
 
-		indexValues := t.ValueIndices()
 		indices := make([][]int, len(indexValues))
 		for i, iv := range indexValues {
 			indices[i] = iv.Idx
