@@ -673,60 +673,126 @@ func TestSubTensor(t *testing.T) {
 
 func TestTile(t *testing.T) {
 	tests := []struct {
-		name      string
-		data      []float64
-		shape     []int
-		times     []int
-		expectErr bool
-		expected  *Tensor
+		name     string
+		tensor   *Tensor
+		args     []int
+		expected *Tensor
 	}{
 		{
-			name:  "scalar",
-			data:  []float64{1},
-			shape: []int{},
-			times: []int{2},
+			name:     "scalar",
+			tensor:   &Tensor{Data: []float64{1}, Shape: []int{}},
+			args:     []int{5},
+			expected: &Tensor{Data: []float64{1, 1, 1, 1, 1}, Shape: []int{5}},
+		},
+		{
+			name:     "1d",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{4}},
+			args:     []int{2},
+			expected: &Tensor{Data: []float64{1, 2, 3, 4, 1, 2, 3, 4}, Shape: []int{8}},
+		},
+		{
+			name:     "1d 2",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{4}},
+			args:     []int{2, 2},
+			expected: &Tensor{Data: []float64{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4}, Shape: []int{2, 8}},
+		},
+		{
+			name:     "1d 3",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{4}},
+			args:     []int{1},
+			expected: &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{4}},
+		},
+		{
+			name:     "1d 4",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{4}},
+			args:     []int{1, 2},
+			expected: &Tensor{Data: []float64{1, 2, 3, 4, 1, 2, 3, 4}, Shape: []int{1, 8}},
+		},
+		{
+			name:     "1d 5",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{4}},
+			args:     []int{2, 0, 2},
+			expected: &Tensor{Data: []float64{}, Shape: []int{}},
+		},
+		{
+			name:   "1d 6",
+			tensor: &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{4}},
+			args:   []int{2, 2, 2},
 			expected: &Tensor{
-				Data:  []float64{1, 1},
-				Shape: []int{2},
+				Data: []float64{
+					1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4,
+					1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4,
+				},
+				Shape: []int{2, 2, 8},
 			},
 		},
 		{
-			name:  "vector",
-			data:  seq(0, 4),
-			shape: []int{4},
-			times: []int{2, 2},
+			name:     "1d 7",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{4}},
+			args:     []int{},
+			expected: &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{4}},
+		},
+		{
+			name:     "2d 1",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			args:     []int{1},
+			expected: &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+		},
+		{
+			name:     "2d 2",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			args:     []int{2},
+			expected: &Tensor{Data: []float64{1, 2, 1, 2, 3, 4, 3, 4}, Shape: []int{2, 4}},
+		},
+		{
+			name:     "2d 3",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			args:     []int{3},
+			expected: &Tensor{Data: []float64{1, 2, 1, 2, 1, 2, 3, 4, 3, 4, 3, 4}, Shape: []int{2, 6}},
+		},
+		{
+			name:   "2d 4",
+			tensor: &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			args:   []int{2, 3},
 			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
-				Shape: []int{2, 8},
+				Data: []float64{
+					1, 2, 1, 2, 1, 2, 3, 4, 3, 4, 3, 4,
+					1, 2, 1, 2, 1, 2, 3, 4, 3, 4, 3, 4,
+				},
+				Shape: []int{4, 6},
 			},
 		},
 		{
-			name:  "2d",
-			data:  seq(0, 4),
-			shape: []int{2, 2},
-			times: []int{2, 1},
+			name:   "2d 5",
+			tensor: &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			args:   []int{2, 2, 3},
 			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 0, 1, 2, 3},
-				Shape: []int{4, 2},
+				Data: []float64{
+					1, 2, 1, 2, 1, 2, 3, 4, 3, 4, 3, 4,
+					1, 2, 1, 2, 1, 2, 3, 4, 3, 4, 3, 4,
+					1, 2, 1, 2, 1, 2, 3, 4, 3, 4, 3, 4,
+					1, 2, 1, 2, 1, 2, 3, 4, 3, 4, 3, 4,
+				},
+				Shape: []int{2, 4, 6},
 			},
 		},
 		{
-			name:  "2d 2",
-			data:  seq(0, 4),
-			shape: []int{2, 2},
-			times: []int{2, 2},
-			expected: &Tensor{
-				Data:  []float64{0, 1, 0, 1, 2, 3, 2, 3, 0, 1, 0, 1, 2, 3, 2, 3},
-				Shape: []int{4, 4},
-			},
+			name:     "2d 6",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			args:     []int{2, 0, 3},
+			expected: &Tensor{Data: []float64{}, Shape: []int{}},
 		},
 		{
-			name:  "3d 1",
-			data:  seq(0, 8),
-			shape: []int{2, 2, 2},
-			times: []int{2, 1, 2},
+			name:   "3d 1",
+			tensor: &Tensor{Data: []float64{1, 2, 3, 4, 5, 6, 7, 8}, Shape: []int{2, 2, 2}},
+			args:   []int{2, 1, 2},
 			expected: &Tensor{
-				Data:  []float64{0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7},
+				Data: []float64{
+					1, 2, 1, 2, 3, 4, 3, 4,
+					5, 6, 5, 6, 7, 8, 7, 8,
+					1, 2, 1, 2, 3, 4, 3, 4,
+					5, 6, 5, 6, 7, 8, 7, 8,
+				},
 				Shape: []int{4, 2, 4},
 			},
 		},
@@ -736,16 +802,8 @@ func TestTile(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, _ := Nd(tc.data, tc.shape...)
-			got, err := got.Tile(tc.times...)
-			if (err != nil) != tc.expectErr {
-				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
-			}
-			if tc.expected != nil {
-				if !tc.expected.Equals(got) {
-					t.Errorf("expected %v but got %v", tc.expected, got)
-				}
-			}
+			got := tc.tensor.Tile(tc.args...)
+			mustEq(t, tc.expected, got)
 		})
 	}
 }
