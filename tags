@@ -1,0 +1,333 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/hidetatz/whale/	//
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+Activate	activation.go	/^	Activate(x *Variable) (*Variable, error)$/;"	n	interface:whale.Activation	typeref:typename:(*Variable, error)
+Activate	activation.go	/^func (s *Sigmoid) Activate(x *Variable) (*Variable, error) {$/;"	f	struct:whale.Sigmoid	typeref:typename:(*Variable, error)
+Activate	activation.go	/^func (s *SoftMax) Activate(x *Variable) (*Variable, error) {$/;"	f	struct:whale.SoftMax	typeref:typename:(*Variable, error)
+Activation	activation.go	/^type Activation interface {$/;"	i	package:whale
+Add	device.go	/^	Add(t1, t2 *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Add	device_cpu.go	/^func (c *CPU) Add(t1, t2 *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+Add	operation.go	/^func Add(x0, x1 *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+All	tensor/tensor.go	/^func All(v float64, shape ...int) *Tensor {$/;"	f	package:tensor	typeref:typename:*Tensor
+ArangeBy	tensor/tensor.go	/^func ArangeBy(from, to, interval float64) *Tensor {$/;"	f	package:tensor	typeref:typename:*Tensor
+ArangeFrom	tensor/tensor.go	/^func ArangeFrom(from, to int) *Tensor {$/;"	f	package:tensor	typeref:typename:*Tensor
+ArangeTo	tensor/tensor.go	/^func ArangeTo(to int) *Tensor {$/;"	f	package:tensor	typeref:typename:*Tensor
+Backward	operation.go	/^	Backward(grads ...*Variable) ([]*Variable, error)$/;"	n	interface:whale.Op	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (a *add) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.add	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (b *broadcastTo) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.broadcastTo	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (c *cos) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.cos	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (d *div) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.div	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (e *exp) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.exp	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (m *matmul) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.matmul	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (m *mul) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.mul	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (n *neg) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.neg	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (p *pow) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.pow	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (r *reshape) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.reshape	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (s *sin) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.sin	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (s *sub) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.sub	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (s *sum) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.sum	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (s *sumTo) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.sumTo	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (t *tanh) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.tanh	typeref:typename:([]*Variable, error)
+Backward	operation.go	/^func (t *transpose) Backward(gy ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.transpose	typeref:typename:([]*Variable, error)
+Backward	variable.go	/^func (v *Variable) Backward() error {$/;"	f	struct:whale.Variable	typeref:typename:error
+BroadcastTo	operation.go	/^func BroadcastTo(v *Variable, shape ...int) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+BroadcastTo	tensor/tensor.go	/^func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {$/;"	f	struct:tensor.Tensor	typeref:typename:(*Tensor, error)
+CPU	device_cpu.go	/^type CPU struct{}$/;"	s	package:whale
+Calculate	loss.go	/^	Calculate(pred, actual *Variable) (*Variable, error)$/;"	n	interface:whale.LossCalculator	typeref:typename:(*Variable, error)
+Calculate	loss.go	/^func (m *MSE) Calculate(pred, actual *Variable) (*Variable, error) {$/;"	f	struct:whale.MSE	typeref:typename:(*Variable, error)
+ClearGrad	variable.go	/^func (v *Variable) ClearGrad() {$/;"	f	struct:whale.Variable
+Copy	tensor/tensor.go	/^func (t *Tensor) Copy() *Tensor {$/;"	f	struct:tensor.Tensor	typeref:typename:*Tensor
+CopyShape	tensor/tensor.go	/^func (t *Tensor) CopyShape() []int {$/;"	f	struct:tensor.Tensor	typeref:typename:[]int
+CopyStrides	tensor/tensor.go	/^func (t *Tensor) CopyStrides() []int {$/;"	f	struct:tensor.Tensor	typeref:typename:[]int
+Cos	device.go	/^	Cos(t *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Cos	device_cpu.go	/^func (c *CPU) Cos(t *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+Cos	operation.go	/^func Cos(x *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Data	tensor/tensor.go	/^	Data    []float64$/;"	m	struct:tensor.Tensor	typeref:typename:[]float64
+Device	device.go	/^type Device interface {$/;"	i	package:whale
+Dim	tensor/tensor.go	/^func (t *Tensor) Dim() int {$/;"	f	struct:tensor.Tensor	typeref:typename:int
+Div	device.go	/^	Div(t1, t2 *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Div	device_cpu.go	/^func (c *CPU) Div(t1, t2 *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+Div	operation.go	/^func Div(x0, x1 *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Dot	device.go	/^	Dot(t1, t2 *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Dot	device_cpu.go	/^func (c *CPU) Dot(t1, t2 *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+EnableBackprop	variable.go	/^var EnableBackprop = true$/;"	v	package:whale
+Equals	tensor/tensor.go	/^func (t *Tensor) Equals(t2 *Tensor) bool {$/;"	f	struct:tensor.Tensor	typeref:typename:bool
+Exec	plot.go	/^func (p *Plot) Exec() error {$/;"	f	struct:whale.Plot	typeref:typename:error
+Exp	device.go	/^	Exp(t *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Exp	device_cpu.go	/^func (c *CPU) Exp(t *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+Exp	operation.go	/^func Exp(v *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Forward	operation.go	/^	Forward(inputs ...*Variable) ([]*Variable, error)$/;"	n	interface:whale.Op	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (a *add) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.add	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (b *broadcastTo) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.broadcastTo	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (c *cos) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.cos	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (d *div) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.div	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (e *exp) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.exp	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (m *matmul) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.matmul	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (m *mul) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.mul	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (n *neg) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.neg	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (p *pow) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.pow	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (r *reshape) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.reshape	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (s *sin) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.sin	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (s *sub) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.sub	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (s *sum) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.sum	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (s *sumTo) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.sumTo	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (t *tanh) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.tanh	typeref:typename:([]*Variable, error)
+Forward	operation.go	/^func (t *transpose) Forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.transpose	typeref:typename:([]*Variable, error)
+FromScalar	tensor/tensor.go	/^func FromScalar(s float64) *Tensor {$/;"	f	package:tensor	typeref:typename:*Tensor
+FromVector	tensor/tensor.go	/^func FromVector(v []float64, shape int) (*Tensor, error) {$/;"	f	package:tensor	typeref:typename:(*Tensor, error)
+GetData	variable.go	/^func (v *Variable) GetData() *tensor.Tensor {$/;"	f	struct:whale.Variable	typeref:typename:*tensor.Tensor
+GetGrad	variable.go	/^func (v *Variable) GetGrad() *Variable {$/;"	f	struct:whale.Variable	typeref:typename:*Variable
+HasNext	tensor/iterator.go	/^func (i *Iterator) HasNext() bool {$/;"	f	struct:tensor.Iterator	typeref:typename:bool
+IsAvailable	cuda/cuda.go	/^func IsAvailable() bool {$/;"	f	package:cuda	typeref:typename:bool
+IsScalar	tensor/tensor.go	/^func (t *Tensor) IsScalar() bool {$/;"	f	struct:tensor.Tensor	typeref:typename:bool
+IsVector	tensor/tensor.go	/^func (t *Tensor) IsVector() bool {$/;"	f	struct:tensor.Tensor	typeref:typename:bool
+Iterator	tensor/iterator.go	/^type Iterator struct {$/;"	s	package:tensor
+Iterator	tensor/tensor.go	/^func (t *Tensor) Iterator(axis int) (*Iterator, error) {$/;"	f	struct:tensor.Tensor	typeref:typename:(*Iterator, error)
+Len	variable.go	/^func (v *Variable) Len() int {$/;"	f	struct:whale.Variable	typeref:typename:int
+Line	plot.go	/^func (p *Plot) Line(x, y []float64, color string) error {$/;"	f	struct:whale.Plot	typeref:typename:error
+Linear	layer.go	/^func Linear(x, w, b *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Loss	model.go	/^	Loss() LossCalculator$/;"	n	interface:whale.Model	typeref:typename:LossCalculator
+Loss	model_mlp.go	/^func (m *MLP) Loss() LossCalculator {$/;"	f	struct:whale.MLP	typeref:typename:LossCalculator
+LossCalculator	loss.go	/^type LossCalculator interface {$/;"	i	package:whale
+MLP	model_mlp.go	/^type MLP struct {$/;"	s	package:whale
+MSE	loss.go	/^type MSE struct{}$/;"	s	package:whale
+MatMul	operation.go	/^func MatMul(x, w *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Maxmul	cuda/test/main.go	/^func Maxmul(a []C.float, b []C.float, c []C.float, size int) {$/;"	f	package:main
+Model	model.go	/^type Model interface {$/;"	i	package:whale
+MomentumSGD	optim.go	/^type MomentumSGD struct {$/;"	s	package:whale
+Mul	device.go	/^	Mul(t1, t2 *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Mul	device_cpu.go	/^func (c *CPU) Mul(t1, t2 *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+Mul	operation.go	/^func Mul(x0, x1 *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Nd	tensor/tensor.go	/^func Nd(data []float64, shape ...int) (*Tensor, error) {$/;"	f	package:tensor	typeref:typename:(*Tensor, error)
+Neg	device.go	/^	Neg(t *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Neg	device_cpu.go	/^func (c *CPU) Neg(t *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+Neg	operation.go	/^func Neg(x *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+NewFunction	function.go	/^func NewFunction(op Op) *function {$/;"	f	package:whale	typeref:typename:*function
+NewMLP	model_mlp.go	/^func NewMLP(layers [][]int, bias bool, act Activation, loss LossCalculator, optim Optimizer) *ML/;"	f	package:whale	typeref:typename:*MLP
+NewMSE	loss.go	/^func NewMSE() *MSE {$/;"	f	package:whale	typeref:typename:*MSE
+NewMomentumSGD	optim.go	/^func NewMomentumSGD(learnRate, momentum float64) *MomentumSGD {$/;"	f	package:whale	typeref:typename:*MomentumSGD
+NewPlot	plot.go	/^func NewPlot() *Plot {$/;"	f	package:whale	typeref:typename:*Plot
+NewSGD	optim.go	/^func NewSGD(learnRate float64) *SGD {$/;"	f	package:whale	typeref:typename:*SGD
+NewSigmoid	activation.go	/^func NewSigmoid() *Sigmoid {$/;"	f	package:whale	typeref:typename:*Sigmoid
+NewSoftMax	activation.go	/^func NewSoftMax() *SoftMax {$/;"	f	package:whale	typeref:typename:*SoftMax
+NewVar	variable.go	/^func NewVar(data *tensor.Tensor) *Variable {$/;"	f	package:whale	typeref:typename:*Variable
+Next	tensor/iterator.go	/^func (i *Iterator) Next() []float64 {$/;"	f	struct:tensor.Iterator	typeref:typename:[]float64
+Ones	tensor/tensor.go	/^func Ones(shape ...int) *Tensor {$/;"	f	package:tensor	typeref:typename:*Tensor
+OnesLike	tensor/tensor.go	/^func OnesLike(t *Tensor) *Tensor {$/;"	f	package:tensor	typeref:typename:*Tensor
+Op	operation.go	/^type Op interface {$/;"	i	package:whale
+Optimize	optim.go	/^	Optimize(v *Variable)$/;"	n	interface:whale.Optimizer
+Optimize	optim.go	/^func (s *MomentumSGD) Optimize(v *Variable) {$/;"	f	struct:whale.MomentumSGD
+Optimize	optim.go	/^func (s *SGD) Optimize(v *Variable) {$/;"	f	struct:whale.SGD
+Optimizer	model.go	/^	Optimizer() Optimizer$/;"	n	interface:whale.Model	typeref:typename:Optimizer
+Optimizer	model_mlp.go	/^func (m *MLP) Optimizer() Optimizer {$/;"	f	struct:whale.MLP	typeref:typename:Optimizer
+Optimizer	optim.go	/^type Optimizer interface {$/;"	i	package:whale
+Params	model.go	/^	Params() []*Variable$/;"	n	interface:whale.Model	typeref:typename:[]*Variable
+Params	model_mlp.go	/^func (m *MLP) Params() []*Variable {$/;"	f	struct:whale.MLP	typeref:typename:[]*Variable
+Plot	plot.go	/^type Plot struct {$/;"	s	package:whale
+Pow	device.go	/^	Pow(t, c *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Pow	device_cpu.go	/^func (c *CPU) Pow(t1, t2 *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+Pow	operation.go	/^func Pow(x, c *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Predict	cmd/tst/main.go	/^func Predict(m whale.Model, x *whale.Variable) *whale.Variable {$/;"	f	package:main	typeref:typename:*whale.Variable
+Rand	tensor/tensor.go	/^func Rand(shape ...int) *Tensor {$/;"	f	package:tensor	typeref:typename:*Tensor
+RawString	tensor/tensor.go	/^func (t *Tensor) RawString() string {$/;"	f	struct:tensor.Tensor	typeref:typename:string
+Repeat	tensor/tensor.go	/^func (t *Tensor) Repeat(times, axis int) (*Tensor, error) {$/;"	f	struct:tensor.Tensor	typeref:typename:(*Tensor, error)
+Reshape	operation.go	/^func Reshape(v *Variable, shape ...int) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Reshape	tensor/tensor.go	/^func (t *Tensor) Reshape(shape ...int) (*Tensor, error) {$/;"	f	struct:tensor.Tensor	typeref:typename:(*Tensor, error)
+SGD	optim.go	/^type SGD struct {$/;"	s	package:whale
+Scatter	plot.go	/^func (p *Plot) Scatter(x, y []float64, color string) error {$/;"	f	struct:whale.Plot	typeref:typename:error
+SetCreator	variable.go	/^func (v *Variable) SetCreator(creator *function) {$/;"	f	struct:whale.Variable
+SetData	variable.go	/^func (v *Variable) SetData(t *tensor.Tensor) {$/;"	f	struct:whale.Variable
+Shape	tensor/tensor.go	/^func (t *Tensor) Shape() []int {$/;"	f	struct:tensor.Tensor	typeref:typename:[]int
+Sigmoid	activation.go	/^type Sigmoid struct{}$/;"	s	package:whale
+Sin	device.go	/^	Sin(t *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Sin	device_cpu.go	/^func (c *CPU) Sin(t *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+Sin	operation.go	/^func Sin(x *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+SoftMax	activation.go	/^type SoftMax struct{}$/;"	s	package:whale
+Squeeze	tensor/tensor.go	/^func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {$/;"	f	struct:tensor.Tensor	typeref:typename:(*Tensor, error)
+Strides	tensor/tensor.go	/^func (t *Tensor) Strides() []int {$/;"	f	struct:tensor.Tensor	typeref:typename:[]int
+String	function.go	/^func (f *function) String() string {$/;"	f	struct:whale.function	typeref:typename:string
+String	operation.go	/^func (a *add) String() string {$/;"	f	struct:whale.add	typeref:typename:string
+String	operation.go	/^func (b *broadcastTo) String() string {$/;"	f	struct:whale.broadcastTo	typeref:typename:string
+String	operation.go	/^func (c *cos) String() string {$/;"	f	struct:whale.cos	typeref:typename:string
+String	operation.go	/^func (d *div) String() string {$/;"	f	struct:whale.div	typeref:typename:string
+String	operation.go	/^func (e *exp) String() string {$/;"	f	struct:whale.exp	typeref:typename:string
+String	operation.go	/^func (m *matmul) String() string {$/;"	f	struct:whale.matmul	typeref:typename:string
+String	operation.go	/^func (m *mul) String() string {$/;"	f	struct:whale.mul	typeref:typename:string
+String	operation.go	/^func (n *neg) String() string {$/;"	f	struct:whale.neg	typeref:typename:string
+String	operation.go	/^func (p *pow) String() string {$/;"	f	struct:whale.pow	typeref:typename:string
+String	operation.go	/^func (r *reshape) String() string { return "reshape" }$/;"	f	struct:whale.reshape	typeref:typename:string
+String	operation.go	/^func (s *sin) String() string {$/;"	f	struct:whale.sin	typeref:typename:string
+String	operation.go	/^func (s *sub) String() string {$/;"	f	struct:whale.sub	typeref:typename:string
+String	operation.go	/^func (s *sum) String() string {$/;"	f	struct:whale.sum	typeref:typename:string
+String	operation.go	/^func (s *sumTo) String() string {$/;"	f	struct:whale.sumTo	typeref:typename:string
+String	operation.go	/^func (t *tanh) String() string {$/;"	f	struct:whale.tanh	typeref:typename:string
+String	operation.go	/^func (t *transpose) String() string {$/;"	f	struct:whale.transpose	typeref:typename:string
+String	tensor/tensor.go	/^func (t *Tensor) String() string {$/;"	f	struct:tensor.Tensor	typeref:typename:string
+String	variable.go	/^func (v *Variable) String() string {$/;"	f	struct:whale.Variable	typeref:typename:string
+Sub	device.go	/^	Sub(t1, t2 *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Sub	device_cpu.go	/^func (c *CPU) Sub(t1, t2 *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+Sub	operation.go	/^func Sub(x0, x1 *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Sum	operation.go	/^func Sum(v *Variable, keepdims bool, axes ...int) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Sum	tensor/tensor.go	/^func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {$/;"	f	struct:tensor.Tensor	typeref:typename:(*Tensor, error)
+SumTo	operation.go	/^func SumTo(v *Variable, shape ...int) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+SumTo	tensor/tensor.go	/^func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {$/;"	f	struct:tensor.Tensor	typeref:typename:(*Tensor, error)
+Tanh	device.go	/^	Tanh(t *tensor.Tensor) *tensor.Tensor$/;"	n	interface:whale.Device	typeref:typename:*tensor.Tensor
+Tanh	device_cpu.go	/^func (c *CPU) Tanh(t *tensor.Tensor) *tensor.Tensor {$/;"	f	struct:whale.CPU	typeref:typename:*tensor.Tensor
+Tanh	operation.go	/^func Tanh(x *Variable) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Tensor	tensor/tensor.go	/^type Tensor struct {$/;"	s	package:tensor
+TestBroadcastTo	tensor/tensor_test.go	/^func TestBroadcastTo(t *testing.T) {$/;"	f	package:tensor
+TestFactories	tensor/tensor_test.go	/^func TestFactories(t *testing.T) {$/;"	f	package:tensor
+TestFromScalar	tensor/tensor_test.go	/^func TestFromScalar(t *testing.T) {$/;"	f	package:tensor
+TestFromVector	tensor/tensor_test.go	/^func TestFromVector(t *testing.T) {$/;"	f	package:tensor
+TestNd	tensor/tensor_test.go	/^func TestNd(t *testing.T) {$/;"	f	package:tensor
+TestRepeat	tensor/tensor_test.go	/^func TestRepeat(t *testing.T) {$/;"	f	package:tensor
+TestReshape	tensor/tensor_test.go	/^func TestReshape(t *testing.T) {$/;"	f	package:tensor
+TestSingleOperations	operation_test.go	/^func TestSingleOperations(t *testing.T) {$/;"	f	package:whale
+TestSqueeze	tensor/tensor_test.go	/^func TestSqueeze(t *testing.T) {$/;"	f	package:tensor
+TestSum	tensor/tensor_test.go	/^func TestSum(t *testing.T) {$/;"	f	package:tensor
+TestSumTo	tensor/tensor_test.go	/^func TestSumTo(t *testing.T) {$/;"	f	package:tensor
+TestTile	tensor/tensor_test.go	/^func TestTile(t *testing.T) {$/;"	f	package:tensor
+TestTranspose	tensor/tensor_test.go	/^func TestTranspose(t *testing.T) {$/;"	f	package:tensor
+Tile	tensor/tensor.go	/^func (t *Tensor) Tile(times ...int) (*Tensor, error) {$/;"	f	struct:tensor.Tensor	typeref:typename:(*Tensor, error)
+Train	cmd/tst/main.go	/^func Train(m whale.Model, x, y *whale.Variable) {$/;"	f	package:main
+Train	model.go	/^	Train(in *Variable) (*Variable, error)$/;"	n	interface:whale.Model	typeref:typename:(*Variable, error)
+Train	model_mlp.go	/^func (m *MLP) Train(in *Variable) (*Variable, error) {$/;"	f	struct:whale.MLP	typeref:typename:(*Variable, error)
+Transpose	operation.go	/^func Transpose(v *Variable, axes ...int) (*Variable, error) {$/;"	f	package:whale	typeref:typename:(*Variable, error)
+Transpose	tensor/tensor.go	/^func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {$/;"	f	struct:tensor.Tensor	typeref:typename:(*Tensor, error)
+Variable	variable.go	/^type Variable struct {$/;"	s	package:whale
+VisualizeGraph	visualize.go	/^func VisualizeGraph(v *Variable) error {$/;"	f	package:whale	typeref:typename:error
+Zeros	tensor/tensor.go	/^func Zeros(shape ...int) *Tensor {$/;"	f	package:tensor	typeref:typename:*Tensor
+ZerosLike	tensor/tensor.go	/^func ZerosLike(t *Tensor) *Tensor {$/;"	f	package:tensor	typeref:typename:*Tensor
+activation	model_mlp.go	/^	activation Activation$/;"	m	struct:whale.MLP	typeref:typename:Activation
+add	operation.go	/^type add struct {$/;"	s	package:whale
+addData	plot.go	/^func (p *Plot) addData(x, y []float64) {$/;"	f	struct:whale.Plot
+arng	operation_test.go	/^func arng(t *testing.T, from, to int, shape ...int) *tensor.Tensor {$/;"	f	package:whale	typeref:typename:*tensor.Tensor
+asvars	operation.go	/^func asvars(t *tensor.Tensor) []*Variable {$/;"	f	package:whale	typeref:typename:[]*Variable
+axes	operation.go	/^	axes      []int$/;"	m	struct:whale.sum	typeref:typename:[]int
+axes	operation.go	/^	axes []int$/;"	m	struct:whale.transpose	typeref:typename:[]int
+axis	tensor/iterator.go	/^	axis int$/;"	m	struct:tensor.Iterator	typeref:typename:int
+base	plot.go	/^	base  []string$/;"	m	struct:whale.Plot	typeref:typename:[]string
+biases	model_mlp.go	/^	biases     []*Variable$/;"	m	struct:whale.MLP	typeref:typename:[]*Variable
+broadcastTo	operation.go	/^type broadcastTo struct {$/;"	s	package:whale
+c	operation.go	/^	c *Variable$/;"	m	struct:whale.pow	typeref:typename:*Variable
+calcMatmul	device_cpu.go	/^func calcMatmul(matrixA, matrixB [][]float64) [][]float64 {$/;"	f	package:whale	typeref:typename:[][]float64
+check	operation_test.go	/^func check[S ~[]E, E comparable](t *testing.T, expected, got S, name string) {$/;"	f	package:whale	typeref:typename:(t *testing.T, expected, got S, name string)
+clone	variable.go	/^func (v *Variable) clone() *Variable {$/;"	f	struct:whale.Variable	typeref:typename:*Variable
+cmds	plot.go	/^	cmds  []string$/;"	m	struct:whale.Plot	typeref:typename:[]string
+cos	operation.go	/^type cos struct {$/;"	s	package:whale
+creator	variable.go	/^	creator    *function$/;"	m	struct:whale.Variable	typeref:typename:*function
+cuda	cuda/cuda.go	/^package cuda$/;"	p
+data	plot.go	/^	data  []struct {$/;"	m	struct:whale.Plot	typeref:typename:[]struct { x []float64; y []float64; }
+data	variable.go	/^	data       *tensor.Tensor$/;"	m	struct:whale.Variable	typeref:typename:*tensor.Tensor
+device	cmd/tst/main.go	/^var device = &whale.CPU{}$/;"	v	package:main
+device	operation.go	/^var device Device$/;"	v	package:whale	typeref:typename:Device
+div	operation.go	/^type div struct {$/;"	s	package:whale
+exp	operation.go	/^type exp struct {$/;"	s	package:whale
+flatten	device_cpu.go	/^func flatten(matrix [][]float64) []float64 {$/;"	f	package:whale	typeref:typename:[]float64
+format	Makefile	/^format:$/;"	t
+forward	function.go	/^func (f *function) forward(inputs ...*Variable) ([]*Variable, error) {$/;"	f	struct:whale.function	typeref:typename:([]*Variable, error)
+function	function.go	/^type function struct {$/;"	s	package:whale
+generation	function.go	/^	generation int$/;"	m	struct:whale.function	typeref:typename:int
+generation	variable.go	/^	generation int$/;"	m	struct:whale.Variable	typeref:typename:int
+getMaxGen	function.go	/^func getMaxGen(vs []*Variable) int {$/;"	f	package:whale	typeref:typename:int
+grad	variable.go	/^	grad       *Variable$/;"	m	struct:whale.Variable	typeref:typename:*Variable
+idx	tensor/iterator.go	/^	idx  int$/;"	m	struct:tensor.Iterator	typeref:typename:int
+init	operation.go	/^func init() {$/;"	f	package:whale
+inputs	function.go	/^	inputs     []*Variable$/;"	m	struct:whale.function	typeref:typename:[]*Variable
+keepdims	operation.go	/^	keepdims  bool$/;"	m	struct:whale.sum	typeref:typename:bool
+learnRate	optim.go	/^	learnRate  *tensor.Tensor$/;"	m	struct:whale.MomentumSGD	typeref:typename:*tensor.Tensor
+learnRate	optim.go	/^	learnRate *tensor.Tensor$/;"	m	struct:whale.SGD	typeref:typename:*tensor.Tensor
+loss	model_mlp.go	/^	loss       LossCalculator$/;"	m	struct:whale.MLP	typeref:typename:LossCalculator
+main	cmd/tst/main.go	/^func main() {$/;"	f	package:main
+main	cmd/tst/main.go	/^package main$/;"	p
+main	cuda/test/main.go	/^func main() {$/;"	f	package:main
+main	cuda/test/main.go	/^package main$/;"	p
+matmul	operation.go	/^type matmul struct {$/;"	s	package:whale
+maxmul	cuda/test/maxmul.cu	/^    void maxmul(float *A, float* B, float *C, int size) {$/;"	f	typeref:typename:void
+momentum	optim.go	/^	momentum   *tensor.Tensor$/;"	m	struct:whale.MomentumSGD	typeref:typename:*tensor.Tensor
+mul	operation.go	/^type mul struct {$/;"	s	package:whale
+nd	operation_test.go	/^func nd(t *testing.T, data []float64, shape ...int) *tensor.Tensor {$/;"	f	package:whale	typeref:typename:*tensor.Tensor
+neg	operation.go	/^type neg struct{}$/;"	s	package:whale
+ones	operation_test.go	/^func ones(t *testing.T, shape ...int) *tensor.Tensor {$/;"	f	package:whale	typeref:typename:*tensor.Tensor
+op	function.go	/^	op         Op$/;"	m	struct:whale.function	typeref:typename:Op
+optim	model_mlp.go	/^	optim      Optimizer$/;"	m	struct:whale.MLP	typeref:typename:Optimizer
+origshape	operation.go	/^	origshape []int$/;"	m	struct:whale.broadcastTo	typeref:typename:[]int
+origshape	operation.go	/^	origshape []int$/;"	m	struct:whale.reshape	typeref:typename:[]int
+origshape	operation.go	/^	origshape []int$/;"	m	struct:whale.sum	typeref:typename:[]int
+origshape	operation.go	/^	origshape []int$/;"	m	struct:whale.sumTo	typeref:typename:[]int
+output	operation.go	/^	output *Variable$/;"	m	struct:whale.exp	typeref:typename:*Variable
+outputs	function.go	/^	outputs    []*Variable$/;"	m	struct:whale.function	typeref:typename:[]*Variable
+plots	plot.go	/^	plots []string$/;"	m	struct:whale.Plot	typeref:typename:[]string
+pow	operation.go	/^type pow struct {$/;"	s	package:whale
+randdata	cmd/tst/main.go	/^func randdata() (*tensor.Tensor, *tensor.Tensor) {$/;"	f	package:main	typeref:typename:(*tensor.Tensor, *tensor.Tensor)
+reshape	operation.go	/^type reshape struct {$/;"	s	package:whale
+scalar	operation_test.go	/^func scalar(t *testing.T, data float64) *tensor.Tensor {$/;"	f	package:whale	typeref:typename:*tensor.Tensor
+seq	tensor/tensor.go	/^func seq(from, to int) []float64 {$/;"	f	package:tensor	typeref:typename:[]float64
+seqi	tensor/tensor.go	/^func seqi(from, to int) []int {$/;"	f	package:tensor	typeref:typename:[]int
+shape	operation.go	/^	shape     []int$/;"	m	struct:whale.broadcastTo	typeref:typename:[]int
+shape	operation.go	/^	shape     []int$/;"	m	struct:whale.reshape	typeref:typename:[]int
+shape	operation.go	/^	shape     []int$/;"	m	struct:whale.sumTo	typeref:typename:[]int
+shape	tensor/tensor.go	/^	shape   []int$/;"	m	struct:tensor.Tensor	typeref:typename:[]int
+sin	operation.go	/^type sin struct {$/;"	s	package:whale
+strides	tensor/tensor.go	/^	strides []int$/;"	m	struct:tensor.Tensor	typeref:typename:[]int
+sub	operation.go	/^type sub struct {$/;"	s	package:whale
+sum	operation.go	/^type sum struct {$/;"	s	package:whale
+sumTo	operation.go	/^type sumTo struct {$/;"	s	package:whale
+t	tensor/iterator.go	/^	t    *Tensor$/;"	m	struct:tensor.Iterator	typeref:typename:*Tensor
+tanh	operation.go	/^type tanh struct {$/;"	s	package:whale
+tensor	tensor/iterator.go	/^package tensor$/;"	p
+tensor	tensor/tensor.go	/^package tensor$/;"	p
+tensor	tensor/tensor_test.go	/^package tensor$/;"	p
+test	Makefile	/^test:$/;"	t
+testv	Makefile	/^testv:$/;"	t
+total	tensor/tensor.go	/^func total(shape []int) int {$/;"	f	package:tensor	typeref:typename:int
+trans	operation_test.go	/^func trans(t *testing.T, orig *tensor.Tensor, axes ...int) *tensor.Tensor {$/;"	f	package:whale	typeref:typename:*tensor.Tensor
+transpose	operation.go	/^type transpose struct {$/;"	s	package:whale
+ts	operation_test.go	/^func ts(tensors ...*tensor.Tensor) []*tensor.Tensor {$/;"	f	package:whale	typeref:typename:[]*tensor.Tensor
+uniformShape	device_cpu.go	/^func uniformShape(t1, t2 *tensor.Tensor) (newt1, newt2 *tensor.Tensor, err error) {$/;"	f	package:whale	typeref:typename:(newt1, newt2 *tensor.Tensor, err error)
+vecmul	cuda/test/maxmul.cu	/^__global__ void vecmul(float *A, float* B, float *C, int size)$/;"	f	typeref:typename:void
+velocities	optim.go	/^	velocities map[*Variable]*tensor.Tensor$/;"	m	struct:whale.MomentumSGD	typeref:typename:map[*Variable]*tensor.Tensor
+verify	operation_test.go	/^func verify(t *testing.T, in, out []*Variable, expected, expectedGrad []*tensor.Tensor) {$/;"	f	package:whale
+vs	operation_test.go	/^func vs(vs ...*Variable) []*Variable {$/;"	f	package:whale	typeref:typename:[]*Variable
+w	operation.go	/^	w *Variable$/;"	m	struct:whale.matmul	typeref:typename:*Variable
+weights	model_mlp.go	/^	weights    []*Variable$/;"	m	struct:whale.MLP	typeref:typename:[]*Variable
+whale	activation.go	/^package whale$/;"	p
+whale	device.go	/^package whale$/;"	p
+whale	device_cpu.go	/^package whale$/;"	p
+whale	function.go	/^package whale$/;"	p
+whale	layer.go	/^package whale$/;"	p
+whale	loss.go	/^package whale$/;"	p
+whale	model.go	/^package whale$/;"	p
+whale	model_mlp.go	/^package whale$/;"	p
+whale	operation.go	/^package whale$/;"	p
+whale	operation_test.go	/^package whale$/;"	p
+whale	optim.go	/^package whale$/;"	p
+whale	plot.go	/^package whale$/;"	p
+whale	variable.go	/^package whale$/;"	p
+whale	visualize.go	/^package whale$/;"	p
+x	operation.go	/^	x *Variable$/;"	m	struct:whale.cos	typeref:typename:*Variable
+x	operation.go	/^	x *Variable$/;"	m	struct:whale.matmul	typeref:typename:*Variable
+x	operation.go	/^	x *Variable$/;"	m	struct:whale.pow	typeref:typename:*Variable
+x	operation.go	/^	x *Variable$/;"	m	struct:whale.sin	typeref:typename:*Variable
+x	operation.go	/^	x *Variable$/;"	m	struct:whale.tanh	typeref:typename:*Variable
+x0	operation.go	/^	x0      *Variable$/;"	m	struct:whale.div	typeref:typename:*Variable
+x0	operation.go	/^	x0      *Variable$/;"	m	struct:whale.mul	typeref:typename:*Variable
+x0shape	operation.go	/^	x0shape []int$/;"	m	struct:whale.add	typeref:typename:[]int
+x0shape	operation.go	/^	x0shape []int$/;"	m	struct:whale.div	typeref:typename:[]int
+x0shape	operation.go	/^	x0shape []int$/;"	m	struct:whale.mul	typeref:typename:[]int
+x0shape	operation.go	/^	x0shape []int$/;"	m	struct:whale.sub	typeref:typename:[]int
+x1	operation.go	/^	x1      *Variable$/;"	m	struct:whale.div	typeref:typename:*Variable
+x1	operation.go	/^	x1      *Variable$/;"	m	struct:whale.mul	typeref:typename:*Variable
+x1shape	operation.go	/^	x1shape []int$/;"	m	struct:whale.add	typeref:typename:[]int
+x1shape	operation.go	/^	x1shape []int$/;"	m	struct:whale.div	typeref:typename:[]int
+x1shape	operation.go	/^	x1shape []int$/;"	m	struct:whale.mul	typeref:typename:[]int
+x1shape	operation.go	/^	x1shape []int$/;"	m	struct:whale.sub	typeref:typename:[]int
+y	operation.go	/^	y *Variable$/;"	m	struct:whale.tanh	typeref:typename:*Variable

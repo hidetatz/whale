@@ -890,122 +890,310 @@ func TestBroadcastTo(t *testing.T) {
 func TestSum(t *testing.T) {
 	tests := []struct {
 		name      string
-		data      []float64
-		shape     []int
+		tensor    *Tensor
 		keepdims  bool
 		axes      []int
 		expectErr bool
 		expected  *Tensor
 	}{
 		{
-			name:  "scalar",
-			data:  []float64{2},
-			shape: []int{},
-			expected: &Tensor{
-				Data:  []float64{2},
-				Shape: []int{},
-			},
-		},
-		{
-			name:     "vector 1",
-			data:     seq(0, 4),
-			shape:    []int{4},
+			name:     "scalar 1",
+			tensor:   &Tensor{Data: []float64{2}, Shape: []int{}},
 			keepdims: false,
-			expected: &Tensor{
-				Data:  []float64{6},
-				Shape: []int{},
-			},
+			expected: &Tensor{Data: []float64{2}, Shape: []int{}},
 		},
 		{
-			name:     "vector 2",
-			data:     seq(0, 4),
-			shape:    []int{4},
+			name:     "scalar 2",
+			tensor:   &Tensor{Data: []float64{2}, Shape: []int{}},
 			keepdims: true,
-			expected: &Tensor{
-				Data:  []float64{6},
-				Shape: []int{1},
-			},
+			expected: &Tensor{Data: []float64{2}, Shape: []int{}},
 		},
 		{
-			name:     "vector 3",
-			data:     seq(0, 4),
-			shape:    []int{4},
+			name:      "scalar 3",
+			tensor:    &Tensor{Data: []float64{2}, Shape: []int{}},
+			keepdims:  true,
+			axes:      []int{0},
+			expectErr: true,
+		},
+		{
+			name:     "1d 1",
+			tensor:   &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
+			keepdims: false,
+			axes:     []int{},
+			expected: &Tensor{Data: []float64{6}, Shape: []int{}},
+		},
+		{
+			name:     "1d 2",
+			tensor:   &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
+			keepdims: true,
+			axes:     []int{},
+			expected: &Tensor{Data: []float64{6}, Shape: []int{1}},
+		},
+		{
+			name:     "1d 3",
+			tensor:   &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
+			keepdims: false,
+			axes:     []int{0},
+			expected: &Tensor{Data: []float64{6}, Shape: []int{}},
+		},
+		{
+			name:     "1d 4",
+			tensor:   &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
 			keepdims: true,
 			axes:     []int{0},
-			expected: &Tensor{
-				Data:  []float64{6},
-				Shape: []int{1},
-			},
+			expected: &Tensor{Data: []float64{6}, Shape: []int{1}},
 		},
 		{
-			name:  "2d 1",
-			data:  seq(0, 6),
-			shape: []int{2, 3},
-			expected: &Tensor{
-				Data:  []float64{15},
-				Shape: []int{},
-			},
+			name:      "1d 5",
+			tensor:    &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
+			keepdims:  true,
+			axes:      []int{1},
+			expectErr: true,
 		},
 		{
-			name:  "2d 1",
-			data:  seq(0, 6),
-			shape: []int{2, 3},
-			expected: &Tensor{
-				Data:  []float64{15},
-				Shape: []int{},
-			},
+			name:      "1d 6",
+			tensor:    &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
+			keepdims:  true,
+			axes:      []int{0, 0},
+			expectErr: true,
+		},
+		{
+			name:     "2d 1",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			keepdims: false,
+			axes:     []int{},
+			expected: &Tensor{Data: []float64{10}, Shape: []int{}},
 		},
 		{
 			name:     "2d 2",
-			data:     seq(0, 6),
-			shape:    []int{2, 3},
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
 			keepdims: true,
-			expected: &Tensor{
-				Data:  []float64{15},
-				Shape: []int{1, 1},
-			},
+			axes:     []int{},
+			expected: &Tensor{Data: []float64{10}, Shape: []int{1, 1}},
 		},
 		{
-			name:  "2d 3",
-			data:  seq(0, 6),
-			shape: []int{2, 3},
-			axes:  []int{0},
-			expected: &Tensor{
-				Data:  []float64{3, 5, 7},
-				Shape: []int{3},
-			},
+			name:     "2d 3",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			keepdims: false,
+			axes:     []int{0},
+			expected: &Tensor{Data: []float64{4, 6}, Shape: []int{2}},
 		},
 		{
-			name:  "2d 4",
-			data:  seq(0, 6),
-			shape: []int{2, 3},
-			axes:  []int{1, 0},
-			expected: &Tensor{
-				Data:  []float64{15},
-				Shape: []int{},
-			},
+			name:     "2d 4",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			keepdims: true,
+			axes:     []int{0},
+			expected: &Tensor{Data: []float64{4, 6}, Shape: []int{1, 2}},
 		},
 		{
 			name:     "2d 5",
-			data:     seq(0, 6),
-			shape:    []int{2, 3},
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			keepdims: false,
 			axes:     []int{1},
-			keepdims: true,
-			expected: &Tensor{
-				Data:  []float64{3, 12},
-				Shape: []int{2, 1},
-			},
+			expected: &Tensor{Data: []float64{3, 7}, Shape: []int{2}},
 		},
 		{
 			name:     "2d 6",
-			data:     seq(0, 6),
-			shape:    []int{2, 3},
-			axes:     []int{1, 0},
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
 			keepdims: true,
-			expected: &Tensor{
-				Data:  []float64{15},
-				Shape: []int{1, 1},
-			},
+			axes:     []int{1},
+			expected: &Tensor{Data: []float64{3, 7}, Shape: []int{2, 1}},
+		},
+		{
+			name:     "2d 7",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			keepdims: false,
+			axes:     []int{0, 1},
+			expected: &Tensor{Data: []float64{10}, Shape: []int{}},
+		},
+		{
+			name:     "2d 8",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			keepdims: false,
+			axes:     []int{1, 0},
+			expected: &Tensor{Data: []float64{10}, Shape: []int{}},
+		},
+		{
+			name:     "2d 8",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			keepdims: true,
+			axes:     []int{1, 0},
+			expected: &Tensor{Data: []float64{10}, Shape: []int{1, 1}},
+		},
+		{
+			name:      "2d 9",
+			tensor:    &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			keepdims:  true,
+			axes:      []int{2},
+			expectErr: true,
+		},
+		{
+			name:      "2d 10",
+			tensor:    &Tensor{Data: []float64{1, 2, 3, 4}, Shape: []int{2, 2}},
+			keepdims:  true,
+			axes:      []int{1, 1},
+			expectErr: true,
+		},
+		{
+			name:     "3d 1",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6, 7, 8}, Shape: []int{2, 2, 2}},
+			keepdims: false,
+			axes:     []int{},
+			expected: &Tensor{Data: []float64{36}, Shape: []int{}},
+		},
+		{
+			name:     "3d 2",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6, 7, 8}, Shape: []int{2, 2, 2}},
+			keepdims: true,
+			axes:     []int{},
+			expected: &Tensor{Data: []float64{36}, Shape: []int{1, 1, 1}},
+		},
+		{
+			name:     "3d 3",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6, 7, 8}, Shape: []int{2, 2, 2}},
+			keepdims: false,
+			axes:     []int{0},
+			expected: &Tensor{Data: []float64{6, 8, 10, 12}, Shape: []int{2, 2}},
+		},
+		{
+			name:     "5d 1",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{0},
+			expected: &Tensor{Data: []float64{14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36}, Shape: []int{3, 2, 2}},
+		},
+		{
+			name:     "4d 2",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: true,
+			axes:     []int{0},
+			expected: &Tensor{Data: []float64{14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36}, Shape: []int{1, 3, 2, 2}},
+		},
+		{
+			name:     "4d 3",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{1},
+			expected: &Tensor{Data: []float64{15, 18, 21, 24, 51, 54, 57, 60}, Shape: []int{2, 2, 2}},
+		},
+		{
+			name:     "4d 4",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{2},
+			expected: &Tensor{Data: []float64{4, 6, 12, 14, 20, 22, 28, 30, 36, 38, 44, 46}, Shape: []int{2, 3, 2}},
+		},
+		{
+			name:     "4d 5",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: true,
+			axes:     []int{2},
+			expected: &Tensor{Data: []float64{4, 6, 12, 14, 20, 22, 28, 30, 36, 38, 44, 46}, Shape: []int{2, 3, 1, 2}},
+		},
+		{
+			name:     "4d 6",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{3},
+			expected: &Tensor{Data: []float64{3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47}, Shape: []int{2, 3, 2}},
+		},
+		{
+			name:     "4d 7",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: true,
+			axes:     []int{3},
+			expected: &Tensor{Data: []float64{3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47}, Shape: []int{2, 3, 2, 1}},
+		},
+		{
+			name:     "4d 8",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{0, 1},
+			expected: &Tensor{Data: []float64{66, 72, 78, 84}, Shape: []int{2, 2}},
+		},
+		{
+			name:     "4d 9",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: true,
+			axes:     []int{0, 1},
+			expected: &Tensor{Data: []float64{66, 72, 78, 84}, Shape: []int{1, 1, 2, 2}},
+		},
+		{
+			name:     "4d 10",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{0, 2},
+			expected: &Tensor{Data: []float64{32, 36, 48, 52, 64, 68}, Shape: []int{3, 2}},
+		},
+		{
+			name:     "4d 11",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: true,
+			axes:     []int{0, 2},
+			expected: &Tensor{Data: []float64{32, 36, 48, 52, 64, 68}, Shape: []int{1, 3, 1, 2}},
+		},
+		{
+			name:     "4d 12",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{0, 3},
+			expected: &Tensor{Data: []float64{30, 38, 46, 54, 62, 70}, Shape: []int{3, 2}},
+		},
+		{
+			name:     "4d 13",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: true,
+			axes:     []int{0, 3},
+			expected: &Tensor{Data: []float64{30, 38, 46, 54, 62, 70}, Shape: []int{1, 3, 2, 1}},
+		},
+		{
+			name:     "4d 14",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{0, 1, 2},
+			expected: &Tensor{Data: []float64{144, 156}, Shape: []int{2}},
+		},
+		{
+			name:     "4d 15",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{0, 1, 3},
+			expected: &Tensor{Data: []float64{138, 162}, Shape: []int{2}},
+		},
+		{
+			name:     "4d 15",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{1, 2, 3},
+			expected: &Tensor{Data: []float64{78, 222}, Shape: []int{2}},
+		},
+		{
+			name:     "4d 16",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: true,
+			axes:     []int{1, 2, 3},
+			expected: &Tensor{Data: []float64{78, 222}, Shape: []int{2, 1, 1, 1}},
+		},
+		{
+			name:     "4d 17",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{2, 1, 3},
+			expected: &Tensor{Data: []float64{78, 222}, Shape: []int{2}},
+		},
+		{
+			name:     "4d 17",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: false,
+			axes:     []int{2, 1, 0, 3},
+			expected: &Tensor{Data: []float64{300}, Shape: []int{}},
+		},
+		{
+			name:     "4d 18",
+			tensor:   &Tensor{Data: seq(1, 25), Shape: []int{2, 3, 2, 2}},
+			keepdims: true,
+			axes:     []int{2, 1, 0, 3},
+			expected: &Tensor{Data: []float64{300}, Shape: []int{1, 1, 1, 1}},
 		},
 	}
 
@@ -1013,16 +1201,9 @@ func TestSum(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, _ := Nd(tc.data, tc.shape...)
-			got, err := got.Sum(tc.keepdims, tc.axes...)
-			if (err != nil) != tc.expectErr {
-				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
-			}
-			if tc.expected != nil {
-				if !tc.expected.Equals(got) {
-					t.Errorf("expected %v but got %v", tc.expected, got)
-				}
-			}
+			got, err := tc.tensor.Sum(tc.keepdims, tc.axes...)
+			checkErr(t, tc.expectErr, err)
+			mustEq(t, tc.expected, got)
 		})
 	}
 }
