@@ -338,9 +338,9 @@ func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
 }
 
 // Tile repeats the tensor by the given reps like tile.
-func (t *Tensor) Tile(reps ...int) (*Tensor, error) {
+func (t *Tensor) Tile(reps ...int) *Tensor {
 	if slices.Contains(reps, 0) {
-		return Empty(), nil
+		return Empty()
 	}
 
 	shape := t.CopyShape()
@@ -392,13 +392,13 @@ func (t *Tensor) Tile(reps ...int) (*Tensor, error) {
 
 		tt, err := Nd(data, shape...)
 		if err != nil {
-			return nil, err
+			panic(err)
 		}
 
 		tmpt = tt
 	}
 
-	return tmpt, nil
+	return tmpt
 }
 
 // Sum returns the sum of array elements over a given axes.
@@ -598,11 +598,7 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 		tile = append(tile, shape[i]/newshape[i])
 	}
 
-	nt, err = nt.Tile(tile...)
-	if err != nil {
-		return nil, err
-	}
-
+	nt = nt.Tile(tile...)
 	return nt, nil
 }
 
