@@ -30,3 +30,16 @@ func (m *MSE) Calculate(pred, actual *Variable) (*Variable, error) {
 
 	return Div(sm, NewVar(tensor.Scalar(float64(diff.Len()))))
 }
+
+type SoftmaxCrossEntropy struct{}
+
+func NewSoftmaxCrossEntropy() *SoftmaxCrossEntropy {
+	return &SoftmaxCrossEntropy{}
+}
+
+func (s *SoftmaxCrossEntropy) Calculate(pred, actual *Variable) (*Variable, error) {
+	n := pred.Data.Shape[0]
+	p := NewSoftMax().Activate(pred)
+	p = clip(p, 1e-15, 1.0)
+	logp := Log(p)
+}
