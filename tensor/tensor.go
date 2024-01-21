@@ -134,6 +134,34 @@ func Arange(from, to, interval float64, shape ...int) (*Tensor, error) {
 	return t, nil
 }
 
+func RandomPermutation(x int) *Tensor {
+	perm := rand.Perm(x)
+	r := make([]float64, len(perm))
+	for i := range perm {
+		r[i] = float64(perm[i])
+	}
+
+	return Vector(r)
+}
+
+func MeshGrid(t1, t2 *Tensor) (*Tensor, *Tensor, error) {
+	if !t1.IsVector() || !t2.IsVector() {
+		return nil, nil, fmt.Errorf("argument must be vector")
+	}
+
+	t1len := len(t1.Data)
+	t2len := len(t2.Data)
+
+	shape := []int{t2len, t1len}
+	r1 := t1.Tile(t2len)
+	r1.Shape = shape
+
+	r2 := t2.Tile(t1len)
+	r2.Shape = shape
+
+	return r1, r2, nil
+}
+
 // Dim returns the dimension number.
 func (t *Tensor) Dim() int {
 	return len(t.Shape)
@@ -658,8 +686,206 @@ func (t *Tensor) ToBool(fn func(f float64) bool) *Tensor {
 	return c
 }
 
+// Slice slices the tensor by the given params.
+// Negative index works like Python, it is treated as (length + [neg index]).
+func (t *Tensor) Slice(start, end, step int) (*Tensor, error) {
+	if step == 0 {
+		return nil, fmt.Errorf("slice step must not be 0")
+	}
+
+	if t.IsScalar() {
+		return nil, fmt.Errorf("scalar cannot be sliced")
+	}
+
+	length := t.Shape[0]
+
+	// Python style negative index
+	handleNeg := func(i int) int {
+		if i < 0 {
+			return length + i
+		}
+		return i
+	}
+
+	start = handleNeg(start)
+	end = handleNeg(end)
+
+	if start < end && step < 0 {
+		return Empty(), nil
+	}
+
+	if end < start && 0 < step {
+		return Empty(), nil
+	}
+
+	d := 0
+	data := []float64{}
+	if start < end {
+		for i := start; i < end; i += step {
+			if i < 0 || length <= i {
+				continue
+			}
+			sb, err := t.SubTensor([]int{i})
+			if err != nil {
+				return nil, err
+			}
+			data = append(data, sb.Data...)
+			d++
+		}
+	} else {
+		for i := start; end < i; i += step {
+			if i < 0 || length <= i {
+				continue
+			}
+			sb, err := t.SubTensor([]int{i})
+			if err != nil {
+				return nil, err
+			}
+			data = append(data, sb.Data...)
+			d++
+		}
+	}
+
+	newshape := t.CopyShape()
+	newshape[0] = d
+
+	return Nd(data, newshape...)
+}
+
+// Indices returns a new tensor indexed from t.
+// All the given indices must be vector.
+func (t *Tensor) Indices(indices ...*Tensor) (*Tensor, error) {
+	if len(indices) == 0 {
+		return nil, fmt.Errorf("indices must not be empty")
+	}
+
+	if len(indices) > len(t.Shape) {
+		return nil, fmt.Errorf("too many indices given")
+	}
+
+	if t.IsScalar() {
+		return nil, fmt.Errorf("scalar cannot be indexed")
+	}
+
+	length := len(indices[0].Data)
+	for _, idx := range indices {
+		if !idx.IsVector() {
+			return nil, fmt.Errorf("currently idx must be vector")
+		}
+
+		// todo: broadcast
+		if length != len(idx.Data) {
+			return nil, fmt.Errorf("all index must be the same length")
+		}
+	}
+
+	intIndices := [][]int{}
+	for i := 0; i < length; i++ {
+		ints := make([]int, len(indices))
+		for j, index := range indices {
+			ints[j] = int(index.Data[i])
+		}
+
+		intIndices = append(intIndices, ints)
+	}
+
+	newdata := []float64{}
+	for _, index := range intIndices {
+		sb, err := t.SubTensor(index)
+		if err != nil {
+			return nil, err
+		}
+		newdata = append(newdata, sb.Data...)
+	}
+
+	newshape := append(indices[0].CopyShape(), t.CopyShape()[len(indices):]...)
+	return Nd(newdata, newshape...)
+}
+
+func (t *Tensor) AddAt(indices []*Tensor, val *Tensor) (*Tensor, error) {
+	c := t.Copy()
+
+	is, err := c.Indices(indices...)
+	if err != nil {
+		return nil, err
+	}
+
+	broadcasted, err := val.Copy().BroadcastTo(is.CopyShape()...)
+	if err != nil {
+		return nil, err
+	}
+
+	intIndices := [][]int{}
+	for i := 0; i < len(indices[0].Data); i++ {
+		ints := make([]int, len(indices))
+		for j, index := range indices {
+			ints[j] = int(index.Data[i])
+		}
+
+		intIndices = append(intIndices, ints)
+	}
+
+	startswith := func(a, b []int) bool {
+		for i := range a {
+			if a[i] != b[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	vis := c.ValueIndices()
+	for i, ints := range intIndices {
+		for _, vi := range vis {
+			// todo: can be optimized?
+			if startswith(ints, vi.Idx) {
+				vi.Value += broadcasted.Data[i]
+			}
+		}
+	}
+
+	data := make([]float64, len(vis))
+	for i, vi := range vis {
+		data[i] = vi.Value
+	}
+
+	c.Data = data
+
+	return c, nil
+}
+
+// CopyShape returns the copy of the tensor shape.
 func (t *Tensor) CopyShape() []int {
 	return copySlice(t.Shape)
+}
+
+func (t *Tensor) ArgMax(axis int) (*Tensor, error) {
+	if t.Dim() - 1 < axis {
+		return nil, fmt.Errorf("too big axis")
+	}
+
+	max := func(s []float64) int {
+		maxarg := 0
+		maxv := s[0]
+		for i, f := range s {
+			if maxv < f {
+				maxarg = i
+			}
+		}
+		return maxarg
+	}
+
+	if axis < 0 {
+		return Scalar(max(t.Data)), nil
+	}
+
+	length := total(t.Shape) / t.Shape[axis]
+
+	stride := t.Strides()[axis]
+	maxes := []float64{}
+	for i := 0; i < length; i++ {
+		d := []float64{}
+	}
 }
 
 func copySlice(s []int) []int {

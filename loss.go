@@ -54,16 +54,17 @@ func (s *SoftmaxCrossEntropy) Calculate(x, t *Variable) (*Variable, error) {
 		return nil, err
 	}
 
-	tlogp := []float64{}
-	for i := 0; i < n; i++ {
-		st, err := logp.data.SubTensor([]int{i, int(t.data.Data[i])})
-		if err != nil {
-			return nil, err
-		}
-		tlogp = append(tlogp, st.Data...)
+	ar, err := tensor.Arange(0, float64(n), 1, n)
+	if err != nil {
+		return nil, err
 	}
 
-	sum, err := Sum(NewVar(tensor.Vector(tlogp)), false)
+	tlogp, err := Index(logp, NewVar(ar), t)
+	if err != nil {
+		return nil, err
+	}
+
+	sum, err := Sum(tlogp, false)
 	if err != nil {
 		return nil, err
 	}

@@ -811,3 +811,86 @@ func (l *log) Backward(gy ...*Variable) ([]*Variable, error) {
 func (l *log) String() string {
 	return "log"
 }
+
+func Index(x *Variable, indices ...*Variable) (*Variable, error) {
+	f := NewFunction(&index{x: x, indices: indices})
+	y, err := f.forward(x)
+	if err != nil {
+		return nil, err
+	}
+
+	return y[0], nil
+}
+
+type index struct {
+	x       *Variable
+	indices []*Variable
+}
+
+func (i *index) Forward(inputs ...*Variable) ([]*Variable, error) {
+	args := []*tensor.Tensor{}
+	for _, idx := range i.indices {
+		args = append(args, idx.data)
+	}
+	t, err := i.x.data.Indices(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return asvars(t), nil
+}
+
+func (i *index) Backward(gy ...*Variable) ([]*Variable, error) {
+	v, err := indexGrad(i.x.data.CopyShape(), i.indices, gy[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return []*Variable{v}, nil
+}
+
+func (i *index) String() string {
+	return "index"
+}
+
+func indexGrad(xshape []int, indices []*Variable, gy *Variable) (*Variable, error) {
+	f := NewFunction(&indexgrad{indices: indices, xshape: xshape})
+	y, err := f.forward(gy)
+	if err != nil {
+		return nil, err
+	}
+
+	return y[0], nil
+}
+
+type indexgrad struct {
+	xshape  []int
+	indices []*Variable
+}
+
+func (i *indexgrad) Forward(inputs ...*Variable) ([]*Variable, error) {
+	gx := tensor.Zeros(i.xshape...)
+	in := make([]*tensor.Tensor, len(i.indices))
+	for i, index := range i.indices {
+		in[i] = index.data
+	}
+	t, err := gx.AddAt(in, inputs[0].data)
+	if err != nil {
+		return nil, err
+	}
+
+	return asvars(t), nil
+}
+
+func (i *indexgrad) Backward(gy ...*Variable) ([]*Variable, error) {
+	v, err := Index(gy[0], i.indices...)
+	if err != nil {
+		return nil, err
+	}
+
+	return []*Variable{v}, nil
+}
+
+func (i *indexgrad) String() string {
+	return "indexGrad"
+}

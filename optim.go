@@ -15,7 +15,10 @@ func NewSGD(learnRate float64) *SGD {
 }
 
 func (s *SGD) Optimize(v *Variable) {
-	newData := device.Sub(v.GetData(), device.Mul(v.GetGrad().GetData(), s.learnRate))
+	newData := device.Sub(
+		v.GetData(),
+		device.Mul(v.GetGrad().GetData(), s.learnRate),
+	)
 	v.SetData(newData)
 }
 
