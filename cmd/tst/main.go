@@ -2,19 +2,12 @@ package main
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/hidetatz/whale"
 	"github.com/hidetatz/whale/tensor"
 )
 
 var device = &whale.CPU{}
-
-func randdata() (*tensor.Tensor, *tensor.Tensor) {
-	x := tensor.Rand(100, 1)
-	y := device.Add(device.Sin(device.Mul(x, device.Mul(tensor.Scalar(2), tensor.Scalar(math.Pi)))), tensor.Rand(100, 1))
-	return x, y
-}
 
 func Predict(m whale.Model, x *whale.Variable) *whale.Variable {
 	pred, err := m.Train(x)
@@ -61,7 +54,7 @@ func Train(m whale.Model, x, y *whale.Variable) {
 }
 
 func main() {
-	xt, yt := randdata()
+	xt, yt := whale.RandSin(100, 1)
 	x := whale.NewVar(xt)
 	y := whale.NewVar(yt)
 
