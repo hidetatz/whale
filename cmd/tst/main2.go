@@ -7,7 +7,7 @@ import (
 	"github.com/hidetatz/whale/tensor"
 )
 
-func main() {
+func main2() {
 	x := whale.NewVar(tensor.MustNd([]float64{0.2, -0.4, 0.3, 0.5, 1.3, -3.2, 2.1, 0.3}, 4, 2))
 	t := whale.NewVar(tensor.Vector([]float64{2, 0, 1, 0}))
 

@@ -808,85 +808,6 @@ func TestTile(t *testing.T) {
 	}
 }
 
-func TestBroadcastTo(t *testing.T) {
-	tests := []struct {
-		name      string
-		data      []float64
-		shape     []int
-		btshape   []int
-		expectErr bool
-		expected  *Tensor
-	}{
-		{
-			name:    "scalar",
-			data:    []float64{2},
-			shape:   []int{},
-			btshape: []int{1},
-			expected: &Tensor{
-				Data:  []float64{2},
-				Shape: []int{1},
-			},
-		},
-		{
-			name:    "scalar2",
-			data:    []float64{2},
-			shape:   []int{},
-			btshape: []int{1, 1},
-			expected: &Tensor{
-				Data:  []float64{2},
-				Shape: []int{1, 1},
-			},
-		},
-		{
-			name:    "vector",
-			data:    seq(0, 4),
-			shape:   []int{4},
-			btshape: []int{2, 4},
-			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 0, 1, 2, 3},
-				Shape: []int{2, 4},
-			},
-		},
-		{
-			name:    "2d",
-			data:    seq(0, 4),
-			shape:   []int{2, 2},
-			btshape: []int{2, 2, 2},
-			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 0, 1, 2, 3},
-				Shape: []int{2, 2, 2},
-			},
-		},
-		{
-			name:    "3d",
-			data:    seq(0, 8),
-			shape:   []int{2, 2, 2},
-			btshape: []int{4, 2, 2, 2},
-			expected: &Tensor{
-				Data:  []float64{0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-				Shape: []int{4, 2, 2, 2},
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, _ := Nd(tc.data, tc.shape...)
-			got, err := got.BroadcastTo(tc.btshape...)
-			if (err != nil) != tc.expectErr {
-				t.Fatalf("unexpected error: expected: %v but got %v", tc.expectErr, err)
-			}
-			if tc.expected != nil {
-				if !tc.expected.Equals(got) {
-					t.Errorf("expected %v but got %v", tc.expected, got)
-				}
-			}
-		})
-	}
-}
-
 func TestSum(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -1305,6 +1226,112 @@ func TestSumTo(t *testing.T) {
 			t.Parallel()
 			got, err := tc.tensor.SumTo(tc.args...)
 			checkErr(t, tc.expectErr, err)
+			mustEq(t, tc.expected, got)
+		})
+	}
+}
+
+func TestBroadcastTo(t *testing.T) {
+	tests := []struct {
+		name      string
+		tensor    *Tensor
+		args      []int
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:     "scalar",
+			tensor:   &Tensor{Data: []float64{3}, Shape: []int{}},
+			args:     []int{3},
+			expected: &Tensor{Data: []float64{3, 3, 3}, Shape: []int{3}},
+		},
+		{
+			name:     "scalar",
+			tensor:   &Tensor{Data: []float64{3}, Shape: []int{}},
+			args:     []int{3, 4},
+			expected: &Tensor{Data: []float64{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}, Shape: []int{3, 4}},
+		},
+		{
+			name:     "vector",
+			tensor:   &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
+			args:     []int{4},
+			expectErr: true,
+		},
+		{
+			name:     "vector 2",
+			tensor:   &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
+			args:     []int{3, 3},
+			expected: &Tensor{Data: []float64{1, 2, 3, 1, 2, 3, 1, 2, 3}, Shape: []int{3, 3}},
+		},
+		{
+			name:     "2d 1",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6}, Shape: []int{2, 3}},
+			args:     []int{2, 2, 3},
+			expected: &Tensor{Data: []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, Shape: []int{2, 2, 3}},
+		},
+		{
+			name:     "2d err1",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6}, Shape: []int{2, 3}},
+			args:     []int{2, 4, 3},
+			expectErr: true,
+		},
+		{
+			name:     "2d 2",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6}, Shape: []int{1, 6}},
+			args:     []int{2, 2, 6},
+			expected: &Tensor{Data: []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, Shape: []int{2, 2, 6}},
+		},
+		{
+			name:     "2d err",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6}, Shape: []int{1, 6}},
+			args:     []int{2, 2, 12},
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := tc.tensor.BroadcastTo(tc.args...)
+			checkErr(t, tc.expectErr, err)
+			mustEq(t, tc.expected, got)
+		})
+	}
+}
+
+func TestToBool(t *testing.T) {
+	tests := []struct {
+		name      string
+		tensor    *Tensor
+		arg       func(f float64) bool
+		expected  *Tensor
+	}{
+		{
+			name:     "scalar",
+			tensor:   &Tensor{Data: []float64{3}, Shape: []int{}},
+			arg: func(f float64) bool {return f < 0},
+			expected: &Tensor{Data: []float64{0}, Shape: []int{}},
+		},
+		{
+			name:     "vector",
+			tensor:   &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
+			arg: func(f float64) bool {return f < 2},
+			expected: &Tensor{Data: []float64{1, 0, 0}, Shape: []int{3}},
+		},
+		{
+			name:     "2d",
+			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6}, Shape: []int{2, 3}},
+			arg: func(f float64) bool {return int(f) % 2 == 0},
+			expected: &Tensor{Data: []float64{0, 1, 0, 1, 0, 1}, Shape: []int{2, 3}},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := tc.tensor.ToBool(tc.arg)
 			mustEq(t, tc.expected, got)
 		})
 	}
