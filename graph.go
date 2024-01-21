@@ -10,7 +10,7 @@ import (
 )
 
 // VisualizeGraph outputs the calculation graph as graph.png on the current directory.
-func VisualizeGraph(v *Variable) error {
+func VisualizeGraph(v *Variable, file string) error {
 	pv := func(v *Variable) string { return fmt.Sprintf("%d", uintptr(unsafe.Pointer(v))) }
 	pf := func(f *function) string { return fmt.Sprintf("%d", uintptr(unsafe.Pointer(f))) }
 
@@ -71,7 +71,7 @@ digraph g {
 	dotSrc := fmt.Sprintf(graphfmt, txt)
 
 	os.WriteFile("./graph.dot", []byte(dotSrc), 0755)
-	out, err := exec.Command("dot", "./graph.dot", "-T", "png", "-o", "graph.png").Output()
+	out, err := exec.Command("dot", "./graph.dot", "-T", "png", "-o", file).Output()
 	if err != nil {
 		return fmt.Errorf("%s: %s", err.Error(), string(out))
 	}

@@ -173,7 +173,7 @@ func (t *Tensor) String() string {
 					idx += index[j] * strides[j]
 				}
 				idx += i * strides[len(strides)-1]
-				vars = append(vars, fmt.Sprintf("%v", t.Data[idx]))
+				vars = append(vars, fmt.Sprintf("%.2f", t.Data[idx]))
 			}
 			sb.WriteString(fmt.Sprintf("%s[%s]\n", indent, strings.Join(vars, ", ")))
 			return

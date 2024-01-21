@@ -32,4 +32,6 @@ func main2() {
 	loss.Backward()
 
 	fmt.Println(loss)
+
+	whale.VisualizeGraph(loss, "graph.png")
 }
