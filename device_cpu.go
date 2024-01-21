@@ -255,3 +255,32 @@ func calcMatmul(matrixA, matrixB [][]float64) [][]float64 {
 
 	return result
 }
+
+func (c *CPU) Clip(t *tensor.Tensor, min, max float64) *tensor.Tensor {
+	cp := t.Copy()
+	clip := func(f float64) float64 {
+		if f < min {
+			return min
+		}
+
+		if max < f {
+			return max
+		}
+
+		return f
+	}
+
+	for i := range cp.Data {
+		cp.Data[i] = clip(cp.Data[i])
+	}
+
+	return cp
+}
+
+func (c *CPU) Log(t *tensor.Tensor) *tensor.Tensor {
+	result := t.Copy()
+	for i := range result.Data {
+		result.Data[i] = math.Log(t.Data[i])
+	}
+	return result
+}

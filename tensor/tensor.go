@@ -27,6 +27,16 @@ func Vector(v []float64) *Tensor {
 	return &Tensor{Data: v, Shape: []int{len(v)}}
 }
 
+// MustNd returns multi dimensional array but panics on error.
+func MustNd(data []float64, shape ...int) *Tensor {
+	t, err := Nd(data, shape...)
+	if err != nil {
+		panic(err)
+	}
+
+	return t
+}
+
 // Nd returns multi dimensional array.
 // If the shape is empty, the given data is treated as vector.
 func Nd(data []float64, shape ...int) (*Tensor, error) {
@@ -49,7 +59,7 @@ func Nd(data []float64, shape ...int) (*Tensor, error) {
 func Rand(shape ...int) *Tensor {
 	data := make([]float64, total(shape))
 	for i := range data {
-		data[i] = rand.Float64()
+		data[i] = rand.NormFloat64()
 	}
 	t, _ := Nd(data, shape...) // error never happens
 	return t
@@ -623,22 +633,19 @@ func (t *Tensor) indicesBy(dim int) [][]int {
 	return indices
 }
 
-// Slice cuts the part of the tensor based on the given indices. The length of indices must be
-// less than the tensor dimension.
-// func (t *Tensor) Slice(s *Slice) (*tensor.Tensor, error) {
-// 	if s == nil {
-// 		return nil, fmt.Errorf("slice: nil input specified")
-// 	}
-//
-// 	if len(s.index) > t.Dim() {
-// 		return nil, fmt.Errorf("slice: too many indices specified, dim is %v but got %v", t.Dim(), len(s.index))
-// 	}
-//
-// 	result := []float64{}
-// 	for _, idx := range s.index {
-//
-// 	}
-// }
+// ToBool creates a new tensor like t but values are only 0 or 1.
+func (t *Tensor) ToBool(fn func(f float64) bool) *Tensor {
+	c := t.Copy()
+	for i := range c.Data {
+		if fn(c.Data[i]) {
+			c.Data[i] = 1
+		} else {
+			c.Data[i] = 0
+		}
+	}
+
+	return c
+}
 
 func (t *Tensor) CopyShape() []int {
 	return copySlice(t.Shape)

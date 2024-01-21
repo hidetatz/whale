@@ -3,28 +3,33 @@ package main
 import (
 	"fmt"
 
+	"github.com/hidetatz/whale"
 	"github.com/hidetatz/whale/tensor"
 )
 
-func main2() {
-	t, err := tensor.Arange(0, 16, 1, 1, 2, 2, 4)
-	// t, err := tensor.Arange(0, 16, 1, 2, 2, 4)
+func main() {
+	x := whale.NewVar(tensor.MustNd([]float64{0.2, -0.4, 0.3, 0.5, 1.3, -3.2, 2.1, 0.3}, 4, 2))
+	t := whale.NewVar(tensor.Vector([]float64{2, 0, 1, 0}))
+
+	layer := [][]int{{2, 10}, {10, 3}}
+	mlp := whale.NewMLP(layer, true, whale.NewSoftMax(), whale.NewSoftmaxCrossEntropy(), whale.NewSGD(0.2))
+
+	pred, err := mlp.Train(x)
 	if err != nil {
 		panic(err)
 	}
 
-	// t2, err := t.Transpose(2, 1, 0)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	fmt.Println(pred)
 
-	fmt.Println(t)
-	// fmt.Println(t.Indices())
+	p, err := whale.NewSoftMax().Activate(pred)
+	fmt.Println(p)
 
-	t3, err := t.Transpose()
+	loss, err := whale.NewSoftmaxCrossEntropy().Calculate(pred, t)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(t3)
+	loss.Backward()
+
+	fmt.Println(loss)
 }

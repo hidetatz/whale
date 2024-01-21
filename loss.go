@@ -37,9 +37,46 @@ func NewSoftmaxCrossEntropy() *SoftmaxCrossEntropy {
 	return &SoftmaxCrossEntropy{}
 }
 
-func (s *SoftmaxCrossEntropy) Calculate(pred, actual *Variable) (*Variable, error) {
-	n := pred.Data.Shape[0]
-	p := NewSoftMax().Activate(pred)
-	p = clip(p, 1e-15, 1.0)
-	logp := Log(p)
+func (s *SoftmaxCrossEntropy) Calculate(x, t *Variable) (*Variable, error) {
+	n := x.data.Shape[0]
+	a, err := NewSoftMax().Activate(x)
+	if err != nil {
+		return nil, err
+	}
+
+	p, err := Clip(a, 1e-15, 1.0)
+	if err != nil {
+		return nil, err
+	}
+
+	logp, err := Log(p)
+	if err != nil {
+		return nil, err
+	}
+
+	tlogp := []float64{}
+	for i := 0; i < n; i++ {
+		st, err := logp.data.SubTensor([]int{i, int(t.data.Data[i])})
+		if err != nil {
+			return nil, err
+		}
+		tlogp = append(tlogp, st.Data...)
+	}
+
+	sum, err := Sum(NewVar(tensor.Vector(tlogp)), false)
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := Mul(NewVar(tensor.Scalar(-1)), sum)
+	if err != nil {
+		return nil, err
+	}
+
+	d, err := Div(m, NewVar(tensor.Scalar(float64(n))))
+	if err != nil {
+		return nil, err
+	}
+
+	return d, nil
 }

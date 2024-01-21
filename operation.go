@@ -735,3 +735,79 @@ func (m *matmul) Backward(gy ...*Variable) ([]*Variable, error) {
 func (m *matmul) String() string {
 	return "matmul"
 }
+
+func Clip(x *Variable, min, max float64) (*Variable, error) {
+	f := NewFunction(&clip{x: x, min: min, max: max})
+	y, err := f.forward(x)
+	if err != nil {
+		return nil, err
+	}
+
+	return y[0], nil
+}
+
+type clip struct {
+	x        *Variable
+	min, max float64
+}
+
+func (c *clip) Forward(inputs ...*Variable) ([]*Variable, error) {
+	return asvars(device.Clip(c.x.data, c.min, c.max)), nil
+}
+
+func (c *clip) Backward(gy ...*Variable) ([]*Variable, error) {
+	minMask := c.x.data.ToBool(func(f float64) bool {
+		return f >= c.min
+	})
+
+	maxMask := c.x.data.ToBool(func(f float64) bool {
+		return f <= c.max
+	})
+
+	mask, err := Mul(NewVar(minMask), NewVar(maxMask))
+	if err != nil {
+		return nil, fmt.Errorf("Clip Backward: %w", err)
+	}
+
+	gx, err := Mul(gy[0], mask)
+	if err != nil {
+		return nil, fmt.Errorf("Clip Backward: %w", err)
+	}
+
+	return []*Variable{gx}, nil
+}
+
+func (c *clip) String() string {
+	return "clip"
+}
+
+func Log(x *Variable) (*Variable, error) {
+	f := NewFunction(&log{x: x})
+	y, err := f.forward(x)
+	if err != nil {
+		return nil, err
+	}
+
+	return y[0], nil
+}
+
+type log struct {
+	x *Variable
+}
+
+func (l *log) Forward(inputs ...*Variable) ([]*Variable, error) {
+	return asvars(device.Log(l.x.data)), nil
+}
+
+func (l *log) Backward(gy ...*Variable) ([]*Variable, error) {
+	gx, err := Div(gy[0], l.x)
+	if err != nil {
+		return nil, fmt.Errorf("Log Backward: %w", err)
+	}
+
+	return []*Variable{gx}, nil
+}
+
+func (l *log) String() string {
+	return "log"
+}

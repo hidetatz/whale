@@ -14,4 +14,6 @@ type Device interface {
 	Cos(t *tensor.Tensor) *tensor.Tensor
 	Tanh(t *tensor.Tensor) *tensor.Tensor
 	Dot(t1, t2 *tensor.Tensor) *tensor.Tensor
+	Clip(t *tensor.Tensor, min, max float64) *tensor.Tensor
+	Log(t *tensor.Tensor) *tensor.Tensor
 }

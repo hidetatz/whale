@@ -1,6 +1,8 @@
 package whale
 
-import "github.com/hidetatz/whale/tensor"
+import (
+	"github.com/hidetatz/whale/tensor"
+)
 
 type MLP struct {
 	weights    []*Variable
@@ -15,7 +17,7 @@ func NewMLP(layers [][]int, bias bool, act Activation, loss LossCalculator, opti
 
 	// init weights and biases
 	for _, l := range layers {
-		w := NewVar(device.Mul(tensor.Rand(l[0], l[1]), tensor.Scalar(0.01)))
+		w := NewVar(tensor.Rand(l[0], l[1]))
 		mlp.weights = append(mlp.weights, w)
 
 		if bias {
