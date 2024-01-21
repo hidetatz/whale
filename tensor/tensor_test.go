@@ -1252,9 +1252,9 @@ func TestBroadcastTo(t *testing.T) {
 			expected: &Tensor{Data: []float64{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}, Shape: []int{3, 4}},
 		},
 		{
-			name:     "vector",
-			tensor:   &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
-			args:     []int{4},
+			name:      "vector",
+			tensor:    &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
+			args:      []int{4},
 			expectErr: true,
 		},
 		{
@@ -1270,9 +1270,9 @@ func TestBroadcastTo(t *testing.T) {
 			expected: &Tensor{Data: []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, Shape: []int{2, 2, 3}},
 		},
 		{
-			name:     "2d err1",
-			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6}, Shape: []int{2, 3}},
-			args:     []int{2, 4, 3},
+			name:      "2d err1",
+			tensor:    &Tensor{Data: []float64{1, 2, 3, 4, 5, 6}, Shape: []int{2, 3}},
+			args:      []int{2, 4, 3},
 			expectErr: true,
 		},
 		{
@@ -1282,9 +1282,9 @@ func TestBroadcastTo(t *testing.T) {
 			expected: &Tensor{Data: []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, Shape: []int{2, 2, 6}},
 		},
 		{
-			name:     "2d err",
-			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6}, Shape: []int{1, 6}},
-			args:     []int{2, 2, 12},
+			name:      "2d err",
+			tensor:    &Tensor{Data: []float64{1, 2, 3, 4, 5, 6}, Shape: []int{1, 6}},
+			args:      []int{2, 2, 12},
 			expectErr: true,
 		},
 	}
@@ -1302,27 +1302,27 @@ func TestBroadcastTo(t *testing.T) {
 
 func TestToBool(t *testing.T) {
 	tests := []struct {
-		name      string
-		tensor    *Tensor
-		arg       func(f float64) bool
-		expected  *Tensor
+		name     string
+		tensor   *Tensor
+		arg      func(f float64) bool
+		expected *Tensor
 	}{
 		{
 			name:     "scalar",
 			tensor:   &Tensor{Data: []float64{3}, Shape: []int{}},
-			arg: func(f float64) bool {return f < 0},
+			arg:      func(f float64) bool { return f < 0 },
 			expected: &Tensor{Data: []float64{0}, Shape: []int{}},
 		},
 		{
 			name:     "vector",
 			tensor:   &Tensor{Data: []float64{1, 2, 3}, Shape: []int{3}},
-			arg: func(f float64) bool {return f < 2},
+			arg:      func(f float64) bool { return f < 2 },
 			expected: &Tensor{Data: []float64{1, 0, 0}, Shape: []int{3}},
 		},
 		{
 			name:     "2d",
 			tensor:   &Tensor{Data: []float64{1, 2, 3, 4, 5, 6}, Shape: []int{2, 3}},
-			arg: func(f float64) bool {return int(f) % 2 == 0},
+			arg:      func(f float64) bool { return int(f)%2 == 0 },
 			expected: &Tensor{Data: []float64{0, 1, 0, 1, 0, 1}, Shape: []int{2, 3}},
 		},
 	}
