@@ -463,6 +463,27 @@ func (t *Tensor) Tile(reps ...int) *Tensor {
 	return tmpt
 }
 
+func (t *Tensor) indicesBy(dim int) [][]int {
+	var indices [][]int
+	index := make([]int, dim)
+
+	var generate func(int)
+	generate = func(d int) {
+		if d == dim {
+			indices = append(indices, append([]int{}, index...))
+			return
+		}
+
+		for i := 0; i < t.Shape[d]; i++ {
+			index[d] = i
+			generate(d + 1)
+		}
+	}
+
+	generate(0)
+	return indices
+}
+
 // Sum returns the sum of array elements over a given axes.
 // If the empty axes is passed, calculates all values sum.
 func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
@@ -658,27 +679,6 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 	}
 
 	return nt.Tile(tile...), nil
-}
-
-func (t *Tensor) indicesBy(dim int) [][]int {
-	var indices [][]int
-	index := make([]int, dim)
-
-	var generate func(int)
-	generate = func(d int) {
-		if d == dim {
-			indices = append(indices, append([]int{}, index...))
-			return
-		}
-
-		for i := 0; i < t.Shape[d]; i++ {
-			index[d] = i
-			generate(d + 1)
-		}
-	}
-
-	generate(0)
-	return indices
 }
 
 // ToBool creates a new tensor like t but values are only 0 or 1.
