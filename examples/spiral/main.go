@@ -11,16 +11,21 @@ import (
 var p = whale.NewPlot()
 
 func main() {
+	// spiral test data
 	xt, tt := whale.RandSpiral()
 	plot(xt, tt)
 
 	x := whale.NewVar(xt)
 	t := whale.NewVar(tt)
 
+	// training
 	layer := [][]int{{2, 10}, {10, 3}}
 	mlp := whale.NewMLP(layer, true, whale.NewSigmoid(), whale.NewSoftmaxCrossEntropy(), whale.NewSGD(1.0))
 	Train(mlp, x, t)
 
+	// visualize trained result
+
+	// find test data min and max point
 	xmin := math.Inf(1)
 	ymin := math.Inf(1)
 	xmax := math.Inf(-1)
@@ -41,17 +46,7 @@ func main() {
 		}
 	}
 
-	xp, err := tensor.Arange(xmin, xmax, 0.01)
-	if err != nil {
-		panic(err)
-	}
-
-	yp, err := tensor.Arange(ymin, ymax, 0.01)
-	if err != nil {
-		panic(err)
-	}
-
-	xx, yy, err := tensor.MeshGrid(xp, yp)
+	xx, yy, err := tensor.MeshGrid(tensor.ArangeVec(xmin, xmax, 0.01), tensor.ArangeVec(ymin, ymax, 0.01))
 	if err != nil {
 		panic(err)
 	}
@@ -74,8 +69,47 @@ func main() {
 		panic(err)
 	}
 
-	z, err = z.Reshape(xx.Shape)
-	if err != nil {
+	// z, err = z.Reshape(xx.Shape...)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	fmt.Println("z")
+	fmt.Println(z)
+
+	xs0 := []float64{}
+	ys0 := []float64{}
+
+	xs1 := []float64{}
+	ys1 := []float64{}
+
+	xs2 := []float64{}
+	ys2 := []float64{}
+
+	for i := 0; i < len(xdata); i += 2 {
+		label := z.Data[i/2]
+		switch label {
+		case 0:
+			xs0 = append(xs0, xdata[i])
+			ys0 = append(ys0, xdata[i+1])
+		case 1:
+			xs1 = append(xs1, xdata[i])
+			ys1 = append(ys1, xdata[i+1])
+		case 2:
+			xs2 = append(xs2, xdata[i])
+			ys2 = append(ys2, xdata[i+1])
+		}
+	}
+
+	if err := p.Scatter(xs0, ys0, "blue"); err != nil {
+		panic(err)
+	}
+
+	if err := p.Scatter(xs1, ys1, "red"); err != nil {
+		panic(err)
+	}
+
+	if err := p.Scatter(xs2, ys2, "green"); err != nil {
 		panic(err)
 	}
 

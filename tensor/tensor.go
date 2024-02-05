@@ -134,6 +134,15 @@ func Arange(from, to, interval float64, shape ...int) (*Tensor, error) {
 	return t, nil
 }
 
+func ArangeVec(from, to, interval float64) *Tensor {
+	data := make([]float64, int((to-from)/interval))
+	for i := range data {
+		data[i] = from + interval*float64(i)
+	}
+
+	return Vector(data)
+}
+
 func RandomPermutation(x int) *Tensor {
 	perm := rand.Perm(x)
 	r := make([]float64, len(perm))
@@ -859,8 +868,8 @@ func (t *Tensor) CopyShape() []int {
 	return copySlice(t.Shape)
 }
 
-func (t *Tensor) ArgMax(axis int) (*Tensor, error) {
-	if t.Dim() - 1 < axis {
+func (t *Tensor) Argmax(axis int) (*Tensor, error) {
+	if t.Dim()-1 < axis {
 		return nil, fmt.Errorf("too big axis")
 	}
 
@@ -876,16 +885,57 @@ func (t *Tensor) ArgMax(axis int) (*Tensor, error) {
 	}
 
 	if axis < 0 {
-		return Scalar(max(t.Data)), nil
+		return Scalar(float64(max(t.Data))), nil
 	}
 
 	length := total(t.Shape) / t.Shape[axis]
+	maxes := make([]float64, length)
+	args := make([][]float64, length)
 
-	stride := t.Strides()[axis]
-	maxes := []float64{}
+	cts := copySlice(t.Shape)
+	tmpIndices := combinations(append(cts[:axis], cts[axis+1:]...))
 	for i := 0; i < length; i++ {
-		d := []float64{}
+		arg := make([]float64, t.Shape[axis])
+		for j := 0; j < t.Shape[axis]; j++ {
+			ct := copySlice(tmpIndices[i])
+			ti := append(ct[:axis], append([]int{j}, ct[axis:]...)...)
+			t2, err := t.SubTensor(ti)
+			if err != nil {
+				return nil, err
+			}
+			arg[j] = t2.Data[0]
+		}
+		args[i] = arg
 	}
+
+	for i, arg := range args {
+		maxes[i] = float64(max(arg))
+	}
+
+	newShape := append(t.Shape[:axis], t.Shape[axis+1:]...)
+	return Nd(maxes, newShape...)
+}
+
+func combinations(a []int) [][]int {
+	ca := copySlice(a)
+	var result [][]int
+	var current []int
+	var generate func(int)
+	generate = func(pos int) {
+		if pos == len(ca) {
+			temp := make([]int, len(current))
+			copy(temp, current)
+			result = append(result, temp)
+			return
+		}
+		for i := 0; i < ca[pos]; i++ {
+			current = append(current, i)
+			generate(pos + 1)
+			current = current[:len(current)-1]
+		}
+	}
+	generate(0)
+	return result
 }
 
 func copySlice(s []int) []int {
