@@ -917,18 +917,17 @@ func (t *Tensor) Argmax(axis int) (*Tensor, error) {
 }
 
 func combinations(a []int) [][]int {
-	ca := copySlice(a)
 	var result [][]int
 	var current []int
 	var generate func(int)
 	generate = func(pos int) {
-		if pos == len(ca) {
+		if pos == len(a) {
 			temp := make([]int, len(current))
 			copy(temp, current)
 			result = append(result, temp)
 			return
 		}
-		for i := 0; i < ca[pos]; i++ {
+		for i := 0; i < a[pos]; i++ {
 			current = append(current, i)
 			generate(pos + 1)
 			current = current[:len(current)-1]

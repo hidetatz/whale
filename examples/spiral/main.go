@@ -74,9 +74,6 @@ func main() {
 	// 	panic(err)
 	// }
 
-	fmt.Println("z")
-	fmt.Println(z)
-
 	xs0 := []float64{}
 	ys0 := []float64{}
 
