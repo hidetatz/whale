@@ -897,8 +897,7 @@ func (t *Tensor) Argmax(axis int) (*Tensor, error) {
 	for i := 0; i < length; i++ {
 		arg := make([]float64, t.Shape[axis])
 		for j := 0; j < t.Shape[axis]; j++ {
-			ct := copySlice(tmpIndices[i])
-			ti := append(ct[:axis], append([]int{j}, ct[axis:]...)...)
+			ti := append(tmpIndices[i][:axis], append([]int{j}, tmpIndices[i][axis:]...)...)
 			t2, err := t.SubTensor(ti)
 			if err != nil {
 				return nil, err
