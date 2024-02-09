@@ -67,6 +67,7 @@ func readMnistImages() (x, t *MnistImage, err error) {
 		}
 		defer f.Close()
 
+		// read magic number
 		magic := make([]byte, 4)
 		if err = binary.Read(f, binary.BigEndian, &magic); err != nil {
 			return nil, err
@@ -78,6 +79,7 @@ func readMnistImages() (x, t *MnistImage, err error) {
 
 		mi := &MnistImage{}
 
+		// read data count
 		num := make([]byte, 4)
 		if err = binary.Read(f, binary.BigEndian, &num); err != nil {
 			return nil, err
@@ -86,6 +88,7 @@ func readMnistImages() (x, t *MnistImage, err error) {
 		mi.count = int(binary.BigEndian.Uint32(num))
 		mi.pixels = make([][]byte, mi.count)
 
+		// read rows and cols
 		rows := make([]byte, 4)
 		if err = binary.Read(f, binary.BigEndian, &rows); err != nil {
 			return nil, err
@@ -100,6 +103,7 @@ func readMnistImages() (x, t *MnistImage, err error) {
 
 		c := int(binary.BigEndian.Uint32(cols))
 
+		// read actual data
 		for i := 0; i < mi.count; i++ {
 			pixel := make([]byte, r * c)
 			if err = binary.Read(f, binary.BigEndian, &pixel); err != nil {
@@ -133,6 +137,7 @@ func readMnistLabels() (x, t *MnistLabel, err error) {
 		}
 		defer f.Close()
 
+		// read magic number
 		magic := make([]byte, 4)
 		if err = binary.Read(f, binary.BigEndian, &magic); err != nil {
 			return nil, err
@@ -144,6 +149,7 @@ func readMnistLabels() (x, t *MnistLabel, err error) {
 
 		ml := &MnistLabel{}
 
+		// read data count
 		num := make([]byte, 4)
 		if err = binary.Read(f, binary.BigEndian, &num); err != nil {
 			return nil, err
@@ -152,6 +158,7 @@ func readMnistLabels() (x, t *MnistLabel, err error) {
 		ml.count = int(binary.BigEndian.Uint32(num))
 		ml.labels = make([]int, ml.count)
 
+		// read actual label
 		for i := 0; i < ml.count; i++ {
 			var lbl byte
 			if err = binary.Read(f, binary.BigEndian, &lbl); err != nil {
