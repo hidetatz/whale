@@ -221,7 +221,7 @@ func (c *CPU) Dot(t1, t2 *tensor.Tensor) *tensor.Tensor {
 		return t
 	}
 
-	panic("matmul is possible only for scalar x scalar or vector x vector or 2d x 2d")
+	panic(fmt.Sprintf("matmul is possible only for scalar x scalar or vector x vector or 2d x 2d, but got %v x %v", tc1.Dim(), tc2.Dim()))
 }
 
 func flatten(matrix [][]float64) []float64 {

@@ -779,7 +779,7 @@ func (t *Tensor) Indices(indices ...*Tensor) (*Tensor, error) {
 	length := len(indices[0].Data)
 	for _, idx := range indices {
 		if !idx.IsVector() {
-			return nil, fmt.Errorf("currently idx must be vector")
+			return nil, fmt.Errorf("currently idx must be vector but got %v", idx)
 		}
 
 		// todo: broadcast

@@ -1,62 +1,141 @@
 package main
 
 import (
-	"os"
 	"encoding/binary"
 	"fmt"
-	"strings"
+	"log"
+	"os"
+	"runtime/pprof"
+
+	"github.com/hidetatz/whale"
+	"github.com/hidetatz/whale/tensor"
 )
 
 func main() {
-	xi, _, err := readMnistImages()
+	xi, ti, err := readMnistImages()
 	if err != nil {
 		panic(err)
 	}
 
-	xl, _, err := readMnistLabels()
+	xi.count = 1000
+	ti.count = 1000
+
+	xl, tl, err := readMnistLabels()
 	if err != nil {
 		panic(err)
 	}
 
-	if xi.count != xl.count {
-		panic("unexpected count")
+	xl.count = 1000
+	tl.count = 1000
+
+	f, err := os.Create("cpu.prof")
+	if err != nil {
+			panic(err)
 	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			panic(err)
+		}
+	}()
+	if err := pprof.StartCPUProfile(f); err != nil {
+		panic(err)
+	}
+	defer pprof.StopCPUProfile()
 
-	for i := range xi.pixels {
-		lbl := xl.labels[i]
+	train(xi, ti, xl, tl)
 
-		fmt.Printf("%v: ", lbl)
-		for i, pix := range xi.pixels[i] {
-			if i % 28 == 0 {
-				fmt.Printf("\n")
+	// if xi.count != xl.count {
+	// 	panic("unexpected count")
+	// }
+
+	// for i := range xi.pixels {
+	// 	lbl := xl.labels[i]
+
+	// 	fmt.Printf("%v: ", lbl)
+	// 	for i, pix := range xi.pixels[i] {
+	// 		if i % 28 == 0 {
+	// 			fmt.Printf("\n")
+	// 		}
+	// 		fmt.Printf("%v%s", pix, strings.Repeat(" ", 3 - digits(int(pix))))
+	// 	}
+
+	// 	fmt.Printf("\n\n")
+	// }
+}
+
+func preprocess(x []byte) *whale.Variable {
+	xf := make([]float64, len(x))
+	for i, b := range x {
+		xf[i] = float64(int(b)) / 255.0
+	}
+	return whale.NewVar(tensor.MustNd(xf, 1, 784))
+}
+
+func train(xi, ti *MnistImage, xl, tl *MnistLabel) {
+	layer := [][]int{{784, 100}, {100, 10}}
+	mlp := whale.NewMLP(layer, true, whale.NewSigmoid(), whale.NewSoftmaxCrossEntropy(), whale.NewSGD(0.01))
+
+	lossCalc := mlp.Loss()
+	optim := mlp.Optimizer()
+
+	for epoch := 0; epoch < 1; epoch++ {
+		sumloss := 0.0
+		for i := 0; i < xi.count; i++ {
+			x := xi.pixels[i]
+			t := xl.labels[i]
+
+			xv := preprocess(x)
+			y, err := mlp.Train(xv)
+			if err != nil {
+				panic(err)
 			}
-			fmt.Printf("%v%s", pix, strings.Repeat(" ", 3 - digits(int(pix))))
+
+			tv := whale.NewVar(tensor.Vector([]float64{float64(t)}))
+			loss, err := lossCalc.Calculate(y, tv)
+			if err != nil {
+				panic(err)
+			}
+
+			params := mlp.Params()
+			for _, p := range params {
+				p.ClearGrad()
+			}
+
+			loss.Backward()
+			for _, p := range params {
+				optim.Optimize(p)
+			}
+
+			sumloss += loss.GetData().Data[0] * float64(tv.Len())
+			if i%100 == 0 {
+				fmt.Println(epoch, ": ", i)
+			}
 		}
 
-		fmt.Printf("\n\n")
+		fmt.Println("epoch: ", epoch+1, ", train loss: ", sumloss/float64(ti.count))
 	}
 }
 
 type MnistImage struct {
-	count int
+	count  int
 	pixels [][]byte
 }
 
 type MnistLabel struct {
-	count int
+	count  int
 	labels []int
 }
 
 func digits(i int) int {
-    if i == 0 {
-        return 1
-    }
-    count := 0
-    for i != 0 {
-        i /= 10
-        count++
-    }
-    return count
+	if i == 0 {
+		return 1
+	}
+	count := 0
+	for i != 0 {
+		i /= 10
+		count++
+	}
+	return count
 }
 
 func readMnistImages() (x, t *MnistImage, err error) {
@@ -105,7 +184,7 @@ func readMnistImages() (x, t *MnistImage, err error) {
 
 		// read actual data
 		for i := 0; i < mi.count; i++ {
-			pixel := make([]byte, r * c)
+			pixel := make([]byte, r*c)
 			if err = binary.Read(f, binary.BigEndian, &pixel); err != nil {
 				return nil, err
 			}
