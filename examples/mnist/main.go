@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"os"
 	"runtime/pprof"
 
@@ -30,7 +29,7 @@ func main() {
 
 	f, err := os.Create("cpu.prof")
 	if err != nil {
-			panic(err)
+		panic(err)
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
