@@ -3,6 +3,7 @@ package tensor2
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 type Tensor struct {
@@ -57,6 +58,10 @@ func (t *Tensor) Copy() *Tensor {
 
 // Flatten returns flattend 1-D array.
 func (t *Tensor) Flatten() []float64 {
+	if t.IsScalar() {
+		return []float64{t.AsScalar()}
+	}
+
 	indices := cartesian(t.Shape)
 	result := make([]float64, len(indices))
 	for i, index := range indices {
@@ -76,5 +81,43 @@ func (t *Tensor) Flatten() []float64 {
 
 // String implements Stringer interface.
 func (t *Tensor) String() string {
-	return fmt.Sprintf("%v (%v)", t.Flatten(), t.Shape)
+	if t.IsScalar() {
+		return fmt.Sprintf("%v", t.AsScalar())
+	}
+
+	if slices.Contains(t.Shape, 0) {
+		return fmt.Sprintf("([], shape=%v)", t.Shape)
+	}
+
+	data := t.Flatten()
+	var sb strings.Builder
+
+	var w func(index []int)
+	w = func(index []int) {
+		indent := strings.Repeat("  ", len(index))
+
+		if len(index) == len(t.Shape)-1 {
+			vars := []string{}
+			for i := 0; i < t.Shape[len(t.Shape)-1]; i++ {
+				idx := 0
+				for j := range index {
+					idx += index[j] * t.Strides[j]
+				}
+				idx += i * t.Strides[len(t.Strides)-1]
+				vars = append(vars, fmt.Sprintf("%.2f", data[idx]))
+			}
+			sb.WriteString(fmt.Sprintf("%s[%s]\n", indent, strings.Join(vars, ", ")))
+			return
+		}
+
+		sb.WriteString(fmt.Sprintf("%s[\n", indent))
+		for i := 0; i < t.Shape[len(index)]; i++ {
+			w(append(index, i))
+		}
+
+		sb.WriteString(fmt.Sprintf("%s]\n", indent))
+	}
+
+	w([]int{})
+	return sb.String()
 }
