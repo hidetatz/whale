@@ -43,3 +43,20 @@ func (t *Tensor) Index(indices ...int) (*Tensor, error) {
 	// Else, the shared tensor is returned.
 	return &Tensor{data: t.data, offset: offset, Shape: t.Shape[len(indices):], Strides: t.Strides[len(indices):]}, nil
 }
+
+func (t *Tensor) ListIndex(indices [][]int) (*Tensor, error) {
+	// validations
+	if t.IsScalar() {
+		return nil, fmt.Errorf("ListIndex is not defined on scalar %v", t)
+	}
+
+	if len(indices) == 0 {
+		return nil, fmt.Errorf("empty index is not allowed")
+	}
+
+	if len(t.Shape) < len(indices) {
+		return nil, fmt.Errorf("too many index specified: %v", indices)
+	}
+
+	// try broadcast each index
+}
