@@ -77,6 +77,11 @@ func (t *Tensor) ListIndex(indices [][]int) (*Tensor, error) {
 		}
 	}
 
+	// if all index length is 1, comes here.
+	if size == -1 {
+		size = 1
+	}
+
 	// From numpy doc:
 	//     In general, the shape of the resultant array will be
 	//     the concatenation of the shape of the index array
