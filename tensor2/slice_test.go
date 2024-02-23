@@ -103,45 +103,45 @@ func TestSlice(t *testing.T) {
 		},
 		{
 			name:     "2d 1",
-			tensor:   MustNd(seqf(1, 25), 6, 4),
+			tensor:   MustNdShape(seqf(1, 25), 6, 4),
 			slices:   []*Slice{FromToBy(0, 4, 2), FromToBy(1, 4, 2)},
-			expected: MustNd([]float64{2, 4, 10, 12}, 2, 2),
+			expected: MustNdShape([]float64{2, 4, 10, 12}, 2, 2),
 		},
 		{
 			name:     "2d 2",
-			tensor:   MustNd(seqf(1, 25), 6, 4),
+			tensor:   MustNdShape(seqf(1, 25), 6, 4),
 			slices:   []*Slice{All(), FromToBy(1, 4, 2)},
-			expected: MustNd([]float64{2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24}, 6, 2),
+			expected: MustNdShape([]float64{2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24}, 6, 2),
 		},
 		{
 			name:     "2d 3",
-			tensor:   MustNd(seqf(1, 25), 6, 4),
+			tensor:   MustNdShape(seqf(1, 25), 6, 4),
 			slices:   []*Slice{All()},
-			expected: MustNd(seqf(1, 25), 6, 4),
+			expected: MustNdShape(seqf(1, 25), 6, 4),
 		},
 		{
 			name:     "2d 4",
-			tensor:   MustNd(seqf(1, 25), 6, 4),
+			tensor:   MustNdShape(seqf(1, 25), 6, 4),
 			slices:   []*Slice{All(), All()},
-			expected: MustNd(seqf(1, 25), 6, 4),
+			expected: MustNdShape(seqf(1, 25), 6, 4),
 		},
 		{
 			name:     "2d 5",
-			tensor:   MustNd(seqf(1, 25), 6, 4),
+			tensor:   MustNdShape(seqf(1, 25), 6, 4),
 			slices:   []*Slice{From(6)},
-			expected: MustNd([]float64{}, 0, 4),
+			expected: MustNdShape([]float64{}, 0, 4),
 		},
 		{
 			name:     "3d 1",
-			tensor:   MustNd(seqf(1, 25), 2, 3, 4),
+			tensor:   MustNdShape(seqf(1, 25), 2, 3, 4),
 			slices:   []*Slice{FromTo(0, 2), FromToBy(0, 3, 2), To(2)},
-			expected: MustNd([]float64{1, 2, 9, 10, 13, 14, 21, 22}, 2, 2, 2),
+			expected: MustNdShape([]float64{1, 2, 9, 10, 13, 14, 21, 22}, 2, 2, 2),
 		},
 		{
 			name:     "3d 2",
-			tensor:   MustNd(seqf(1, 25), 2, 3, 4),
+			tensor:   MustNdShape(seqf(1, 25), 2, 3, 4),
 			slices:   []*Slice{FromTo(0, 2)},
-			expected: MustNd(seqf(1, 25), 2, 3, 4),
+			expected: MustNdShape(seqf(1, 25), 2, 3, 4),
 		},
 	}
 
@@ -157,21 +157,21 @@ func TestSlice(t *testing.T) {
 }
 
 func TestSlice_Complicated(t *testing.T) {
-	tensor := MustNd(seqf(1, 121), 2, 3, 4, 5)
+	tensor := MustNdShape(seqf(1, 121), 2, 3, 4, 5)
 
 	tensor2, err := tensor.Slice(From(1))
 	checkErr(t, false, err)
-	mustEq(t, MustNd(seqf(61, 121), 1, 3, 4, 5), tensor2)
+	mustEq(t, MustNdShape(seqf(61, 121), 1, 3, 4, 5), tensor2)
 
 	tensor3, err := tensor2.Slice(All(), From(2))
 	checkErr(t, false, err)
-	mustEq(t, MustNd(seqf(101, 121), 1, 1, 4, 5), tensor3)
+	mustEq(t, MustNdShape(seqf(101, 121), 1, 1, 4, 5), tensor3)
 
 	tensor4, err := tensor3.Slice(All(), All(), FromToBy(1, 4, 2))
 	checkErr(t, false, err)
-	mustEq(t, MustNd([]float64{106, 107, 108, 109, 110, 116, 117, 118, 119, 120}, 1, 1, 2, 5), tensor4)
+	mustEq(t, MustNdShape([]float64{106, 107, 108, 109, 110, 116, 117, 118, 119, 120}, 1, 1, 2, 5), tensor4)
 
 	tensor5, err := tensor4.Slice(All(), All(), All(), FromTo(2, 4))
 	checkErr(t, false, err)
-	mustEq(t, MustNd([]float64{108, 109, 118, 119}, 1, 1, 2, 2), tensor5)
+	mustEq(t, MustNdShape([]float64{108, 109, 118, 119}, 1, 1, 2, 2), tensor5)
 }

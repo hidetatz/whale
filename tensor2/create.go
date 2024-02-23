@@ -3,6 +3,7 @@ package tensor2
 import (
 	"fmt"
 	"math/rand"
+	"reflect"
 )
 
 // Scalar returns a tensor as scalar.
@@ -11,9 +12,9 @@ func Scalar(s float64) *Tensor { return &Tensor{data: []float64{s}} }
 // Vector returns a tensor as vector.
 func Vector(v []float64) *Tensor { return &Tensor{data: v, Shape: []int{len(v)}, Strides: []int{1}} }
 
-// MustNd returns a multi dimensional tensor but panics on error.
-func MustNd(data []float64, shape ...int) *Tensor {
-	t, err := Nd(data, shape...)
+// MustNdShape returns a multi dimensional tensor but panics on error.
+func MustNdShape(data []float64, shape ...int) *Tensor {
+	t, err := NdShape(data, shape...)
 	if err != nil {
 		panic(err)
 	}
@@ -21,9 +22,9 @@ func MustNd(data []float64, shape ...int) *Tensor {
 	return t
 }
 
-// Nd returns multi dimensional array.
+// NdShape returns multi dimensional array by given data and shape.
 // If the shape is empty, the given data is treated as vector.
-func Nd(data []float64, shape ...int) (*Tensor, error) {
+func NdShape(data []float64, shape ...int) (*Tensor, error) {
 	if len(shape) == 0 {
 		return Vector(data), nil
 	}
@@ -40,13 +41,74 @@ func Nd(data []float64, shape ...int) (*Tensor, error) {
 	return &Tensor{data: data, Shape: shape, Strides: strides}, nil
 }
 
+// New returns multi dimensional array by given array.
+// This function inspects the dimension of the array and creates a tensor
+// based on the dim and shape.
+// The array must be homogeneous, this consists of the 2 rules:
+//   - every values must be the same type, currently float64.
+//   - number of items on the same axis must be the same.
+//
+// See below for examples:
+//   - Nd(2)                           -> returns Scalar(2)
+//   - Nd([]float64{1, 2, 3})          -> returns Vector([1, 2, 3])
+//   - Nd([][]float64{{1, 2}, {3, 4}}) -> returns NdShape([[1, 2, 3, 4], 2, 2) (= 2x2 matrix)
+func New(arr any) (*Tensor, error) {
+	val := reflect.ValueOf(arr)
+	data := []float64{}
+	shape := []int{}
+
+	var f func(v reflect.Value, dim int) error
+	f = func(v reflect.Value, dim int) error {
+		if v.Kind() != reflect.Slice && v.Kind() != reflect.Float64 && v.Kind() != reflect.Int {
+			return fmt.Errorf("array must be multi-dimensional slice of float64")
+		}
+
+		if v.Kind() == reflect.Int {
+			data = append(data, float64(v.Int()))
+			return nil
+		}
+
+		if v.Kind() == reflect.Float64 {
+			data = append(data, v.Float())
+			return nil
+		}
+
+		length := v.Len()
+
+		if len(shape) == dim {
+			shape = append(shape, length)
+		} else {
+			if length != shape[dim] {
+				return fmt.Errorf("array must be homogeneous: %v", arr)
+			}
+		}
+
+		for i := 0; i < v.Len(); i++ {
+			if err := f(v.Index(i), dim+1); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+	if err := f(val, 0); err != nil {
+		return nil, err
+	}
+
+	if len(shape) == 0 && len(data) == 1 {
+		return Scalar(data[0]), nil
+	}
+
+	return NdShape(data, shape...)
+}
+
 // Rand creates a tensor by the given shape with randomized value [0.0, 1.0).
 func Rand(shape ...int) *Tensor {
 	data := make([]float64, product(shape))
 	for i := range data {
 		data[i] = rand.Float64()
 	}
-	return MustNd(data, shape...) // error never happens
+	return MustNdShape(data, shape...) // error never happens
 }
 
 // RandNorm creates a tensor by the given shape
@@ -56,13 +118,13 @@ func RandNorm(shape ...int) *Tensor {
 	for i := range data {
 		data[i] = rand.NormFloat64()
 	}
-	return MustNd(data, shape...) // error never happens
+	return MustNdShape(data, shape...) // error never happens
 }
 
 // Zeros creates a tensor by the given shape with all values 0.
 func Zeros(shape ...int) *Tensor {
 	data := make([]float64, product(shape)) // initialized by 0
-	return MustNd(data, shape...)           // error never happens
+	return MustNdShape(data, shape...)      // error never happens
 }
 
 // ZerosLike creates a tensor by the given tensor's shape with all values 0.
@@ -76,7 +138,7 @@ func Ones(shape ...int) *Tensor {
 	for i := range data {
 		data[i] = 1
 	}
-	return MustNd(data, shape...) // error never happens
+	return MustNdShape(data, shape...) // error never happens
 }
 
 // OnesLike creates a tensor by the given tensor's shape with all values 1.
@@ -90,7 +152,7 @@ func Full(v float64, shape ...int) *Tensor {
 	for i := range data {
 		data[i] = v
 	}
-	return MustNd(data, shape...) // error never happens
+	return MustNdShape(data, shape...) // error never happens
 }
 
 // Arange creates a tensor which has data between from and to by the given interval.
@@ -106,7 +168,7 @@ func Arange(from, to, interval float64, shape ...int) (*Tensor, error) {
 		return Vector(data), nil
 	}
 
-	t, err := Nd(data, shape...)
+	t, err := NdShape(data, shape...)
 	if err != nil {
 		return nil, err
 	}

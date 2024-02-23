@@ -58,7 +58,7 @@ func TestVector(t *testing.T) {
 	}
 }
 
-func TestNd(t *testing.T) {
+func TestNdShape(t *testing.T) {
 	tests := []struct {
 		name      string
 		data      []float64
@@ -138,7 +138,90 @@ func TestNd(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := Nd(tc.data, tc.shape...)
+			got, err := NdShape(tc.data, tc.shape...)
+			checkErr(t, tc.expectErr, err)
+			mustEq(t, tc.expected, got)
+		})
+	}
+}
+
+func TestNew(t *testing.T) {
+	tests := []struct {
+		name      string
+		arr       any
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:     "scalar",
+			arr:      1,
+			expected: Scalar(1),
+		},
+		{
+			name:     "vector",
+			arr:      []float64{1, 2, 3, 4, 5},
+			expected: Vector([]float64{1, 2, 3, 4, 5}),
+		},
+		{
+			name:      "neither int nor float",
+			arr:       []string{"a"},
+			expectErr: true,
+		},
+		{
+			name: "2d 1",
+			arr: [][]float64{
+				{1, 2, 3},
+				{4, 5, 6},
+				{7, 8, 9},
+			},
+			expected: Must(ArangeVec(1, 10, 1).Reshape(3, 3)),
+		},
+		{
+			name: "2d 2",
+			arr: [][]float64{
+				{},
+				{},
+				{},
+			},
+			expected: Must(Vector([]float64{}).Reshape(3, 0)),
+		},
+		{
+			name: "non homogeneous",
+			arr: [][]float64{
+				{1, 2, 3},
+				{4, 5, 6},
+				{7, 8},
+			},
+			expectErr: true,
+		},
+		{
+			name: "3d",
+			arr: [][][]float64{
+				{
+					{1, 2, 3},
+					{4, 5, 6},
+					{7, 8, 9},
+				},
+				{
+					{10, 11, 12},
+					{13, 14, 15},
+					{16, 17, 18},
+				},
+				{
+					{19, 20, 21},
+					{22, 23, 24},
+					{25, 26, 27},
+				},
+			},
+			expected: Must(ArangeVec(1, 28, 1).Reshape(3, 3, 3)),
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := New(tc.arr)
 			checkErr(t, tc.expectErr, err)
 			mustEq(t, tc.expected, got)
 		})
@@ -167,7 +250,7 @@ func TestFactories(t *testing.T) {
 		{
 			name: "zeroslike",
 			factory: func() (*Tensor, error) {
-				return ZerosLike(MustNd([]float64{1, 2, 3, 4}, 2, 2)), nil
+				return ZerosLike(MustNdShape([]float64{1, 2, 3, 4}, 2, 2)), nil
 			},
 			expected: &Tensor{
 				data:    []float64{0, 0, 0, 0},
@@ -191,7 +274,7 @@ func TestFactories(t *testing.T) {
 		{
 			name: "oneslike",
 			factory: func() (*Tensor, error) {
-				return OnesLike(MustNd([]float64{1, 2, 3, 4}, 2, 2)), nil
+				return OnesLike(MustNdShape([]float64{1, 2, 3, 4}, 2, 2)), nil
 			},
 			expected: &Tensor{
 				data:    []float64{1, 1, 1, 1},

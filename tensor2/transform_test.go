@@ -16,13 +16,13 @@ func TestReshape(t *testing.T) {
 			name:     "scalar",
 			tensor:   Scalar(1),
 			shape:    []int{1, 1},
-			expected: MustNd([]float64{1}, 1, 1),
+			expected: MustNdShape([]float64{1}, 1, 1),
 		},
 		{
 			name:     "scalar 2",
 			tensor:   Scalar(1),
 			shape:    []int{1, 1, 1},
-			expected: MustNd([]float64{1}, 1, 1, 1),
+			expected: MustNdShape([]float64{1}, 1, 1, 1),
 		},
 		{
 			name:      "invalid shape",
@@ -34,19 +34,19 @@ func TestReshape(t *testing.T) {
 			name:     "vector",
 			tensor:   Vector([]float64{1, 2, 3, 4}),
 			shape:    []int{1, 4, 1},
-			expected: MustNd([]float64{1, 2, 3, 4}, 1, 4, 1),
+			expected: MustNdShape([]float64{1, 2, 3, 4}, 1, 4, 1),
 		},
 		{
 			name:     "vector 2",
 			tensor:   Vector([]float64{1, 2, 3, 4}),
 			shape:    []int{2, 2},
-			expected: MustNd([]float64{1, 2, 3, 4}, 2, 2),
+			expected: MustNdShape([]float64{1, 2, 3, 4}, 2, 2),
 		},
 		{
 			name:     "vector after indexed",
-			tensor:   Must(MustNd([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(0)),
+			tensor:   Must(MustNdShape([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(0)),
 			shape:    []int{2, 1},
-			expected: MustNd([]float64{1, 2}, 2, 1),
+			expected: MustNdShape([]float64{1, 2}, 2, 1),
 		},
 	}
 
@@ -109,7 +109,7 @@ func TestTranspose(t *testing.T) {
 			name:   "3d",
 			tensor: Must(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
 			axes:   []int{},
-			expected: MustNd([]float64{
+			expected: MustNdShape([]float64{
 				1, 13, 5, 17, 9, 21,
 				2, 14, 6, 18, 10, 22,
 				3, 15, 7, 19, 11, 23,
@@ -120,7 +120,7 @@ func TestTranspose(t *testing.T) {
 			name:   "3d 2",
 			tensor: Must(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
 			axes:   []int{2, 1, 0},
-			expected: MustNd([]float64{
+			expected: MustNdShape([]float64{
 				1, 13, 5, 17, 9, 21,
 				2, 14, 6, 18, 10, 22,
 				3, 15, 7, 19, 11, 23,
@@ -131,7 +131,7 @@ func TestTranspose(t *testing.T) {
 			name:   "3d 3",
 			tensor: Must(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
 			axes:   []int{0, 2, 1},
-			expected: MustNd([]float64{
+			expected: MustNdShape([]float64{
 				1, 5, 9,
 				2, 6, 10,
 				3, 7, 11,

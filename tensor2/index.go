@@ -119,5 +119,5 @@ func (t *Tensor) ListIndex(indices [][]int) (*Tensor, error) {
 		data = append(data, nt.Flatten()...)
 	}
 
-	return Nd(data, newshape...)
+	return NdShape(data, newshape...)
 }

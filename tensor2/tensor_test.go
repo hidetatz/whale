@@ -13,7 +13,7 @@ func TestString(t *testing.T) {
 		}
 	}
 
-	tensor := MustNd(seqf(1, 7), 2, 3)
+	tensor := MustNdShape(seqf(1, 7), 2, 3)
 	got := fmt.Sprintf("%v", tensor)
 	musteq(t, got, `[
   [1, 2, 3]
@@ -26,7 +26,7 @@ func TestString(t *testing.T) {
 	got = fmt.Sprintf("%v", tensor2)
 	musteq(t, got, `3`)
 
-	tensor3 := MustNd(seqf(1, 25), 2, 3, 4)
+	tensor3 := MustNdShape(seqf(1, 25), 2, 3, 4)
 	got = fmt.Sprintf("%v", tensor3)
 	musteq(t, got, `[
   [
