@@ -41,10 +41,8 @@ func NdShape(data []float64, shape ...int) (*Tensor, error) {
 	return &Tensor{data: data, Shape: shape, Strides: strides}, nil
 }
 
-// New returns multi dimensional array by given array.
-// This function inspects the dimension of the array and creates a tensor
-// based on the dim and shape.
-// The array must be homogeneous, this consists of the 2 rules:
+// New inspects the dimension and shape of the given arr and creates a tensor based on them.
+// The arr must be homogeneous, this consists of the 2 rules:
 //   - every values must be the same type, currently float64.
 //   - number of items on the same axis must be the same.
 //
