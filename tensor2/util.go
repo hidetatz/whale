@@ -48,7 +48,7 @@ func cartesian(a []int) [][]int {
 			result = append(result, temp)
 			return
 		}
-		for i := 0; i < a[pos]; i++ {
+		for i := range a[pos] {
 			current = append(current, i)
 			generate(pos + 1)
 			current = current[:len(current)-1]

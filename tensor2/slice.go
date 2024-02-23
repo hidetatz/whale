@@ -66,7 +66,7 @@ func (t *Tensor) Slice(slices ...*Slice) (*Tensor, error) {
 	// fill slices to be the same length as t.Shape
 	if len(slices) < len(t.Shape) {
 		n := len(t.Shape) - len(slices)
-		for i := 0; i < n; i++ {
+		for _ = range n {
 			slices = append(slices, All())
 		}
 	}

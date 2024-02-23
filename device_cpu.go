@@ -197,7 +197,7 @@ func (c *CPU) Dot(t1, t2 *tensor.Tensor) *tensor.Tensor {
 			for i := 0; i < col; i++ {
 				record := make([]float64, row)
 
-				for j := 0; j < row; j++ {
+				for j := range row {
 					record[j] = data[i*stride1+j*stride2]
 				}
 
@@ -245,9 +245,9 @@ func calcMatmul(matrixA, matrixB [][]float64) [][]float64 {
 		result[i] = make([]float64, colsB)
 	}
 
-	for i := 0; i < rowsA; i++ {
-		for j := 0; j < colsB; j++ {
-			for k := 0; k < colsA; k++ {
+	for i := range rowsA {
+		for j := range colsB {
+			for k := range colsA {
 				result[i][j] += matrixA[i][k] * matrixB[k][j]
 			}
 		}

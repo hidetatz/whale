@@ -125,7 +125,7 @@ func Train(m whale.Model, x, t *whale.Variable) {
 		index := tensor.RandomPermutation(300)
 		sumloss := 0.0
 
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			batchIdx, err := index.Slice(i*batch, (i+1)*batch, 1)
 			if err != nil {
 				panic(err)
@@ -179,7 +179,7 @@ func plot(x, t *tensor.Tensor) {
 	xs2 := []float64{}
 	ys2 := []float64{}
 
-	for i := 0; i < len(t.Data); i++ {
+	for i := range len(t.Data) {
 		// 0 / 1 / 2
 		label := t.Data[i]
 

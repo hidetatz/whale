@@ -17,7 +17,7 @@ func RandSpiral() (*tensor.Tensor, *tensor.Tensor) {
 	x := [][]float64{}
 	t := []float64{}
 	for j := 0; j < 3; j++ {
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			var rate float64 = float64(i) / 100.0
 			var radius float64 = 1.0 * rate
 			theta := float64(j)*4 + 4*rate + rand.NormFloat64()*0.2

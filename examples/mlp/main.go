@@ -21,7 +21,7 @@ func Train(m whale.Model, x, y *whale.Variable) {
 	lossCalc := m.Loss()
 	optim := m.Optimizer()
 
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		pred, err := m.Train(x)
 		if err != nil {
 			panic(err)

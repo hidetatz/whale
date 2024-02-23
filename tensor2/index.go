@@ -102,7 +102,7 @@ func (t *Tensor) ListIndex(indices [][]int) (*Tensor, error) {
 	}
 
 	accessors := make([][]int, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		a := make([]int, len(indices))
 		for j := 0; j < len(indices); j++ {
 			a[j] = indices[j][i]

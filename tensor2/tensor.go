@@ -106,7 +106,7 @@ func (t *Tensor) String() string {
 
 		// else, print "[",  internal data, and "]" recursively
 		sb.WriteString(fmt.Sprintf("%s[\n", indent))
-		for i := 0; i < t.Shape[len(index)]; i++ {
+		for i := range t.Shape[len(index)] {
 			w(append(index, i))
 		}
 		sb.WriteString(fmt.Sprintf("%s]\n", indent))

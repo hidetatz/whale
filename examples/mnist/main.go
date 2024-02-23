@@ -79,7 +79,7 @@ func train(xi, ti *MnistImage, xl, tl *MnistLabel) {
 
 	for epoch := 0; epoch < 1; epoch++ {
 		sumloss := 0.0
-		for i := 0; i < xi.count; i++ {
+		for i := range xi.count {
 			x := xi.pixels[i]
 			t := xl.labels[i]
 
@@ -182,7 +182,7 @@ func readMnistImages() (x, t *MnistImage, err error) {
 		c := int(binary.BigEndian.Uint32(cols))
 
 		// read actual data
-		for i := 0; i < mi.count; i++ {
+		for i := range mi.count {
 			pixel := make([]byte, r*c)
 			if err = binary.Read(f, binary.BigEndian, &pixel); err != nil {
 				return nil, err
@@ -237,7 +237,7 @@ func readMnistLabels() (x, t *MnistLabel, err error) {
 		ml.labels = make([]int, ml.count)
 
 		// read actual label
-		for i := 0; i < ml.count; i++ {
+		for i := range ml.count {
 			var lbl byte
 			if err = binary.Read(f, binary.BigEndian, &lbl); err != nil {
 				return nil, err
