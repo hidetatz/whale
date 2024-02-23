@@ -5,13 +5,6 @@ import (
 )
 
 func TestReshape(t *testing.T) {
-	index := func(ten *Tensor, idx ...int) *Tensor {
-		ten2, err := ten.Index(idx...)
-		if err != nil {
-			t.Fatalf("invalid index")
-		}
-		return ten2
-	}
 	tests := []struct {
 		name      string
 		tensor    *Tensor
@@ -51,7 +44,7 @@ func TestReshape(t *testing.T) {
 		},
 		{
 			name:     "vector after indexed",
-			tensor:   index(MustNd([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2), 0),
+			tensor:   Must(MustNd([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(0)),
 			shape:    []int{2, 1},
 			expected: MustNd([]float64{1, 2}, 2, 1),
 		},

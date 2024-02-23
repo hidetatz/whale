@@ -57,3 +57,11 @@ func cartesian(a []int) [][]int {
 	generate(0)
 	return result
 }
+
+func Must[T any](obj T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+
+	return obj
+}
