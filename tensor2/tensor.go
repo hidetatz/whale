@@ -89,32 +89,26 @@ func (t *Tensor) String() string {
 		return fmt.Sprintf("([], shape=%v)", t.Shape)
 	}
 
-	data := t.Flatten()
 	var sb strings.Builder
 
 	var w func(index []int)
 	w = func(index []int) {
 		indent := strings.Repeat("  ", len(index))
 
+		// at last, print actual values
 		if len(index) == len(t.Shape)-1 {
-			vars := []string{}
-			for i := 0; i < t.Shape[len(t.Shape)-1]; i++ {
-				idx := 0
-				for j := range index {
-					idx += index[j] * t.Strides[j]
-				}
-				idx += i * t.Strides[len(t.Strides)-1]
-				vars = append(vars, fmt.Sprintf("%.2f", data[idx]))
-			}
-			sb.WriteString(fmt.Sprintf("%s[%s]\n", indent, strings.Join(vars, ", ")))
+			data := Must(t.Index(index...)).Flatten()
+			sb.WriteString(
+				fmt.Sprintf("%s%v\n", indent, strings.Join(strings.Fields(fmt.Sprint(data)), ", ")),
+			)
 			return
 		}
 
+		// else, print "[",  internal data, and "]" recursively
 		sb.WriteString(fmt.Sprintf("%s[\n", indent))
 		for i := 0; i < t.Shape[len(index)]; i++ {
 			w(append(index, i))
 		}
-
 		sb.WriteString(fmt.Sprintf("%s]\n", indent))
 	}
 
