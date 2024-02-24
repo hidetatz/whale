@@ -15,6 +15,14 @@ func copySlice(s []int) []int {
 	return c
 }
 
+func all(v, length int) []int {
+	r := make([]int, length)
+	for i := range length {
+		r[i] = v
+	}
+	return r
+}
+
 func seqf(from, to int) []float64 {
 	r := make([]float64, to-from)
 	for i := from; i < to; i++ {
