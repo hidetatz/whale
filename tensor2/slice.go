@@ -10,7 +10,7 @@ import "fmt"
 //	end:   length
 //	step:  1
 type Slice struct {
-	Start, End, Step int
+	At, Start, End, Step int
 }
 
 func (s *Slice) String() string {
@@ -29,23 +29,26 @@ func (s *Slice) String() string {
 	return r
 }
 
+// At creates a tensor slicing accessor like "at".
+func At(at int) *Slice { return &Slice{At: at, Start: -1, End: -1, Step: -1} }
+
 // From creates a tensor slicing accessor like "start::".
-func From(start int) *Slice { return &Slice{Start: start, End: -1, Step: 1} }
+func From(start int) *Slice { return &Slice{At: -1, Start: start, End: -1, Step: 1} }
 
 // To creates a tensor slicing accessor like ":end:".
-func To(end int) *Slice { return &Slice{Start: -1, End: end, Step: 1} }
+func To(end int) *Slice { return &Slice{At: -1, Start: -1, End: end, Step: 1} }
 
 // By creates a tensor slicing accessor like "::step".
-func By(step int) *Slice { return &Slice{Start: -1, End: -1, Step: step} }
+func By(step int) *Slice { return &Slice{At: -1, Start: -1, End: -1, Step: step} }
 
 // FromTo creates a tensor slicing accessor like "start:end:".
-func FromTo(s, e int) *Slice { return &Slice{Start: s, End: e, Step: 1} }
+func FromTo(s, e int) *Slice { return &Slice{At: -1, Start: s, End: e, Step: 1} }
 
 // FromToBy creates a tensor slicing accessor like "start:end:step".
-func FromToBy(start, end, step int) *Slice { return &Slice{Start: start, End: end, Step: step} }
+func FromToBy(start, end, step int) *Slice { return &Slice{At: -1, Start: start, End: end, Step: step} }
 
 // All creates a tensor slicing accessor like "::"/":".
-func All() *Slice { return &Slice{Start: -1, End: -1, Step: -1} }
+func All() *Slice { return &Slice{At: -1, Start: -1, End: -1, Step: -1} }
 
 // Slice returns the sliced tensor of t.
 // The returned tensor might be sharing the actual data with t,

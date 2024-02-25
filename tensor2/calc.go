@@ -38,16 +38,36 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 
 	// check okay, do sum.
 
-	newshape := make([]int, t.Ndim()-len(axes))
-	for i, dim := range t.Shape {
+	// total size of summed tensor
+	length := t.Size()
+
+	// summed tensor shape
+	newshape := copyShape(t.Shape)
+
+	filtered := make([]int, len(axes))
+
+	for i, axis := range axes {
+		length /= t.Shape[axis]
+		newshape[axis] = 1
+		filtered[i] = t.Shape[axis]
+	}
+
+	c := cartesian(filtered)
+	// accessing slices in sum
+	slices := make([][]*Slice, length)
+
+	for i := range t.Ndim() {
 		if !slices.Contains(axes, i) {
-			newshape = append(newshape, dim)
+			
 		}
 	}
 
-	length := product(newshape)
 
-	tensors := make([]*Tensor, length)
+	indices := cartesian(pick)
+	for _, index := range indices {
+		t.Slices()
+	}
+
 
 	return nil, nil
 }
