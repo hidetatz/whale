@@ -1,6 +1,9 @@
 package tensor2
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // Slice represents start:end:step accessor to a tensor.
 // Unlike Python list, negative value is not considered as the index from right but
@@ -9,6 +12,12 @@ import "fmt"
 //	start: 0
 //	end:   length
 //	step:  1
+//
+// At can specify the exact index.
+// The difference between Slice{At: 0} and Slice{Start: 0, End: 1} is that
+// former reduces the dimension, while latter just sets 1.
+// For those who are familier with numpy, this enables you to specify slice and index mixed
+// accessing method, like x[0:1, 0, 1:3:2].
 type Slice struct {
 	At, Start, End, Step int
 }
@@ -53,24 +62,24 @@ func All() *Slice { return &Slice{At: -1, Start: -1, End: -1, Step: -1} }
 // Slice returns the sliced tensor of t.
 // The returned tensor might be sharing the actual data with t,
 // so modifiyig it might cause some unexpected side effect.
-func (t *Tensor) Slice(slices ...*Slice) (*Tensor, error) {
+func (t *Tensor) Slice(ss ...*Slice) (*Tensor, error) {
 	if t.IsScalar() {
 		return nil, fmt.Errorf("slice is not defined on scalar %v", t)
 	}
 
-	if len(slices) == 0 {
+	if len(ss) == 0 {
 		return nil, fmt.Errorf("empty slices not allowed")
 	}
 
-	if len(t.Shape) < len(slices) {
-		return nil, fmt.Errorf("too many slices specified: %v", slices)
+	if len(t.Shape) < len(ss) {
+		return nil, fmt.Errorf("too many slices specified: %v", ss)
 	}
 
 	// fill slices to be the same length as t.Shape
-	if len(slices) < len(t.Shape) {
-		n := len(t.Shape) - len(slices)
+	if len(ss) < len(t.Shape) {
+		n := len(t.Shape) - len(ss)
 		for _ = range n {
-			slices = append(slices, All())
+			ss = append(ss, All())
 		}
 	}
 
@@ -81,9 +90,9 @@ func (t *Tensor) Slice(slices ...*Slice) (*Tensor, error) {
 	newshape := make([]int, len(t.Shape))
 	newstrides := make([]int, len(t.Strides))
 	offset := t.offset
-	for i, s := range slices {
+	for i, s := range ss {
 		if s.Step == 0 {
-			return nil, fmt.Errorf("slice step must not be 0: %v", slices)
+			return nil, fmt.Errorf("slice step must not be 0: %v", ss)
 		}
 
 		// Unlike Python, negative values are not allowed.
@@ -99,6 +108,17 @@ func (t *Tensor) Slice(slices ...*Slice) (*Tensor, error) {
 			s.End = t.Shape[i]
 		}
 
+		if 0 <= s.At {
+			if t.Shape[i]-1 < s.At {
+				return nil, fmt.Errorf("index out of bounds for axis %v with size %v", i, t.Shape[i])
+			}
+
+			offset += s.At * t.Strides[i]
+			newshape[i] = -1   // dummy value
+			newstrides[i] = -1 // dummy value
+			continue
+		}
+
 		if t.Shape[i] < s.Start || s.End < s.Start {
 			newshape[i] = 0
 		} else {
@@ -111,6 +131,10 @@ func (t *Tensor) Slice(slices ...*Slice) (*Tensor, error) {
 			offset += s.Start * t.Strides[i]
 		}
 	}
+
+	deldummy := func(n int) bool { return n == -1 }
+	newshape = slices.DeleteFunc(newshape, deldummy)
+	newstrides = slices.DeleteFunc(newstrides, deldummy)
 
 	return &Tensor{data: t.data, offset: offset, Shape: newshape, Strides: newstrides}, nil
 }

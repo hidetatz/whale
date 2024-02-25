@@ -3,7 +3,6 @@ package tensor2
 import "testing"
 
 func TestSlice(t *testing.T) {
-	t.Skip()
 	tests := []struct {
 		name      string
 		tensor    *Tensor
@@ -96,6 +95,12 @@ func TestSlice(t *testing.T) {
 			expected: Vector([]float64{1}),
 		},
 		{
+			name:     "vector 14",
+			tensor:   Vector([]float64{1, 2, 3, 4, 5}),
+			slices:   []*Slice{At(2)},
+			expected: Scalar(3),
+		},
+		{
 			name:      "step must not be 0",
 			tensor:    Vector([]float64{1, 2, 3, 4, 5}),
 			slices:    []*Slice{By(0)},
@@ -132,6 +137,36 @@ func TestSlice(t *testing.T) {
 			expected: MustNdShape([]float64{}, 0, 4),
 		},
 		{
+			name:     "2d 6",
+			tensor:   MustNdShape(seqf(1, 25), 6, 4),
+			slices:   []*Slice{At(4), At(2)},
+			expected: Scalar(19),
+		},
+		{
+			name:     "2d 7",
+			tensor:   MustNdShape(seqf(1, 25), 6, 4),
+			slices:   []*Slice{At(4)},
+			expected: Vector([]float64{17, 18, 19, 20}),
+		},
+		{
+			name:      "2d 8",
+			tensor:    MustNdShape(seqf(1, 25), 6, 4),
+			slices:    []*Slice{FromTo(2, 5), At(4)},
+			expectErr: true,
+		},
+		{
+			name:     "2d 8",
+			tensor:   MustNdShape(seqf(1, 25), 6, 4),
+			slices:   []*Slice{FromTo(2, 5), At(3)},
+			expected: Vector([]float64{12, 16, 20}),
+		},
+		{
+			name:     "2d 9",
+			tensor:   MustNdShape(seqf(1, 25), 6, 4),
+			slices:   []*Slice{FromToBy(2, 5, 2), At(3)},
+			expected: Vector([]float64{12, 20}),
+		},
+		{
 			name:     "3d 1",
 			tensor:   MustNdShape(seqf(1, 25), 2, 3, 4),
 			slices:   []*Slice{FromTo(0, 2), FromToBy(0, 3, 2), To(2)},
@@ -142,6 +177,18 @@ func TestSlice(t *testing.T) {
 			tensor:   MustNdShape(seqf(1, 25), 2, 3, 4),
 			slices:   []*Slice{FromTo(0, 2)},
 			expected: MustNdShape(seqf(1, 25), 2, 3, 4),
+		},
+		{
+			name:     "3d 3",
+			tensor:   MustNdShape(seqf(1, 25), 2, 3, 4),
+			slices:   []*Slice{FromTo(0, 2), At(0), To(2)},
+			expected: MustNdShape([]float64{1, 2, 13, 14}, 2, 2),
+		},
+		{
+			name:     "3d 4",
+			tensor:   MustNdShape(seqf(1, 25), 2, 3, 4),
+			slices:   []*Slice{FromTo(0, 2), At(2), To(2)},
+			expected: MustNdShape([]float64{9, 10, 21, 22}, 2, 2),
 		},
 	}
 
