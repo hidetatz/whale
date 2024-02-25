@@ -13,8 +13,12 @@ func TestString(t *testing.T) {
 		}
 	}
 
-	tensor := MustNdShape(seqf(1, 7), 2, 3)
+	tensor := Vector([]float64{1, 2, 3, 4})
 	got := fmt.Sprintf("%v", tensor)
+	musteq(t, got, `[1, 2, 3, 4]`)
+
+	tensor = MustNdShape(seqf(1, 7), 2, 3)
+	got = fmt.Sprintf("%v", tensor)
 	musteq(t, got, `[
   [1, 2, 3]
   [4, 5, 6]

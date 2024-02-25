@@ -6,6 +6,13 @@ import (
 )
 
 func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
+	if t.IsScalar() {
+		if len(axes) != 0 {
+			return nil, fmt.Errorf("axis out of bounds: %v", axes)
+		}
+		return t, nil
+	}
+
 	if len(axes) == 0 {
 		// when axes is empty, sum all.
 		var result float64
@@ -38,36 +45,57 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 
 	// check okay, do sum.
 
-	// total size of summed tensor
-	length := t.Size()
-
-	// summed tensor shape
-	newshape := copyShape(t.Shape)
-
-	filtered := make([]int, len(axes))
-
-	for i, axis := range axes {
-		length /= t.Shape[axis]
-		newshape[axis] = 1
-		filtered[i] = t.Shape[axis]
+	// create slices. Let's say shape is [2, 3, 4], axes is [0, 2],
+	// result will be
+	// [[0, :, 0], [0, :, 1], [0, :, 2], [0, :, 3], [1, :, 0], [1, :, 1], [1, :, 2], [1, :, 3]]
+	ss := [][]*Slice{}
+	template := make([]*Slice, t.Ndim())
+	for i := range template {
+		template[i] = All()
 	}
 
-	c := cartesian(filtered)
-	// accessing slices in sum
-	slices := make([][]*Slice, length)
+	var gen func(int, []*Slice)
+	gen = func(index int, current []*Slice) {
+		if index == len(axes) {
+			ss = append(ss, append([]*Slice(nil), current...))
+			return
+		}
 
-	for i := range t.Ndim() {
-		if !slices.Contains(axes, i) {
-			
+		for i := 0; i < t.Shape[axes[index]]; i++ {
+			current[axes[index]] = At(i)
+			gen(index+1, current)
+			current[axes[index]] = All()
+		}
+	}
+	gen(0, template)
+
+	// extract each slice and sum them
+	data := make([]float64, t.Size()/len(ss))
+	for _, s := range ss {
+		t2, err := t.Slice(s...)
+		if err != nil {
+			panic(err)
+		}
+
+		flat := t2.Flatten()
+		for i := range len(data) {
+			data[i] += flat[i]
 		}
 	}
 
-
-	indices := cartesian(pick)
-	for _, index := range indices {
-		t.Slices()
+	newshape := copySlice(t.Shape)
+	if keepdims {
+		// if keepdims, dim will be 1
+		for _, axis := range axes {
+			newshape[axis] = 1
+		}
+	} else {
+		// else, the dim is reduced
+		slices.Reverse(axes)
+		for _, axis := range axes {
+			newshape = append(newshape[:axis], newshape[axis+1:]...)
+		}
 	}
 
-
-	return nil, nil
+	return NdShape(data, newshape...)
 }

@@ -42,6 +42,16 @@ func (t *Tensor) IsVector() bool {
 	return len(t.Shape) == 1
 }
 
+func (t *Tensor) AsVector() []float64 {
+	indices := cartesian(t.Shape)
+	result := make([]float64, t.Shape[0])
+	for i, index := range indices {
+		f := Must(t.Index(index...))
+		result[i] = f.AsScalar()
+	}
+	return result
+}
+
 // Copy returns a copy of t.
 func (t *Tensor) Copy() *Tensor {
 	ndata := make([]float64, len(t.data))
@@ -89,8 +99,11 @@ func (t *Tensor) String() string {
 		return fmt.Sprintf("([], shape=%v)", t.Shape)
 	}
 
-	var sb strings.Builder
+	if t.IsVector() {
+		return fmt.Sprintf("%v", strings.Join(strings.Fields(fmt.Sprint(t.AsVector())), ", "))
+	}
 
+	var sb strings.Builder
 	var w func(index []int)
 	w = func(index []int) {
 		indent := strings.Repeat("  ", len(index))
@@ -114,4 +127,8 @@ func (t *Tensor) String() string {
 
 	w([]int{})
 	return sb.String()
+}
+
+func (t *Tensor) Raw() string {
+	return fmt.Sprintf("{data: %v, offset: %v, Shape: %v, Strides: %v}", t.data, t.offset, t.Shape, t.Strides)
 }

@@ -23,6 +23,10 @@ type Slice struct {
 }
 
 func (s *Slice) String() string {
+	if 0 <= s.At {
+		return fmt.Sprintf("%d", s.At)
+	}
+
 	r := ""
 	if 0 <= s.Start {
 		r += fmt.Sprintf("%d", s.Start)

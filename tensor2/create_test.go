@@ -67,22 +67,22 @@ func TestNdShape(t *testing.T) {
 		expected  *Tensor
 	}{
 		{
-			name:     "vector1",
+			name:     "scalar",
 			data:     []float64{1},
 			shape:    []int{},
-			expected: &Tensor{data: []float64{1}, offset: 0, Shape: []int{1}, Strides: []int{1}},
+			expected: Scalar(1),
+		},
+		{
+			name:     "vector1",
+			data:     []float64{1, 2, 3},
+			shape:    []int{},
+			expected: Vector([]float64{1, 2, 3}),
 		},
 		{
 			name:     "vector2",
 			data:     []float64{1},
 			shape:    []int{1},
-			expected: &Tensor{data: []float64{1}, offset: 0, Shape: []int{1}, Strides: []int{1}},
-		},
-		{
-			name:     "vector3",
-			data:     []float64{1, 2, 3},
-			shape:    []int{3},
-			expected: &Tensor{data: []float64{1, 2, 3}, offset: 0, Shape: []int{3}, Strides: []int{1}},
+			expected: Vector([]float64{1}),
 		},
 		{
 			name:      "vector err",
