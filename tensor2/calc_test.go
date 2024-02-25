@@ -324,3 +324,48 @@ func TestSum(t *testing.T) {
 		})
 	}
 }
+
+func TestSumTo(t *testing.T) {
+	tests := []struct {
+		name      string
+		tensor    *Tensor
+		shape     []int
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:     "2d 1",
+			tensor:   Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
+			shape:    []int{1, 3},
+			expected: Must(NdShape([]float64{3, 5, 7}, 1, 3)),
+		},
+		{
+			name:     "2d 2",
+			tensor:   Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
+			shape:    []int{2, 1},
+			expected: Must(NdShape([]float64{3, 12}, 2, 1)),
+		},
+		{
+			name:     "2d 3",
+			tensor:   Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
+			shape:    []int{1, 1},
+			expected: Must(NdShape([]float64{15}, 1, 1)),
+		},
+		{
+			name:     "3d 1",
+			tensor:   Must(ArangeVec(0, 24, 1).Reshape(2, 3, 4)),
+			shape:    []int{2, 1, 1},
+			expected: Must(NdShape([]float64{66, 210}, 2, 1, 1)),
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := tc.tensor.SumTo(tc.shape...)
+			checkErr(t, tc.expectErr, err)
+			mustEq(t, tc.expected, got)
+		})
+	}
+}

@@ -99,3 +99,31 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 
 	return NdShape(data, newshape...)
 }
+
+func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
+	ndim := len(shape)
+	lead := t.Ndim() - ndim
+	leadAxis := seq[int](0, lead)
+
+	var axes []int
+	for i, dim := range shape {
+		if dim == 1 {
+			axes = append(axes, i+lead)
+		}
+	}
+
+	y, err := t.Sum(true, append(leadAxis, axes...)...)
+	if err != nil {
+		return nil, err
+	}
+
+	if lead > 0 {
+		y2, err := y.Squeeze(leadAxis...)
+		if err != nil {
+			return nil, err
+		}
+		y = y2
+	}
+
+	return y, nil
+}
