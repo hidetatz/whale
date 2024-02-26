@@ -196,3 +196,78 @@ func TestTranspose(t *testing.T) {
 		})
 	}
 }
+
+func TestSqueeze(t *testing.T) {
+	tests := []struct {
+		name      string
+		tensor    *Tensor
+		args      []int
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:     "2d 1",
+			tensor:   Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
+			args:     []int{},
+			expected: Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
+		},
+		{
+			name:     "3d 1",
+			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 2, 3)),
+			args:     []int{},
+			expected: Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
+		},
+		{
+			name:     "3d 2",
+			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
+			args:     []int{},
+			expected: ArangeVec(0, 6, 1),
+		},
+		{
+			name:     "3d 3",
+			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
+			args:     []int{0},
+			expected: Must(ArangeVec(0, 6, 1).Reshape(6, 1)),
+		},
+		{
+			name:     "3d 4",
+			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
+			args:     []int{2},
+			expected: Must(ArangeVec(0, 6, 1).Reshape(1, 6)),
+		},
+		{
+			name:     "3d 5",
+			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
+			args:     []int{0, 2},
+			expected: ArangeVec(0, 6, 1),
+		},
+		{
+			name:     "3d 6",
+			tensor:   Must(Scalar(3).Reshape(1, 1, 1)),
+			args:     []int{0, 2},
+			expected: Vector([]float64{3}),
+		},
+		{
+			name:     "3d 6",
+			tensor:   Must(Scalar(3).Reshape(1, 1, 1)),
+			args:     []int{0, 2, 1},
+			expected: Scalar(3),
+		},
+		{
+			name:     "offset non-0",
+			tensor:   Must(Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)).Slice(All(), FromTo(2, 5), All())),
+			args:     []int{},
+			expected: ArangeVec(2, 5, 1),
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := tc.tensor.Squeeze(tc.args...)
+			checkErr(t, tc.expectErr, err)
+			mustEq(t, tc.expected, got)
+		})
+	}
+}

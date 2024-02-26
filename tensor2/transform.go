@@ -61,3 +61,32 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 
 	return t2, nil
 }
+
+func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
+	for _, axis := range axes {
+		if t.Ndim() < axis {
+			return nil, fmt.Errorf("axis out of bounds: %v for %v tensor", axis, t.Ndim())
+		}
+
+		if t.Shape[axis] != 1 {
+			return nil, fmt.Errorf("non-1 axis is specified: %v for axis whose size is %v", axis, t.Shape[axis])
+		}
+	}
+
+	newshape := []int{}
+	newstrides := []int{}
+	for i := range t.Shape {
+		if t.Shape[i] != 1 {
+			newshape = append(newshape, t.Shape[i])
+			newstrides = append(newstrides, t.Strides[i])
+			continue
+		}
+
+		if len(axes) != 0 && !slices.Contains(axes, i) {
+			newshape = append(newshape, t.Shape[i])
+			newstrides = append(newstrides, t.Strides[i])
+		}
+	}
+
+	return &Tensor{data: t.data, offset: t.offset, Shape: newshape, Strides: newstrides}, nil
+}
