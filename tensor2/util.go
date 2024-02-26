@@ -23,10 +23,10 @@ func all(v, length int) []int {
 	return r
 }
 
-func seqf(from, to int) []float64 {
-	r := make([]float64, to-from)
-	for i := from; i < to; i++ {
-		r[i-from] = float64(i)
+func seq[T int | float64](from, to T) []T {
+	r := make([]T, int(to-from))
+	for i := from; i < to; i += 1 {
+		r[int(i-from)] = i
 	}
 	return r
 }

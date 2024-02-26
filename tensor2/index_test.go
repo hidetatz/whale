@@ -62,31 +62,31 @@ func TestIndex(t *testing.T) {
 		},
 		{
 			name:     "containing 0 in stride 1",
-			tensor:   &Tensor{data: seqf(1, 25), Shape: []int{2, 2, 3, 4}, Strides: []int{0, 12, 4, 1}},
+			tensor:   &Tensor{data: seq[float64](1, 25), Shape: []int{2, 2, 3, 4}, Strides: []int{0, 12, 4, 1}},
 			indices:  []int{0},
-			expected: MustNdShape(seqf(1, 25), 2, 3, 4),
+			expected: MustNdShape(seq[float64](1, 25), 2, 3, 4),
 		},
 		{
 			name:     "containing 0 in stride 2",
-			tensor:   &Tensor{data: seqf(1, 25), Shape: []int{2, 2, 3, 4}, Strides: []int{0, 12, 4, 1}},
+			tensor:   &Tensor{data: seq[float64](1, 25), Shape: []int{2, 2, 3, 4}, Strides: []int{0, 12, 4, 1}},
 			indices:  []int{1},
-			expected: MustNdShape(seqf(1, 25), 2, 3, 4),
+			expected: MustNdShape(seq[float64](1, 25), 2, 3, 4),
 		},
 		{
 			name:     "containing 0 in stride 3",
-			tensor:   &Tensor{data: seqf(1, 25), Shape: []int{2, 2, 3, 4}, Strides: []int{0, 12, 4, 1}},
+			tensor:   &Tensor{data: seq[float64](1, 25), Shape: []int{2, 2, 3, 4}, Strides: []int{0, 12, 4, 1}},
 			indices:  []int{1, 1},
-			expected: MustNdShape(seqf(13, 25), 3, 4),
+			expected: MustNdShape(seq[float64](13, 25), 3, 4),
 		},
 		{
 			name:     "containing 0 in stride 4",
-			tensor:   &Tensor{data: seqf(1, 25), Shape: []int{2, 2, 3, 4}, Strides: []int{0, 12, 4, 1}},
+			tensor:   &Tensor{data: seq[float64](1, 25), Shape: []int{2, 2, 3, 4}, Strides: []int{0, 12, 4, 1}},
 			indices:  []int{1, 1, 2},
-			expected: MustNdShape(seqf(21, 25), 4),
+			expected: MustNdShape(seq[float64](21, 25), 4),
 		},
 		{
 			name:     "containing 0 in stride 5",
-			tensor:   &Tensor{data: seqf(1, 25), Shape: []int{2, 2, 3, 4}, Strides: []int{0, 12, 4, 1}},
+			tensor:   &Tensor{data: seq[float64](1, 25), Shape: []int{2, 2, 3, 4}, Strides: []int{0, 12, 4, 1}},
 			indices:  []int{1, 1, 2, 3},
 			expected: Scalar(24),
 		},
@@ -104,19 +104,19 @@ func TestIndex(t *testing.T) {
 }
 
 func TestIndex_Complicated(t *testing.T) {
-	tensor := MustNdShape(seqf(1, 121), 2, 3, 4, 5)
+	tensor := MustNdShape(seq[float64](1, 121), 2, 3, 4, 5)
 
 	tensor2, err := tensor.Index(0)
 	checkErr(t, false, err)
-	mustEq(t, MustNdShape(seqf(1, 61), 3, 4, 5), tensor2)
+	mustEq(t, MustNdShape(seq[float64](1, 61), 3, 4, 5), tensor2)
 
 	tensor3, err := tensor2.Index(2)
 	checkErr(t, false, err)
-	mustEq(t, MustNdShape(seqf(41, 61), 4, 5), tensor3)
+	mustEq(t, MustNdShape(seq[float64](41, 61), 4, 5), tensor3)
 
 	tensor4, err := tensor3.Index(1)
 	checkErr(t, false, err)
-	mustEq(t, Vector(seqf(46, 51)), tensor4)
+	mustEq(t, Vector(seq[float64](46, 51)), tensor4)
 
 	tensor5, err := tensor4.Index(4)
 	checkErr(t, false, err)
