@@ -201,62 +201,62 @@ func TestSqueeze(t *testing.T) {
 	tests := []struct {
 		name      string
 		tensor    *Tensor
-		args      []int
+		shape     []int
 		expectErr bool
 		expected  *Tensor
 	}{
 		{
 			name:     "2d 1",
 			tensor:   Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
-			args:     []int{},
+			shape:    []int{},
 			expected: Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
 		},
 		{
 			name:     "3d 1",
 			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 2, 3)),
-			args:     []int{},
+			shape:    []int{},
 			expected: Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
 		},
 		{
 			name:     "3d 2",
 			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
-			args:     []int{},
+			shape:    []int{},
 			expected: ArangeVec(0, 6, 1),
 		},
 		{
 			name:     "3d 3",
 			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
-			args:     []int{0},
+			shape:    []int{0},
 			expected: Must(ArangeVec(0, 6, 1).Reshape(6, 1)),
 		},
 		{
 			name:     "3d 4",
 			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
-			args:     []int{2},
+			shape:    []int{2},
 			expected: Must(ArangeVec(0, 6, 1).Reshape(1, 6)),
 		},
 		{
 			name:     "3d 5",
 			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
-			args:     []int{0, 2},
+			shape:    []int{0, 2},
 			expected: ArangeVec(0, 6, 1),
 		},
 		{
 			name:     "3d 6",
 			tensor:   Must(Scalar(3).Reshape(1, 1, 1)),
-			args:     []int{0, 2},
+			shape:    []int{0, 2},
 			expected: Vector([]float64{3}),
 		},
 		{
 			name:     "3d 6",
 			tensor:   Must(Scalar(3).Reshape(1, 1, 1)),
-			args:     []int{0, 2, 1},
+			shape:    []int{0, 2, 1},
 			expected: Scalar(3),
 		},
 		{
 			name:     "offset non-0",
 			tensor:   Must(Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)).Slice(All(), FromTo(2, 5), All())),
-			args:     []int{},
+			shape:    []int{},
 			expected: ArangeVec(2, 5, 1),
 		},
 	}
@@ -265,7 +265,91 @@ func TestSqueeze(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := tc.tensor.Squeeze(tc.args...)
+			got, err := tc.tensor.Squeeze(tc.shape...)
+			checkErr(t, tc.expectErr, err)
+			mustEq(t, tc.expected, got)
+		})
+	}
+}
+
+func TestBroadcastTo(t *testing.T) {
+	tests := []struct {
+		name      string
+		tensor    *Tensor
+		shape     []int
+		expectErr bool
+		expected  *Tensor
+	}{
+		{
+			name:     "scalar",
+			tensor:   Scalar(3),
+			shape:    []int{3},
+			expected: Vector([]float64{3, 3, 3}),
+		},
+		{
+			name:     "scalar 2",
+			tensor:   Scalar(3),
+			shape:    []int{3, 4},
+			expected: Full(3, 3, 4),
+		},
+		{
+			name:      "vector 1",
+			tensor:    Vector([]float64{1, 2, 3}),
+			shape:     []int{4},
+			expectErr: true,
+		},
+		{
+			name:     "vector 2",
+			tensor:   Vector([]float64{1, 2, 3}),
+			shape:    []int{3, 3},
+			expected: Must(Vector([]float64{1, 2, 3, 1, 2, 3, 1, 2, 3}).Reshape(3, 3)),
+		},
+		{
+			name:     "2d 1",
+			tensor:   Must(ArangeVec(1, 7, 1).Reshape(2, 3)),
+			shape:    []int{2, 2, 3},
+			expected: Must(Vector([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 3)),
+		},
+		{
+			name:      "2d err1",
+			tensor:    Must(ArangeVec(1, 7, 1).Reshape(2, 3)),
+			shape:     []int{2, 4, 3},
+			expectErr: true,
+		},
+		{
+			name:     "2d 2",
+			tensor:   Must(ArangeVec(1, 7, 1).Reshape(1, 6)),
+			shape:    []int{2, 2, 6},
+			expected: Must(Vector([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 6)),
+		},
+		{
+			name:      "2d err",
+			tensor:    Must(ArangeVec(1, 7, 1).Reshape(1, 6)),
+			shape:     []int{2, 2, 12},
+			expectErr: true,
+		},
+		{
+			name:   "indexed",
+			tensor: Must(Must(ArangeVec(0, 24, 1).Reshape(2, 1, 12)).Index(1)),
+			shape:  []int{2, 2, 12},
+			expected: Must(New([][][]float64{
+				{
+					{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+					{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+				},
+				{
+					{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+					{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
+				},
+			})),
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := tc.tensor.BroadcastTo(tc.shape...)
 			checkErr(t, tc.expectErr, err)
 			mustEq(t, tc.expected, got)
 		})

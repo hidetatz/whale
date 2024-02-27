@@ -90,3 +90,33 @@ func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
 
 	return &Tensor{data: t.data, offset: t.offset, Shape: newshape, Strides: newstrides}, nil
 }
+
+func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
+	// validation
+	if len(t.Shape) > len(shape) {
+		return nil, fmt.Errorf("invalid desired shape")
+	}
+
+	// initialized with 0
+	delta := len(shape) - len(t.Shape)
+	newstrides := make([]int, len(shape))
+	for i := t.Ndim() - 1; 0 <= i; i-- {
+		if shape[delta+i] == t.Shape[i] && t.Shape[i] == 1 {
+			newstrides[delta+i] = 0
+			continue
+		}
+
+		if shape[delta+i] == t.Shape[i] && t.Shape[i] != 1 {
+			newstrides[delta+i] = t.Strides[i]
+			continue
+		}
+
+		if t.Shape[i] != 1 {
+			return nil, fmt.Errorf("cannot broadcast: original shape is %v, target is %v", t.Shape, shape)
+		}
+
+		newstrides[delta+i] = 0
+	}
+
+	return &Tensor{data: t.data, offset: t.offset, Shape: shape, Strides: newstrides}, nil
+}
