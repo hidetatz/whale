@@ -43,7 +43,7 @@ func (t *Tensor) IsVector() bool {
 }
 
 func (t *Tensor) AsVector() []float64 {
-	indices := cartesian(t.Shape)
+	indices := cartesianIdx(t.Shape)
 	result := make([]float64, t.Shape[0])
 	for i, index := range indices {
 		f := Must(t.Index(index...))
@@ -72,7 +72,7 @@ func (t *Tensor) Flatten() []float64 {
 		return []float64{t.AsScalar()}
 	}
 
-	indices := cartesian(t.Shape)
+	indices := cartesianIdx(t.Shape)
 	result := make([]float64, len(indices))
 	for i, index := range indices {
 		s, err := t.Index(index...)
@@ -110,7 +110,7 @@ func (t *Tensor) String() string {
 
 		// at last, print actual values
 		if len(index) == len(t.Shape)-1 {
-			data := Must(t.Index(index...)).Flatten()
+			data := Must(t.Index(intsToIndices(index)...)).Flatten()
 			sb.WriteString(
 				fmt.Sprintf("%s%v\n", indent, strings.Join(strings.Fields(fmt.Sprint(data)), ", ")),
 			)

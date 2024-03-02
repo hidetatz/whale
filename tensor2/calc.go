@@ -48,16 +48,16 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	// create slices. Let's say shape is [2, 3, 4], axes is [0, 2],
 	// result will be
 	// [[0, :, 0], [0, :, 1], [0, :, 2], [0, :, 3], [1, :, 0], [1, :, 1], [1, :, 2], [1, :, 3]]
-	ss := [][]*Slice{}
-	template := make([]*Slice, t.Ndim())
+	ss := [][]*IndexArg{}
+	template := make([]*IndexArg, t.Ndim())
 	for i := range template {
 		template[i] = All()
 	}
 
-	var gen func(int, []*Slice)
-	gen = func(index int, current []*Slice) {
+	var gen func(int, []*IndexArg)
+	gen = func(index int, current []*IndexArg) {
 		if index == len(axes) {
-			ss = append(ss, append([]*Slice(nil), current...))
+			ss = append(ss, append([]*IndexArg(nil), current...))
 			return
 		}
 
@@ -72,7 +72,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	// extract each slice and sum them
 	data := make([]float64, t.Size()/len(ss))
 	for _, s := range ss {
-		t2, err := t.Slice(s...)
+		t2, err := t.Index(s...)
 		if err != nil {
 			panic(err)
 		}

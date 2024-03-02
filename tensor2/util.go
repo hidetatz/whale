@@ -66,6 +66,23 @@ func cartesian(a []int) [][]int {
 	return result
 }
 
+func cartesianIdx(a []int) [][]*IndexArg {
+	c := cartesian(a)
+	args := make([][]*IndexArg, len(c))
+	for i := range c {
+		args[i] = intsToIndices(c[i])
+	}
+	return args
+}
+
+func intsToIndices(ints []int) []*IndexArg {
+	arg := make([]*IndexArg, len(ints))
+	for i := range ints {
+		arg[i] = At(ints[i])
+	}
+	return arg
+}
+
 func Must[T any](obj T, err error) T {
 	if err != nil {
 		panic(err)

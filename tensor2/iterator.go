@@ -3,13 +3,13 @@ package tensor2
 import "fmt"
 
 type Iterator struct {
-	indices [][]int
+	indices [][]*IndexArg
 	offset  int
 	t       *Tensor
 }
 
 func (t *Tensor) Iterator() *Iterator {
-	return &Iterator{indices: cartesian(t.Shape), offset: 0, t: t}
+	return &Iterator{indices: cartesianIdx(t.Shape), offset: 0, t: t}
 }
 
 func (i *Iterator) HasNext() bool {
