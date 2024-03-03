@@ -8,9 +8,9 @@ import (
 
 func main() {
 	t := tensor2.Must(tensor2.ArangeVec(1, 25, 1).Reshape(2, 3, 4))
-	s, err := t.Sum(true)
+	t2, err := t.Index(tensor2.At(0))
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(s)
+	fmt.Println(t2)
 }

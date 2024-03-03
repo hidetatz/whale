@@ -44,7 +44,7 @@ func TestReshape(t *testing.T) {
 		},
 		{
 			name:     "vector after indexed",
-			tensor:   Must(MustNdShape([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(0)),
+			tensor:   Must(MustNdShape([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(At(0))),
 			shape:    []int{2, 1},
 			expected: MustNdShape([]float64{1, 2}, 2, 1),
 		},
@@ -255,7 +255,7 @@ func TestSqueeze(t *testing.T) {
 		},
 		{
 			name:     "offset non-0",
-			tensor:   Must(Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)).Slice(All(), FromTo(2, 5), All())),
+			tensor:   Must(Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)).Index(All(), FromTo(2, 5), All())),
 			axes:     []int{},
 			expected: ArangeVec(2, 5, 1),
 		},
@@ -330,7 +330,7 @@ func TestBroadcastTo(t *testing.T) {
 		},
 		{
 			name:   "indexed",
-			tensor: Must(Must(ArangeVec(0, 24, 1).Reshape(2, 1, 12)).Index(1)),
+			tensor: Must(Must(ArangeVec(0, 24, 1).Reshape(2, 1, 12)).Index(At(1))),
 			shape:  []int{2, 2, 12},
 			expected: Must(New([][][]float64{
 				{

@@ -1,133 +1,95 @@
 package tensor2
 
-// Index returns t[indices[0], indices[1], indices[2]...].
-// The returned tensor might be sharing the actual data with t,
-// so modifiyig it might cause some unexpected side effect.
-// func (t *Tensor) Index(indices ...int) (*Tensor, error) {
-// 	// validations
-// 	if t.IsScalar() {
-// 		return nil, fmt.Errorf("index is not defined on scalar %v", t)
-// 	}
-//
-// 	if len(indices) == 0 {
-// 		return nil, fmt.Errorf("empty index is not allowed")
-// 	}
-//
-// 	if len(t.Shape) < len(indices) {
-// 		return nil, fmt.Errorf("too many index specified: %v", indices)
-// 	}
-//
-// 	for i, idx := range indices {
-// 		if idx < 0 || t.Shape[i]-1 < idx {
-// 			return nil, fmt.Errorf("index %v is out of bounds for axis %v with size %v", idx, i, t.Shape[i])
-// 		}
-// 	}
-//
-// 	offset := t.offset
-// 	for i, idx := range indices {
-// 		if idx < 0 || t.Shape[i]-1 < idx {
-// 			return nil, fmt.Errorf("index %v is out of bounds for axis %v with size %v", idx, i, t.Shape[i])
-// 		}
-//
-// 		offset += t.Strides[i] * idx
-// 	}
-//
-// 	// If len(shape) == len(indices), the single value is picked up and returned as scalar.
-// 	// In this case the data is copied.
-// 	if len(t.Shape) == len(indices) {
-// 		return Scalar(t.data[offset]), nil
-// 	}
-//
-// 	// Else, the shared tensor is returned.
-// 	return &Tensor{data: t.data, offset: offset, Shape: t.Shape[len(indices):], Strides: t.Strides[len(indices):]}, nil
-// }
+import (
+	"fmt"
+	"slices"
+)
 
-//	func (t *Tensor) ListIndex(indices [][]int) (*Tensor, error) {
-//		// validations
-//		if t.IsScalar() {
-//			return nil, fmt.Errorf("ListIndex is not defined on scalar %v", t)
-//		}
-//
-//		if len(indices) == 0 {
-//			return nil, fmt.Errorf("empty index is not allowed")
-//		}
-//
-//		if len(t.Shape) < len(indices) {
-//			return nil, fmt.Errorf("too many index specified: %v", indices)
-//		}
-//
-//		// try broadcast each index
-//
-//		// check if broadcasting is possible
-//		size := -1
-//		for _, index := range indices {
-//			if len(index) == 1 {
-//				continue
-//			}
-//
-//			if size == -1 {
-//				size = len(index)
-//				continue
-//			}
-//
-//			if len(index) != size {
-//				return nil, fmt.Errorf("indexing arrays could not be broadcast together with shapes: (%v), (%v)", size, len(index))
-//			}
-//		}
-//
-//		// if all index length is 1, comes here.
-//		if size == -1 {
-//			size = 1
-//		}
-//
-//		// From numpy doc:
-//		//     In general, the shape of the resultant array will be
-//		//     the concatenation of the shape of the index array
-//		//     (or the shape that all the index arrays were broadcast to) with
-//		//     the shape of any unused dimensions (those not indexed) in the array being indexed.
-//		// https://numpy.org/doc/stable/user/basics.indexing.html#integer-array-indexing
-//		newshape := append([]int{size}, t.Shape[len(indices):]...)
-//
-//		// do actual broadcast
-//		for i, index := range indices {
-//			if len(index) == 1 {
-//				ni := make([]int, size)
-//				for j := 0; j < size; j++ {
-//					ni[j] = index[0]
-//				}
-//				indices[i] = ni
-//			}
-//		}
-//
-//		accessors := make([][]int, size)
-//		for i := range size {
-//			a := make([]int, len(indices))
-//			for j := 0; j < len(indices); j++ {
-//				a[j] = indices[j][i]
-//			}
-//			accessors[i] = a
-//		}
-//
-//		data := []float64{}
-//		for _, accessor := range accessors {
-//			nt, err := t.Index(accessor...)
-//			if err != nil {
-//				return nil, err
-//			}
-//			data = append(data, nt.Flatten()...)
-//		}
-//
-//		return NdShape(data, newshape...)
-//	}
-func (t *Tensor) Bool(f func(f float64) bool) *Tensor {
-	c := t.Copy()
-	for i := range c.data {
-		if f(c.data[i]) {
-			c.data[i] = 1
-		} else {
-			c.data[i] = 0
+func (t *Tensor) Index(args ...*IndexArg) (*Tensor, error) {
+	if t.IsScalar() {
+		return nil, fmt.Errorf("index is not defined on scalar %v", t)
+	}
+
+	if len(args) == 0 {
+		return nil, fmt.Errorf("index accessor must not be empty")
+	}
+
+	if t.Ndim() < len(args) {
+		return nil, fmt.Errorf("too many index accessors specified: %v", args)
+	}
+
+	// fill args to be the same length as ndim
+	if len(args) < t.Ndim() {
+		for _ = range t.Ndim() - len(args) {
+			args = append(args, All())
 		}
 	}
 
-	return c
+	// if argument contains at least 1 tensor, advanced indexing will be applied.
+	advanced := slices.ContainsFunc(args, func(arg *IndexArg) bool { return arg.typ == _tensor })
+
+	if advanced {
+		return t.advancedIndex(args...)
+	}
+
+	return t.basicIndex(args...)
+}
+
+func (t *Tensor) basicIndex(args ...*IndexArg) (*Tensor, error) {
+	newshape := make([]int, len(t.Shape))
+	newstrides := make([]int, len(t.Strides))
+	offset := t.offset
+	for i, arg := range args {
+		if arg.typ == _int {
+			if t.Shape[i]-1 < arg.i {
+				return nil, fmt.Errorf("index out of bounds for axis %v with size %v", i, t.Shape[i])
+			}
+
+			offset += arg.i * t.Strides[i]
+			newshape[i] = -1   // dummy value
+			newstrides[i] = -1 // dummy value
+			continue
+		}
+
+		// coming here means the arg type is slice
+
+		if arg.s.step == 0 {
+			return nil, fmt.Errorf("slice step must not be 0: %v", arg)
+		}
+
+		// Unlike Python, negative values are not allowed.
+		if arg.s.step < 0 {
+			arg.s.step = 1
+		}
+
+		if arg.s.start < 0 {
+			arg.s.start = 0
+		}
+
+		if arg.s.end < 0 || t.Shape[i] < arg.s.end {
+			arg.s.end = t.Shape[i]
+		}
+
+		if t.Shape[i] < arg.s.start || arg.s.end < arg.s.start {
+			newshape[i] = 0
+		} else {
+			newshape[i] = (arg.s.end - arg.s.start + arg.s.step - 1) / arg.s.step
+		}
+
+		newstrides[i] = t.Strides[i] * arg.s.step
+
+		if newshape[i] != 0 {
+			offset += arg.s.start * t.Strides[i]
+		}
+	}
+
+	deldummy := func(n int) bool { return n == -1 }
+	newshape = slices.DeleteFunc(newshape, deldummy)
+	newstrides = slices.DeleteFunc(newstrides, deldummy)
+
+	return &Tensor{data: t.data, offset: offset, Shape: newshape, Strides: newstrides}, nil
+}
+
+func (t *Tensor) advancedIndex(args ...*IndexArg) (*Tensor, error) {
+	panic("advancedIndex is unimplemented")
 }
