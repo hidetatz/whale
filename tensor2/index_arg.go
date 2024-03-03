@@ -1,5 +1,7 @@
 package tensor2
 
+import "fmt"
+
 type slice struct {
 	start, end, step int
 }
