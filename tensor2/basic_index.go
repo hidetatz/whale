@@ -78,3 +78,17 @@ func (t *Tensor) basicIndex(args ...*IndexArg) (*Tensor, error) {
 
 	return &Tensor{data: t.data, offset: offset, Shape: newshape, Strides: newstrides}, nil
 }
+
+func (t *Tensor) basicIndexUpdate(fn func(float64) float64, args ...*IndexArg) error {
+	t2, err := t.basicIndex(args...)
+	if err != nil {
+		return err
+	}
+
+	for _, idx := range t2.rawIndices() {
+		fmt.Println(fn(t.data[idx]))
+		t.data[idx] = fn(t.data[idx])
+	}
+
+	return nil
+}

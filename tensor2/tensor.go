@@ -66,6 +66,23 @@ func (t *Tensor) Copy() *Tensor {
 	return &Tensor{data: ndata, offset: t.offset, Shape: nshape, Strides: nstrides}
 }
 
+func (t *Tensor) rawIndices() []int {
+	if t.IsScalar() {
+		return []int{t.offset}
+	}
+
+	result := make([]int, t.Size())
+	indices := cartesian(t.Shape)
+	for i, index := range indices {
+		r := 0
+		for j := range index {
+			r += t.offset + index[j]*t.Strides[j]
+		}
+		result[i] = r
+	}
+	return result
+}
+
 // Flatten returns flattend 1-D array.
 func (t *Tensor) Flatten() []float64 {
 	if t.IsScalar() {
