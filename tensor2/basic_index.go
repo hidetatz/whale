@@ -42,27 +42,14 @@ func (t *Tensor) basicIndex(args ...*IndexArg) (*Tensor, error) {
 
 		// coming here means the arg type is slice
 
-		if arg.s.step == 0 {
-			return nil, fmt.Errorf("slice step must not be 0: %v", arg)
-		}
-
-		// Unlike Python, negative values are not allowed.
-		if arg.s.step < 0 {
-			arg.s.step = 1
-		}
-
-		if arg.s.start < 0 {
-			arg.s.start = 0
-		}
-
-		if arg.s.end < 0 || t.Shape[i] < arg.s.end {
-			arg.s.end = t.Shape[i]
+		if err := arg.s.tidy(t.Shape[i]); err != nil {
+			return nil, err
 		}
 
 		if t.Shape[i] < arg.s.start || arg.s.end < arg.s.start {
 			newshape[i] = 0
 		} else {
-			newshape[i] = (arg.s.end - arg.s.start + arg.s.step - 1) / arg.s.step
+			newshape[i] = arg.s.size()
 		}
 
 		newstrides[i] = t.Strides[i] * arg.s.step

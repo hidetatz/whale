@@ -6,6 +6,39 @@ type slice struct {
 	start, end, step int
 }
 
+func (s *slice) tidy(dimlen int) error {
+	if s.step == 0 {
+		return fmt.Errorf("slice step must not be 0: %v", s)
+	}
+
+	// Unlike Python, negative values are not allowed.
+	if s.step < 0 {
+		s.step = 1
+	}
+
+	if s.start < 0 {
+		s.start = 0
+	}
+
+	if s.end < 0 || dimlen < s.end {
+		s.end = dimlen
+	}
+
+	return nil
+}
+
+func (s *slice) size() int {
+	return (s.end - s.start + s.step - 1) / s.step
+}
+
+func (s *slice) indices() []int {
+	r := make([]int, s.size())
+	for i := range r {
+		r[i] = s.start + i*s.step
+	}
+	return r
+}
+
 func (s *slice) String() string {
 	r := ""
 

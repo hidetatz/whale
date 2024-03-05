@@ -1,11 +1,5 @@
 package main
 
-import (
-	"fmt"
-
-	"github.com/hidetatz/whale/tensor2"
-)
-
 func main() {
 	// t := tensor2.Must(tensor2.ArangeVec(1, 25, 1).Reshape(2, 3, 4))
 	// t2 := tensor2.Must(t.Index(tensor2.At(1)))
@@ -17,14 +11,15 @@ func main() {
 	// }
 	// fmt.Println(t2)
 
-	tensor, err := tensor2.New([][]float64{{1, 2}, {3, 4}})
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(tensor.Raw())
-	err = tensor.IndexSub(2, tensor2.At(0))
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(tensor)
+	// tensor, err := tensor2.New([][]float64{{1, 2}, {3, 4}})
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// t2, err := tensor.Index(tensor2.List(tensor2.Must(tensor2.New([][]float64{{0, 0}, {0, 0}}))))
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// fmt.Println(t2)
 }

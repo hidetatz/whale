@@ -1,6 +1,7 @@
 package tensor2
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 )
@@ -89,6 +90,59 @@ func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
 	}
 
 	return &Tensor{data: t.data, offset: t.offset, Shape: newshape, Strides: newstrides}, nil
+}
+
+func CanBroadcast(tensors []*Tensor) ([]int, error) {
+	// just for error message...
+	origshapes := make([][]int, len(tensors))
+
+	shapes := make([][]int, len(tensors))
+	for i, t := range tensors {
+		origshapes[i] = copySlice(t.Shape)
+		shapes[i] = copySlice(t.Shape)
+	}
+
+	longest := slices.MaxFunc(shapes, func(a, b []int) int { return cmp.Compare(len(a), len(b)) })
+
+	// unify the shape length by pushing 1 front
+	for _, shape := range shapes {
+		shape = slices.Concat(all(1, len(longest)-len(shape)), shape)
+	}
+
+	newshape := make([]int, len(longest))
+	for i := 0; i < len(longest); i++ {
+		// lengths will contains i-dimension length for each shapes
+		lengths := make([]int, len(shapes))
+		for j, shape := range shapes {
+			lengths[j] = shape[i]
+		}
+
+		l := 0
+		for _, length := range lengths {
+			if length == 1 {
+				continue
+			}
+
+			if l == 0 {
+				l = length
+				continue
+			}
+
+			if l != length {
+				return nil, fmt.Errorf("cannot broadcast tensors with shapes: %v", origshapes)
+			}
+		}
+
+		if l == 0 {
+			// when all length is 1, comes here.
+			l = 1
+		}
+
+		// i-dim is broadcastable.
+		newshape[i] = l
+	}
+
+	return newshape, nil
 }
 
 func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {

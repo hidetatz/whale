@@ -23,6 +23,14 @@ func all(v, length int) []int {
 	return r
 }
 
+func toint(fs []float64) []int {
+	r := make([]int, len(fs))
+	for i := range fs {
+		r[i] = int(fs[i])
+	}
+	return r
+}
+
 func seq[T int | float64](from, to T) []T {
 	r := make([]T, int(to-from))
 	for i := from; i < to; i += 1 {
@@ -31,8 +39,8 @@ func seq[T int | float64](from, to T) []T {
 	return r
 }
 
-// generates cartesian product of the given slice.
-// Let's say a is [2, 3, 2], returned will be:
+// generates cartesian product of the given slice of slice.
+// Let's say a is [[0, 1], [0, 1, 2], [0, 1]], returned will be:
 // [
 //
 //	[0, 0, 0], [0, 0, 1], [0, 1, 0], [0, 1, 1], [0, 2, 0], [0, 2, 1],
@@ -41,29 +49,53 @@ func seq[T int | float64](from, to T) []T {
 // ]
 // If a is empty, empty list will be returned.
 // If a contains a 0, empty list will be returned.
-func cartesian(a []int) [][]int {
+func cartesians(a [][]int) [][]int {
 	if len(a) == 0 {
 		return [][]int{}
 	}
 
 	var result [][]int
 	var current []int
-	var generate func(int)
-	generate = func(pos int) {
+	var f func(int)
+	f = func(pos int) {
 		if pos == len(a) {
 			temp := make([]int, len(current))
 			copy(temp, current)
 			result = append(result, temp)
 			return
 		}
-		for i := range a[pos] {
-			current = append(current, i)
-			generate(pos + 1)
+		for _, n := range a[pos] {
+			current = append(current, n)
+			f(pos + 1)
 			current = current[:len(current)-1]
 		}
 	}
-	generate(0)
+	f(0)
 	return result
+}
+
+func cartesiansIdx(a [][]int) [][]*IndexArg {
+	c := cartesians(a)
+	args := make([][]*IndexArg, len(c))
+	for i := range c {
+		args[i] = intsToIndices(c[i])
+	}
+	return args
+}
+
+// creates cartesian product, but regards given a as
+// index slice. For example, if a is [2, 3, 2],
+// this function actually returns cartesians([[0, 1], [0, 1, 2], [0, 1]]).
+func cartesian(a []int) [][]int {
+	arg := make([][]int, len(a))
+	for i, n := range a {
+		s := make([]int, n)
+		for j := range n {
+			s[j] = j
+		}
+		arg[i] = s
+	}
+	return cartesians(arg)
 }
 
 func cartesianIdx(a []int) [][]*IndexArg {

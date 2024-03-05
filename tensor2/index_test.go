@@ -127,7 +127,7 @@ func TestIndexWrite(t *testing.T) {
 	tensor = Must(New([][]float64{{1, 2}, {3, 4}}))
 	tensor.IndexDiv(2, At(0))
 	mustEq(t, Must(New([][]float64{{0.5, 1}, {3, 4}})), tensor)
-	
+
 	// Set
 	tensor = Must(New([][]float64{{1, 2}, {3, 4}}))
 	tensor.IndexSet(2, At(0))
