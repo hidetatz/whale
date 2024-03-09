@@ -73,7 +73,6 @@ func (t *Tensor) basicIndexUpdate(fn func(float64) float64, args ...*IndexArg) e
 	}
 
 	for _, idx := range t2.rawIndices() {
-		fmt.Println(fn(t.data[idx]))
 		t.data[idx] = fn(t.data[idx])
 	}
 
