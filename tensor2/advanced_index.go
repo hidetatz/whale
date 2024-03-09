@@ -1,6 +1,8 @@
 package tensor2
 
-import "slices"
+import (
+	"slices"
+)
 
 func (t *Tensor) advancedIndex(args ...*IndexArg) (*Tensor, error) {
 	/*
@@ -23,7 +25,7 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*Tensor, error) {
 		return nil, err
 	}
 
-	newshape := append(broadcastedshape, t.Shape[len(args):]...)
+	var newshape []int
 
 	if !slices.ContainsFunc(args, func(a *IndexArg) bool { return a.typ == _slice }) {
 		// if there's no slice in args, the shape follows advanced indexing rule:
@@ -31,6 +33,7 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*Tensor, error) {
 		//     the index array (or the shape that all the index arrays were broadcast to)
 		//     with the shape of any unused dimensions (those not indexed) in the array being indexed.
 		//     (https://numpy.org/doc/stable/user/basics.indexing.html#advanced-indexing)
+		newshape = append(broadcastedshape, t.Shape[len(args):]...)
 	} else {
 		// else, this is advanced and basic "mixed" indexing.
 		// https://numpy.org/doc/stable/user/basics.indexing.html#combining-advanced-and-basic-indexing
@@ -59,12 +62,14 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*Tensor, error) {
 		}
 
 		if separated {
+			newshape = broadcastedshape
 			for _, arg := range args {
 				if arg.typ != _slice {
 					continue
 				}
 				newshape = append(newshape, arg.s.size())
 			}
+			newshape = append(newshape, t.Shape[len(args):]...)
 		} else {
 			var tensorstart int
 			for i := 0; i < len(args); i++ {
