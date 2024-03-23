@@ -6,18 +6,6 @@ import (
 )
 
 func (t *Tensor) basicIndex(args ...*IndexArg) (*Tensor, error) {
-	if t.IsScalar() {
-		return nil, fmt.Errorf("index is not defined on scalar %v", t)
-	}
-
-	if len(args) == 0 {
-		return nil, fmt.Errorf("index accessor must not be empty")
-	}
-
-	if t.Ndim() < len(args) {
-		return nil, fmt.Errorf("too many index accessors specified: %v", args)
-	}
-
 	// fill args to be the same length as ndim
 	if len(args) < t.Ndim() {
 		for _ = range t.Ndim() - len(args) {

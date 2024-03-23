@@ -1,10 +1,23 @@
 package tensor2
 
 import (
+	"fmt"
 	"slices"
 )
 
 func (t *Tensor) Index(args ...*IndexArg) (*Tensor, error) {
+	if t.IsScalar() {
+		return nil, fmt.Errorf("index is not defined on scalar %v", t)
+	}
+
+	if len(args) == 0 {
+		return nil, fmt.Errorf("index accessor must not be empty")
+	}
+
+	if t.Ndim() < len(args) {
+		return nil, fmt.Errorf("too many index accessors specified: %v", args)
+	}
+
 	// if argument contains at least 1 tensor, advanced indexing will be applied.
 	advanced := slices.ContainsFunc(args, func(arg *IndexArg) bool { return arg.typ == _tensor })
 
@@ -16,6 +29,18 @@ func (t *Tensor) Index(args ...*IndexArg) (*Tensor, error) {
 }
 
 func (t *Tensor) IndexUpdate(fn func(float64) float64, args ...*IndexArg) error {
+	if t.IsScalar() {
+		return fmt.Errorf("index is not defined on scalar %v", t)
+	}
+
+	if len(args) == 0 {
+		return fmt.Errorf("index accessor must not be empty")
+	}
+
+	if t.Ndim() < len(args) {
+		return fmt.Errorf("too many index accessors specified: %v", args)
+	}
+
 	// if argument contains at least 1 tensor, advanced indexing will be applied.
 	advanced := slices.ContainsFunc(args, func(arg *IndexArg) bool { return arg.typ == _tensor })
 

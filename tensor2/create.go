@@ -103,6 +103,8 @@ func New(arr any) (*Tensor, error) {
 	return NdShape(data, shape...)
 }
 
+func MustNew(arr any) *Tensor { return Must(New(arr)) }
+
 // Rand creates a tensor by the given shape with randomized value [0.0, 1.0).
 func Rand(shape ...int) *Tensor {
 	data := make([]float64, product(shape))

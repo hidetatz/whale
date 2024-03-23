@@ -2,7 +2,7 @@ package tensor2
 
 import "testing"
 
-func TestbasicIndex(t *testing.T) {
+func Test_basicIndex(t *testing.T) {
 	tests := []struct {
 		name      string
 		tensor    *Tensor

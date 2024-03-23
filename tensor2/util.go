@@ -15,6 +15,14 @@ func copySlice(s []int) []int {
 	return c
 }
 
+func copyArgs(a []*IndexArg) []*IndexArg {
+	c := make([]*IndexArg, len(a))
+	for i := range a {
+		c[i] = a[i].Copy()
+	}
+	return c
+}
+
 func all(v, length int) []int {
 	r := make([]int, length)
 	for i := range length {

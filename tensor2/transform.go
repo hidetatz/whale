@@ -105,8 +105,8 @@ func CanBroadcast(tensors []*Tensor) ([]int, error) {
 	longest := slices.MaxFunc(shapes, func(a, b []int) int { return cmp.Compare(len(a), len(b)) })
 
 	// unify the shape length by pushing 1 front
-	for _, shape := range shapes {
-		shape = slices.Concat(all(1, len(longest)-len(shape)), shape)
+	for i, shape := range shapes {
+		shapes[i] = slices.Concat(all(1, len(longest)-len(shape)), shape)
 	}
 
 	newshape := make([]int, len(longest))

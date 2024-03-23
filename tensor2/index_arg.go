@@ -56,6 +56,10 @@ func (s *slice) String() string {
 	return r
 }
 
+func (s *slice) Copy() *slice {
+	return &slice{start: s.start, end: s.end, step: s.step}
+}
+
 type IndexArg struct {
 	i   int
 	s   *slice
@@ -99,14 +103,23 @@ func All() *IndexArg { return &IndexArg{s: &slice{start: -1, end: -1, step: -1},
 // List creates a tensor accessor like "x[[[1, 0], [2, 3]]]" on a tensor "New([][]float64{{1, 0}, {2, 3}})"
 func List(t *Tensor) *IndexArg { return &IndexArg{t: t, typ: _tensor} }
 
-func (i *IndexArg) String() string {
-	switch i.typ {
+func (a *IndexArg) String() string {
+	switch a.typ {
 	case _int:
-		return fmt.Sprintf("%d", i.i)
+		return fmt.Sprintf("%d", a.i)
 	case _slice:
-		return fmt.Sprintf("%v", i.s)
+		return fmt.Sprintf("%v", a.s)
 	case _tensor:
-		return fmt.Sprintf("%v", i.t)
+		return fmt.Sprintf("%v", a.t)
 	}
-	panic(fmt.Sprintf("unknown typ in IndexArg: %v", i.typ))
+	panic(fmt.Sprintf("unknown typ in IndexArg: %v", a.typ))
+}
+
+func (a *IndexArg) Copy() *IndexArg {
+	return &IndexArg{
+		i:   a.i,
+		s:   a.s.Copy(),
+		t:   a.t.Copy(),
+		typ: a.typ,
+	}
 }
