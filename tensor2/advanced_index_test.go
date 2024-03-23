@@ -178,6 +178,40 @@ func Test_advancedIndex(t *testing.T) {
 				},
 			}),
 		},
+		{
+			name:   "separated2",
+			tensor: Must(Arange(0, 48, 1, 2, 3, 4, 2)),
+			args: []*IndexArg{
+				List(Scalar(1)),
+				FromTo(1, 2),
+				List(MustNew([][]float64{{0, 1, 0}, {1, 0, 1}})),
+			},
+			expected: MustNew([][][][]float64{
+				{
+
+					{
+						{32, 33},
+					},
+					{
+						{34, 35},
+					},
+					{
+						{32, 33},
+					},
+				},
+				{
+					{
+						{34, 35},
+					},
+					{
+						{32, 33},
+					},
+					{
+						{34, 35},
+					},
+				},
+			}),
+		},
 	}
 
 	for _, tc := range tests {
