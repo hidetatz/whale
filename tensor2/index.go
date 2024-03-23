@@ -28,45 +28,51 @@ func (t *Tensor) Index(args ...*IndexArg) (*Tensor, error) {
 	return t.basicIndex(args...)
 }
 
-func (t *Tensor) IndexUpdate(fn func(float64) float64, args ...*IndexArg) error {
-	if t.IsScalar() {
-		return fmt.Errorf("index is not defined on scalar %v", t)
+func (t *Tensor) basicIndex(args ...*IndexArg) (*Tensor, error) {
+	// fill args to be the same length as ndim
+	if len(args) < t.Ndim() {
+		for _ = range t.Ndim() - len(args) {
+			args = append(args, All())
+		}
 	}
 
-	if len(args) == 0 {
-		return fmt.Errorf("index accessor must not be empty")
+	newshape := make([]int, len(t.Shape))
+	newstrides := make([]int, len(t.Strides))
+	offset := t.offset
+	for i, arg := range args {
+		if arg.typ == _int {
+			if t.Shape[i]-1 < arg.i {
+				return nil, fmt.Errorf("index out of bounds for axis %v with size %v", i, t.Shape[i])
+			}
+
+			offset += arg.i * t.Strides[i]
+			newshape[i] = -1   // dummy value
+			newstrides[i] = -1 // dummy value
+			continue
+		}
+
+		// coming here means the arg type is slice
+
+		if err := arg.s.tidy(t.Shape[i]); err != nil {
+			return nil, err
+		}
+
+		if t.Shape[i] < arg.s.start || arg.s.end < arg.s.start {
+			newshape[i] = 0
+		} else {
+			newshape[i] = arg.s.size()
+		}
+
+		newstrides[i] = t.Strides[i] * arg.s.step
+
+		if newshape[i] != 0 {
+			offset += arg.s.start * t.Strides[i]
+		}
 	}
 
-	if t.Ndim() < len(args) {
-		return fmt.Errorf("too many index accessors specified: %v", args)
-	}
+	deldummy := func(n int) bool { return n == -1 }
+	newshape = slices.DeleteFunc(newshape, deldummy)
+	newstrides = slices.DeleteFunc(newstrides, deldummy)
 
-	// if argument contains at least 1 tensor, advanced indexing will be applied.
-	advanced := slices.ContainsFunc(args, func(arg *IndexArg) bool { return arg.typ == _tensor })
-
-	if advanced {
-		// return t.advancedIndex(args...)
-	}
-
-	return t.basicIndexUpdate(fn, args...)
-}
-
-func (t *Tensor) IndexSet(f float64, args ...*IndexArg) error {
-	return t.IndexUpdate(func(_ float64) float64 { return f }, args...)
-}
-
-func (t *Tensor) IndexAdd(f float64, args ...*IndexArg) error {
-	return t.IndexUpdate(func(f2 float64) float64 { return f2 + f }, args...)
-}
-
-func (t *Tensor) IndexSub(f float64, args ...*IndexArg) error {
-	return t.IndexUpdate(func(f2 float64) float64 { return f2 - f }, args...)
-}
-
-func (t *Tensor) IndexMul(f float64, args ...*IndexArg) error {
-	return t.IndexUpdate(func(f2 float64) float64 { return f2 * f }, args...)
-}
-
-func (t *Tensor) IndexDiv(f float64, args ...*IndexArg) error {
-	return t.IndexUpdate(func(f2 float64) float64 { return f2 / f }, args...)
+	return &Tensor{data: t.data, offset: offset, Shape: newshape, Strides: newstrides}, nil
 }
