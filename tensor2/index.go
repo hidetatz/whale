@@ -5,7 +5,27 @@ import (
 	"slices"
 )
 
+type indexResult struct {
+	t           *Tensor
+	origIndices []int
+}
+
+func (r *indexResult) String() string {
+	return fmt.Sprintf(`{
+  t: %v,
+  origIndices: %v
+}`, r.t, r.origIndices)
+}
+
 func (t *Tensor) Index(args ...*IndexArg) (*Tensor, error) {
+	r, err := t.index(args...)
+	if err != nil {
+		return nil, err
+	}
+	return r.t, nil
+}
+
+func (t *Tensor) index(args ...*IndexArg) (*indexResult, error) {
 	if t.IsScalar() {
 		return nil, fmt.Errorf("index is not defined on scalar %v", t)
 	}
@@ -28,7 +48,7 @@ func (t *Tensor) Index(args ...*IndexArg) (*Tensor, error) {
 	return t.basicIndex(args...)
 }
 
-func (t *Tensor) basicIndex(args ...*IndexArg) (*Tensor, error) {
+func (t *Tensor) basicIndex(args ...*IndexArg) (*indexResult, error) {
 	// fill args to be the same length as ndim
 	if len(args) < t.Ndim() {
 		for _ = range t.Ndim() - len(args) {
@@ -74,10 +94,26 @@ func (t *Tensor) basicIndex(args ...*IndexArg) (*Tensor, error) {
 	newshape = slices.DeleteFunc(newshape, deldummy)
 	newstrides = slices.DeleteFunc(newstrides, deldummy)
 
-	return &Tensor{data: t.data, offset: offset, Shape: newshape, Strides: newstrides}, nil
+	newtensor := &Tensor{data: t.data, offset: offset, Shape: newshape, Strides: newstrides}
+
+	var origIndices []int
+	if newtensor.IsScalar() {
+		origIndices = []int{offset}
+	} else {
+		indices := cartesian(newshape)
+		origIndices = make([]int, len(indices))
+		for i, index := range indices {
+			origIndices[i] = offset
+			for j, idx := range index {
+				origIndices[i] += idx * newstrides[j]
+			}
+		}
+	}
+
+	return &indexResult{t: newtensor, origIndices: origIndices}, nil
 }
 
-func (t *Tensor) advancedIndex(args ...*IndexArg) (*Tensor, error) {
+func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 	containslice := slices.ContainsFunc(args, func(a *IndexArg) bool { return a.typ == _slice })
 	if containslice {
 		return t.advancedAndBasicCombinedIndex(args...)
@@ -145,6 +181,7 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*Tensor, error) {
 	}
 
 	// do Index and copy values
+	var origIndices []int
 	var r []float64
 	for _, idx := range indices {
 		t2, err := t.Index(intsToIndices(idx)...)
@@ -152,12 +189,23 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*Tensor, error) {
 			return nil, err
 		}
 		r = append(r, t2.Flatten()...)
+
+		origIdx := 0
+		for i, id := range idx {
+			origIdx += id * t.Strides[i]
+		}
+		origIndices = append(origIndices, origIdx)
 	}
 
-	return NdShape(r, newshape...)
+	newtensor, err := NdShape(r, newshape...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &indexResult{t: newtensor, origIndices: origIndices}, nil
 }
 
-func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*Tensor, error) {
+func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult, error) {
 	/*
 	 * First, determine new shape.
 	 */
@@ -270,13 +318,25 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*Tensor, erro
 	}
 
 	var r []float64
+	var origIndices []int
 	for _, idx := range cartesians(indices) {
 		t2, err := t.Index(intsToIndices(idx)...)
 		if err != nil {
 			return nil, err
 		}
 		r = append(r, t2.Flatten()...)
+
+		origIdx := 0
+		for i, id := range idx {
+			origIdx += id * t.Strides[i]
+		}
+		origIndices = append(origIndices, origIdx)
 	}
 
-	return NdShape(r, newshape...)
+	newtensor, err := NdShape(r, newshape...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &indexResult{t: newtensor, origIndices: origIndices}, nil
 }
