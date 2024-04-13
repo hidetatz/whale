@@ -42,8 +42,6 @@ func (t *Tensor) indexPut(args []*IndexArg, fn func(orig, arg float64) float64, 
 		return err
 	}
 
-	fmt.Println(r)
-
 	tgt, err := target.BroadcastTo(r.t.Shape...)
 	if err != nil {
 		return fmt.Errorf("operands could not broadcast together with shapes %v, %v", target.Shape, r.t.Shape)

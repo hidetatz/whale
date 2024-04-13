@@ -108,6 +108,14 @@ func (t *Tensor) Flatten() []float64 {
 
 // String implements Stringer interface.
 func (t *Tensor) String() string {
+	return t.toString(true)
+}
+
+func (t *Tensor) onelineString() string {
+	return t.toString(false)
+}
+
+func (t *Tensor) toString(linebreak bool) string {
 	if t.IsScalar() {
 		return fmt.Sprintf("%v", t.AsScalar())
 	}
@@ -128,18 +136,30 @@ func (t *Tensor) String() string {
 		// at last, print actual values
 		if len(index) == len(t.Shape)-1 {
 			data := Must(t.Index(intsToIndices(index)...)).Flatten()
-			sb.WriteString(
-				fmt.Sprintf("%s%v\n", indent, strings.Join(strings.Fields(fmt.Sprint(data)), ", ")),
-			)
+			if linebreak {
+				sb.WriteString(fmt.Sprintf("%s%v\n", indent, strings.Join(strings.Fields(fmt.Sprint(data)), ", ")))
+			} else {
+				sb.WriteString(fmt.Sprintf("%v", strings.Join(strings.Fields(fmt.Sprint(data)), ", ")))
+			}
 			return
 		}
 
 		// else, print "[",  internal data, and "]" recursively
-		sb.WriteString(fmt.Sprintf("%s[\n", indent))
+		if linebreak {
+			sb.WriteString(fmt.Sprintf("%s[\n", indent))
+		} else {
+			sb.WriteString("[")
+		}
+
 		for i := range t.Shape[len(index)] {
 			w(append(index, i))
 		}
-		sb.WriteString(fmt.Sprintf("%s]\n", indent))
+
+		if linebreak {
+			sb.WriteString(fmt.Sprintf("%s]\n", indent))
+		} else {
+			sb.WriteString("]")
+		}
 	}
 
 	w([]int{})

@@ -115,6 +115,18 @@ func (a *IndexArg) String() string {
 	panic(fmt.Sprintf("unknown typ in IndexArg: %v", a.typ))
 }
 
+func (a *IndexArg) numpyIndexString() string {
+	switch a.typ {
+	case _int:
+		return fmt.Sprintf("%d", a.i)
+	case _slice:
+		return fmt.Sprintf("%v", a.s)
+	case _tensor:
+		return a.t.onelineString()
+	}
+	panic(fmt.Sprintf("unknown typ in IndexArg: %v", a.typ))
+}
+
 func (a *IndexArg) Copy() *IndexArg {
 	return &IndexArg{
 		i:   a.i,
