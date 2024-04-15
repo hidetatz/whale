@@ -1,6 +1,7 @@
 package tensor2
 
 import (
+	"os"
 	"os/exec"
 	"slices"
 	"strconv"
@@ -10,19 +11,33 @@ import (
 
 // the program must output target ndarray data and shape.
 // e.g. "print(y.flatten(), y.shape)"
-func runAsNumpyDataAndShape(t *testing.T, prog []string) ([]float64, []int) {
+func runAsNumpyDataAndShape(t *testing.T, prog []string, tempdir string) ([]float64, []int) {
 	t.Helper()
-	out := execNumpy(t, prog)
+	out := execNumpy(t, prog, tempdir)
 	return parseNumpyDataAndShape(t, out)
 }
 
-func execNumpy(t *testing.T, prog []string) string {
+func execNumpy(t *testing.T, prog []string, tempdir string) string {
 	t.Helper()
 
-	prog = slices.Concat([]string{"import numpy as np"}, prog)
-	progstr := strings.Join(prog, "; ")
+	prog = slices.Concat([]string{
+		"import numpy as np",
+		"import sys",
+		"np.set_printoptions(threshold=sys.maxsize)",
+	}, prog)
 
-	cmd := exec.Command("python", "-c", progstr)
+	progstr := strings.Join(prog, "\n")
+
+	f, err := os.CreateTemp(tempdir, "")
+	if err != nil {
+		t.Fatalf("create temporary python file: %v", err)
+	}
+
+	if err := os.WriteFile(f.Name(), []byte(progstr), 0755); err != nil {
+		t.Fatalf("write python file: %v", err)
+	}
+
+	cmd := exec.Command("python", f.Name())
 	out, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("running python err: %v: %v", err, out)

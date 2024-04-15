@@ -18,20 +18,22 @@ type randomIndexArg struct {
 }
 
 func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
-	// First, determine number of dimension using rand. Dimension must not be 0.
-	ndim := 0
-	for ndim == 0 {
-		ndim = rand.Intn(5)
+	// returns rand value from 1 to n.
+	non0rand := func(n int) int {
+		result := 0
+		for result == 0 {
+			result = rand.Intn(n)
+		}
+		return result
 	}
+
+	// First, determine number of dimension.
+	ndim := non0rand(7)
 
 	// Second, determine the shape.
 	shape := make([]int, ndim)
 	for i := range ndim {
-		r := 0
-		for r == 0 {
-			r = rand.Intn(5)
-		}
-		shape[i] = r
+		shape[i] = non0rand(9)
 	}
 
 	// Third, create random tensor by detemined shape.
@@ -41,6 +43,7 @@ func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
 		t.data[i] = math.Floor(d*1000) / 1000
 	}
 
+	// At last, determine the index randomly.
 	arg := &randomIndexArg{inArr: t.data, inShape: t.Shape, arg: []*IndexArg{At(0)}}
 	return reflect.ValueOf(arg)
 }
@@ -66,6 +69,8 @@ func (r *Result) String() string {
 }
 
 func TestIndex_quick(t *testing.T) {
+	tempdir := t.TempDir()
+
 	onTensor := func(arg *randomIndexArg) *Result {
 		ten, err := NdShape(arg.inArr, arg.inShape...)
 		if err != nil {
@@ -100,7 +105,7 @@ func TestIndex_quick(t *testing.T) {
 			fmt.Sprintf("y = x[%s]", indices),
 			fmt.Sprintf("print(y.flatten(), y.shape)"),
 		}
-		data, shape := runAsNumpyDataAndShape(t, pyprg)
+		data, shape := runAsNumpyDataAndShape(t, pyprg, tempdir)
 		return &Result{Data: data, Shape: shape}
 	}
 
