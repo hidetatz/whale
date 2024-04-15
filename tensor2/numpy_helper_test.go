@@ -38,9 +38,9 @@ func execNumpy(t *testing.T, prog []string, tempdir string) string {
 	}
 
 	cmd := exec.Command("python", f.Name())
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("running python err: %v: %v", err, out)
+		t.Fatalf("running python err: %v: %v", err, string(out))
 	}
 
 	return strings.TrimSpace(string(out))

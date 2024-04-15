@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
+	"strings"
 	"testing"
 	"testing/quick"
 )
@@ -89,7 +90,23 @@ func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
 			args[i] = At(rand.Intn(dim))
 		case 2:
 			// type: list
-			args[i] = At(rand.Intn(dim))
+			shp := []int{}
+			switch rand.Intn(4) {
+			case 0:
+				shp = []int{1}
+			case 1:
+				shp = []int{2, 1}
+			case 2:
+				shp = []int{3, 2, 1}
+			case 3:
+				shp = []int{4, 3, 2, 1}
+			}
+			size := product(shp)
+			data := make([]float64, size)
+			for i := range len(data) {
+				data[i] = float64(rand.Intn(dim))
+			}
+			args[i] = List(Must(NdShape(data, shp...)))
 		}
 	}
 
@@ -105,7 +122,12 @@ func (a *randomIndexArg) String() string {
 			args += ", "
 		}
 	}
-	return fmt.Sprintf("data: %v, shape: %v, args: [%v]", a.inArr, a.inShape, args)
+
+	in := []string{}
+	for _, i := range a.inArr {
+		in = append(in, fmt.Sprintf("%v", i))
+	}
+	return fmt.Sprintf("data: %v, shape: %v, args: [%v]", strings.Join(in, ", "), a.inShape, args)
 }
 
 type Result struct {
@@ -139,23 +161,24 @@ func TestIndex_quick(t *testing.T) {
 	}
 
 	onNumpy := func(arg *randomIndexArg) *Result {
-		arr := ""
+		arr := []string{}
 		for _, f := range arg.inArr {
-			arr += fmt.Sprintf("%v, ", f)
-		}
-		shp := ""
-		for _, i := range arg.inShape {
-			shp += fmt.Sprintf("%v, ", i)
+			arr = append(arr, fmt.Sprintf("%v", f))
 		}
 
-		indices := ""
+		shp := []string{}
+		for _, i := range arg.inShape {
+			shp = append(shp, fmt.Sprintf("%v", i))
+		}
+
+		indices := []string{}
 		for _, arg := range arg.arg {
-			indices += fmt.Sprintf("%v, ", arg.numpyIndexString())
+			indices = append(indices, arg.numpyIndexString())
 		}
 
 		pyprg := []string{
-			fmt.Sprintf("x = np.array([%s]).reshape(%s)", arr, shp),
-			fmt.Sprintf("y = x[%s]", indices),
+			fmt.Sprintf("x = np.array([%s]).reshape(%s)", strings.Join(arr, ", "), strings.Join(shp, ", ")),
+			fmt.Sprintf("y = x[%s]", strings.Join(indices, ", ")),
 			fmt.Sprintf("print(y.flatten(), y.shape)"),
 		}
 		data, shape := runAsNumpyDataAndShape(t, pyprg, tempdir)

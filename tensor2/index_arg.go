@@ -126,15 +126,11 @@ func (a *IndexArg) String() string {
 }
 
 func (a *IndexArg) numpyIndexString() string {
-	switch a.typ {
-	case _int:
-		return fmt.Sprintf("%d", a.i)
-	case _slice:
-		return fmt.Sprintf("%v", a.s)
-	case _tensor:
-		return a.t.onelineString()
+	if a.typ == _tensor {
+		return a.t.asPythonListString()
 	}
-	panic(fmt.Sprintf("unknown typ in IndexArg: %v", a.typ))
+
+	return a.String()
 }
 
 func (a *IndexArg) Copy() *IndexArg {
