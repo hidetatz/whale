@@ -92,6 +92,16 @@ func FromTo(start, end int) *IndexArg {
 	return &IndexArg{s: &slice{start: start, end: end, step: 1}, typ: _slice}
 }
 
+// FromBy creates a tensor slicing accessor like "x[start::step]".
+func FromBy(start, step int) *IndexArg {
+	return &IndexArg{s: &slice{start: start, end: -1, step: 1}, typ: _slice}
+}
+
+// ToBy creates a tensor slicing accessor like "x[:end:step]".
+func ToBy(end, step int) *IndexArg {
+	return &IndexArg{s: &slice{start: -1, end: end, step: 1}, typ: _slice}
+}
+
 // FromToBy creates a tensor slicing accessor like "x[start:end:step]".
 func FromToBy(start, end, step int) *IndexArg {
 	return &IndexArg{s: &slice{start: start, end: end, step: step}, typ: _slice}
