@@ -6,9 +6,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m venv .env && source .env/bin/activate && pip install numpy
       # For flakiness test, run test multiple times
-      - run: make testall
-      - run: make testall
-      - run: make testall
+      - run: source .env/bin/activate && make testall
+      - run: source .env/bin/activate && make testall
+      - run: source .env/bin/activate && make testall
