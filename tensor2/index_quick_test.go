@@ -87,19 +87,18 @@ func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
 				by := non0rand(dim + 1)
 				args[i] = FromToBy(from, to, by)
 			}
-			args[i] = At(rand.Intn(dim))
 		case 2:
 			// type: list
 			shp := []int{}
 			switch rand.Intn(4) {
 			case 0:
-				shp = []int{1}
+				shp = []int{3}
 			case 1:
-				shp = []int{2, 1}
+				shp = []int{2, 3}
 			case 2:
-				shp = []int{3, 2, 1}
+				shp = []int{3, 2, 3}
 			case 3:
-				shp = []int{4, 3, 2, 1}
+				shp = []int{4, 3, 2, 3}
 			}
 			size := product(shp)
 			data := make([]float64, size)
@@ -115,19 +114,22 @@ func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
 }
 
 func (a *randomIndexArg) String() string {
-	args := ""
-	for i, aa := range a.arg {
-		args += aa.String()
-		if i != len(a.arg)-1 {
-			args += ", "
-		}
-	}
-
 	in := []string{}
 	for _, i := range a.inArr {
 		in = append(in, fmt.Sprintf("%v", i))
 	}
-	return fmt.Sprintf("data: %v, shape: %v, args: [%v]", strings.Join(in, ", "), a.inShape, args)
+
+	shp := []string{}
+	for _, s := range a.inShape {
+		shp = append(shp, fmt.Sprintf("%v", s))
+	}
+
+	args := []string{}
+	for _, aa := range a.arg {
+		args = append(args, aa.String())
+	}
+
+	return fmt.Sprintf("data: [%v], shape: [%v], args: [%v]", strings.Join(in, ", "), strings.Join(shp, ", "), strings.Join(args, ", "))
 }
 
 type Result struct {
@@ -147,6 +149,7 @@ func TestIndex_quick(t *testing.T) {
 	tempdir := t.TempDir()
 
 	onTensor := func(arg *randomIndexArg) *Result {
+		fmt.Println(arg)
 		ten, err := NdShape(arg.inArr, arg.inShape...)
 		if err != nil {
 			t.Fatalf("initialize tensor: %v", err)

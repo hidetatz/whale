@@ -264,10 +264,11 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		//     In the first case, the dimensions resulting from the advanced indexing operation
 		//     come first in the result array, and the subspace dimensions after that.
 		newshape = broadcastedshape
-		for _, arg := range args {
+		for i, arg := range args {
 			if arg.typ != _slice {
 				continue
 			}
+			arg.s.tidy(t.Shape[i])
 			newshape = append(newshape, arg.s.size())
 		}
 		newshape = append(newshape, t.Shape[len(args):]...)
@@ -283,6 +284,7 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 				break
 			}
 			if args[i].typ == _slice {
+				args[i].s.tidy(t.Shape[i])
 				newshape = append([]int{args[i].s.size()}, newshape...)
 			}
 		}
@@ -294,8 +296,11 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 				continue
 			}
 
+			args[i].s.tidy(t.Shape[i])
 			newshape = append(newshape, args[i].s.size())
 		}
+
+		newshape = append(newshape, t.Shape[len(args):]...)
 	}
 
 	/*

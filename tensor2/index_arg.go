@@ -120,7 +120,7 @@ func (a *IndexArg) String() string {
 	case _slice:
 		return fmt.Sprintf("%v", a.s)
 	case _tensor:
-		return fmt.Sprintf("%v", a.t)
+		return a.t.asPythonListString()
 	}
 	panic(fmt.Sprintf("unknown typ in IndexArg: %v", a.typ))
 }
