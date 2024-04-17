@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-
 	// "github.com/hidetatz/whale/tensor2"
 )
 

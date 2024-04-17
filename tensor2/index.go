@@ -308,24 +308,57 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 	 * pick up values.
 	 */
 
-	indices := make([][]int, len(args))
+	indices := [][]int{}
+	for i := range product(broadcastedshape) {
+		idx := make([]int, len(args))
+		for j, arg := range args {
+			if arg.typ == _slice {
+				continue
+			}
+
+			if arg.typ == _int {
+				idx[j] = arg.i
+				continue
+			}
+
+			bt := Must(arg.t.BroadcastTo(broadcastedshape...))
+			idx[j] = int(bt.Flatten()[i])
+		}
+
+		indices = append(indices, idx)
+	}
+
 	for i, arg := range args {
-		switch arg.typ {
-		case _int:
-			indices[i] = []int{arg.i}
-		case _slice:
-			// if err := arg.s.tidy(t.Shape[i]); err != nil {
-			// 	return nil, err
-			// }
-			indices[i] = arg.s.indices()
-		case _tensor:
-			indices[i] = toint(arg.t.Flatten())
+		if arg.typ != _slice {
+			continue
+		}
+
+		sliceIdx := arg.s.indices()
+		for _, idx := range indices {
+			for _, s := range sliceIdx {
+				idx = append(idx[:i], append([]int{s}, idx[i:]...)...)
+			}
 		}
 	}
 
+	// indices := make([][]int, len(args))
+	// for i, arg := range args {
+	// 	switch arg.typ {
+	// 	case _int:
+	// 		indices[i] = []int{arg.i}
+	// 	case _slice:
+	// 		// if err := arg.s.tidy(t.Shape[i]); err != nil {
+	// 		// 	return nil, err
+	// 		// }
+	// 		indices[i] = arg.s.indices()
+	// 	case _tensor:
+	// 		indices[i] = toint(arg.t.Flatten())
+	// 	}
+	// }
+
 	var r []float64
 	var origIndices []int
-	for _, idx := range cartesians(indices) {
+	for _, idx := range indices {
 		t2, err := t.Index(intsToIndices(idx)...)
 		if err != nil {
 			return nil, err
