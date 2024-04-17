@@ -328,37 +328,47 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		indices = append(indices, idx)
 	}
 
+	type sliceIdx struct {
+		idx int
+		values []int
+	}
+	sliceIndices := []*sliceIdx{}
 	for i, arg := range args {
 		if arg.typ != _slice {
 			continue
 		}
 
-		sliceIdx := arg.s.indices()
-		for _, idx := range indices {
-			for _, s := range sliceIdx {
-				idx = append(idx[:i], append([]int{s}, idx[i:]...)...)
-			}
-		}
+		sliceIndices = append(sliceIndices, &sliceIdx{idx: i, values: arg.s.indices()})
 	}
 
-	// indices := make([][]int, len(args))
-	// for i, arg := range args {
-	// 	switch arg.typ {
-	// 	case _int:
-	// 		indices[i] = []int{arg.i}
-	// 	case _slice:
-	// 		// if err := arg.s.tidy(t.Shape[i]); err != nil {
-	// 		// 	return nil, err
-	// 		// }
-	// 		indices[i] = arg.s.indices()
-	// 	case _tensor:
-	// 		indices[i] = toint(arg.t.Flatten())
-	// 	}
-	// }
+	cartesians := func(orig [][]int, si []*sliceIdx) [][]int {
+		if len(a) == 0 {
+			return [][]int{}
+		}
+
+		var result [][]int
+		var current []int
+		var f func(int)
+		f = func(pos int) {
+			if pos == len(a) {
+				temp := make([]int, len(current))
+				copy(temp, current)
+				result = append(result, temp)
+				return
+			}
+			for _, n := range a[pos] {
+				current = append(current, n)
+				f(pos + 1)
+				current = current[:len(current)-1]
+			}
+		}
+		f(0)
+		return result
+	}
 
 	var r []float64
 	var origIndices []int
-	for _, idx := range indices {
+	for _, idx := range nindices {
 		t2, err := t.Index(intsToIndices(idx)...)
 		if err != nil {
 			return nil, err
