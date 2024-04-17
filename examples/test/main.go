@@ -3,25 +3,40 @@ package main
 import (
 	"fmt"
 
-	"github.com/hidetatz/whale/tensor2"
+	// "github.com/hidetatz/whale/tensor2"
 )
 
 func main() {
-	tensor, err := tensor2.ArangeVec(0, 48, 1).Reshape(2, 3, 4, 2)
-	if err != nil {
-		panic(err)
+	a := [][]int{
+		[]int{0, 0, 0, 0, 0, 0},
+		[]int{1},
+		[]int{0, 0, 0},
 	}
 
-	idx := []*tensor2.IndexArg{
-		tensor2.List(tensor2.Must(tensor2.New([][]float64{{0, 0}, {0, 0}}))),
-		tensor2.FromTo(0, 1),
-		tensor2.At(1),
+	fmt.Println(cartesians(a))
+}
+
+func cartesians(a [][]int) [][]int {
+	if len(a) == 0 {
+		return [][]int{}
 	}
 
-	t2, err := tensor.Index(idx...)
-	if err != nil {
-		panic(err)
+	var result [][]int
+	var current []int
+	var f func(int)
+	f = func(pos int) {
+		if pos == len(a) {
+			temp := make([]int, len(current))
+			copy(temp, current)
+			result = append(result, temp)
+			return
+		}
+		for _, n := range a[pos] {
+			current = append(current, n)
+			f(pos + 1)
+			current = current[:len(current)-1]
+		}
 	}
-
-	fmt.Println(t2, t2.Raw())
+	f(0)
+	return result
 }

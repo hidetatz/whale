@@ -277,30 +277,31 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		//     In the second case, the dimensions from the advanced indexing operations are
 		//     inserted into the result array at the same spot as they were in the initial array
 		//     (the latter logic is what makes simple advanced indexing behave just like slicing).
-		var tensorstart int
-		for i := 0; i < len(args); i++ {
-			if args[i].typ == _tensor || args[i].typ == _int {
-				tensorstart = i
-				break
+
+		// So coming here means it's not separated, so first determine slice is at the head or bottom.
+		if args[0].typ == _tensor || args[0].typ == _int {
+			// If bottom, shape will be (broadcastedshape, slice shapes, else).
+			newshape = broadcastedshape
+			for i, arg := range args {
+				if arg.typ != _slice {
+					continue
+				}
+				arg.s.tidy(t.Shape[i])
+				newshape = append(newshape, arg.s.size())
 			}
-			if args[i].typ == _slice {
-				args[i].s.tidy(t.Shape[i])
-				newshape = append([]int{args[i].s.size()}, newshape...)
+			newshape = append(newshape, t.Shape[len(args):]...)
+		} else {
+			// If head, shape will be (slice shapes, broadcastedshape, else).
+			for i, arg := range args {
+				if arg.typ != _slice {
+					break
+				}
+				arg.s.tidy(t.Shape[i])
+				newshape = append(newshape, arg.s.size())
 			}
+			newshape = slices.Concat(newshape, broadcastedshape)
+			newshape = slices.Concat(newshape, t.Shape[len(args):])
 		}
-
-		newshape = append(newshape, broadcastedshape...)
-
-		for i := tensorstart + 1; i < len(args); i++ {
-			if args[i].typ == _tensor || args[i].typ == _int {
-				continue
-			}
-
-			args[i].s.tidy(t.Shape[i])
-			newshape = append(newshape, args[i].s.size())
-		}
-
-		newshape = append(newshape, t.Shape[len(args):]...)
 	}
 
 	/*
@@ -313,9 +314,9 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		case _int:
 			indices[i] = []int{arg.i}
 		case _slice:
-			if err := arg.s.tidy(t.Shape[i]); err != nil {
-				return nil, err
-			}
+			// if err := arg.s.tidy(t.Shape[i]); err != nil {
+			// 	return nil, err
+			// }
 			indices[i] = arg.s.indices()
 		case _tensor:
 			indices[i] = toint(arg.t.Flatten())

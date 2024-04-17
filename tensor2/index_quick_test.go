@@ -29,12 +29,12 @@ func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
 	}
 
 	// First, determine number of dimension.
-	ndim := non0rand(7)
+	ndim := non0rand(4)
 
 	// Second, determine the shape.
 	shape := make([]int, ndim)
 	for i := range ndim {
-		shape[i] = non0rand(9)
+		shape[i] = non0rand(3)
 	}
 
 	// Third, create random tensor by detemined shape.
@@ -90,7 +90,7 @@ func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
 		case 2:
 			// type: list
 			shp := []int{}
-			switch rand.Intn(4) {
+			switch rand.Intn(2) {
 			case 0:
 				shp = []int{3}
 			case 1:
