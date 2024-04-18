@@ -212,9 +212,14 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 
 	// pick up tensors in args
 	ts := []*Tensor{}
-	for _, arg := range args {
+	for i, arg := range args {
 		if arg.typ == _tensor {
 			ts = append(ts, arg.t)
+			continue
+		}
+
+		if arg.typ == _slice {
+			arg.s.tidy(t.Shape[i])
 		}
 	}
 
@@ -232,6 +237,10 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 	// make sure if tensor/int argument is "separated" by slice.
 	// https://numpy.org/doc/stable/user/basics.indexing.html#combining-advanced-and-basic-indexing
 	isseparated := func(args []*IndexArg) bool {
+		if len(args) < 3 {
+			return false
+		}
+
 		for i := 1; i < len(args)-1; i++ {
 			// if arg is not a slice, it is still not separated
 			if args[i].typ != _slice {
@@ -265,11 +274,10 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		//     In the first case, the dimensions resulting from the advanced indexing operation
 		//     come first in the result array, and the subspace dimensions after that.
 		newshape = broadcastedshape
-		for i, arg := range args {
+		for _, arg := range args {
 			if arg.typ != _slice {
 				continue
 			}
-			arg.s.tidy(t.Shape[i])
 			newshape = append(newshape, arg.s.size())
 		}
 		newshape = append(newshape, t.Shape[len(args):]...)
@@ -283,11 +291,10 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		if args[0].typ == _tensor || args[0].typ == _int {
 			// If bottom, shape will be (broadcastedshape, slice shapes, else).
 			newshape = broadcastedshape
-			for i, arg := range args {
+			for _, arg := range args {
 				if arg.typ != _slice {
 					continue
 				}
-				arg.s.tidy(t.Shape[i])
 				newshape = append(newshape, arg.s.size())
 			}
 			newshape = append(newshape, t.Shape[len(args):]...)
@@ -299,7 +306,6 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 					e = i
 					break
 				}
-				arg.s.tidy(t.Shape[i])
 				newshape = append(newshape, arg.s.size())
 			}
 			newshape = slices.Concat(newshape, broadcastedshape)
@@ -311,7 +317,6 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 				if arg.typ != _slice {
 					break
 				}
-				arg.s.tidy(t.Shape[i])
 				newshape = append(newshape, arg.s.size())
 			}
 
@@ -323,66 +328,57 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 	 * pick up values.
 	 */
 
-	indices := [][]int{}
-	for i := range product(broadcastedshape) {
-		idx := make([]int, len(args))
-		for j, arg := range args {
-			if arg.typ == _slice {
-				continue
-			}
+	var indices [][]int
+	var current []int
 
-			if arg.typ == _int {
-				idx[j] = arg.i
-				continue
-			}
-
-			bt := Must(arg.t.BroadcastTo(broadcastedshape...))
-			idx[j] = int(bt.Flatten()[i])
+	var f func(pos int, follow bool, followidx int)
+	f = func(pos int, follow bool, followidx int) {
+		if pos == len(args) {
+			indices = append(indices, copySlice(current))
+			return
 		}
 
-		indices = append(indices, idx)
-	}
-
-	sliceAt := []int{}
-	slices := [][]int{}
-	for i, arg := range args {
-		if arg.typ != _slice {
-			continue
-		}
-
-		sliceAt = append(sliceAt, i)
-		arg.s.tidy(t.Shape[i])
-		slices = append(slices, arg.s.indices())
-	}
-
-	sliceIndices := cartesians(slices)
-	nindices := [][]int{}
-
-	if separated || args[0].typ == _slice {
-		for _, sliceIdx := range sliceIndices {
-			for _, idx := range indices {
-				c := copySlice(idx)
-				for i, si := range sliceIdx {
-					c[sliceAt[i]] = si
+		arg := args[pos]
+		switch arg.typ {
+		case _int:
+			if follow {
+				current = append(current, arg.i)
+				f(pos+1, follow, followidx)
+				current = current[:len(current)-1]
+			} else {
+				for i := range product(broadcastedshape) {
+					current = append(current, arg.i)
+					f(pos+1, true, i)
+					current = current[:len(current)-1]
 				}
-				nindices = append(nindices, c)
 			}
-		}
-	} else {
-		for _, idx := range indices {
-			for _, sliceIdx := range sliceIndices {
-				c := copySlice(idx)
-				for i, si := range sliceIdx {
-					c[sliceAt[i]] = si
+		case _slice:
+			sindices := arg.s.indices()
+			for _, sidx := range sindices {
+				current = append(current, sidx)
+				f(pos+1, follow, followidx)
+				current = current[:len(current)-1]
+			}
+		case _tensor:
+			tindices := Must(arg.t.BroadcastTo(broadcastedshape...)).Flatten()
+			if follow {
+				current = append(current, int(tindices[followidx]))
+				f(pos+1, follow, followidx)
+				current = current[:len(current)-1]
+			} else {
+				for i, tidx := range tindices {
+					current = append(current, int(tidx))
+					f(pos+1, true, i)
+					current = current[:len(current)-1]
 				}
-				nindices = append(nindices, c)
 			}
 		}
 	}
+	f(0, false, 0)
 
 	var r []float64
 	var origIndices []int
-	for _, idx := range nindices {
+	for _, idx := range indices {
 		t2, err := t.Index(intsToIndices(idx)...)
 		if err != nil {
 			return nil, err

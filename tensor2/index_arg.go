@@ -35,7 +35,6 @@ func (s *slice) size() int {
 }
 
 func (s *slice) indices() []int {
-	fmt.Println(s)
 	r := make([]int, s.size())
 	for i := range r {
 		r[i] = s.start + i*s.step

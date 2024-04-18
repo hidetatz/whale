@@ -424,7 +424,6 @@ func TestIndex(t *testing.T) {
 					{3, 4},
 				},
 			}),
-			run: true,
 		},
 		{
 			name:   "separated",
