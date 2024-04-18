@@ -28,10 +28,14 @@ func (s *slice) tidy(dimlen int) error {
 }
 
 func (s *slice) size() int {
+	if s.end <= s.start {
+		return 0
+	}
 	return (s.end - s.start + s.step - 1) / s.step
 }
 
 func (s *slice) indices() []int {
+	fmt.Println(s)
 	r := make([]int, s.size())
 	for i := range r {
 		r[i] = s.start + i*s.step

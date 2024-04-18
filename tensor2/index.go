@@ -259,7 +259,8 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 
 	var newshape []int
 
-	if isseparated(args) {
+	separated := isseparated(args)
+	if separated {
 		// according to the above document:
 		//     In the first case, the dimensions resulting from the advanced indexing operation
 		//     come first in the result array, and the subspace dimensions after that.
@@ -291,15 +292,29 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 			}
 			newshape = append(newshape, t.Shape[len(args):]...)
 		} else {
-			// If head, shape will be (slice shapes, broadcastedshape, else).
+			// If head, shape will be (slice shapes, broadcastedshape, slice shapes, else).
+			e := 0
 			for i, arg := range args {
 				if arg.typ != _slice {
+					e = i
 					break
 				}
 				arg.s.tidy(t.Shape[i])
 				newshape = append(newshape, arg.s.size())
 			}
 			newshape = slices.Concat(newshape, broadcastedshape)
+			for i, arg := range args {
+				if i <= e {
+					continue
+				}
+
+				if arg.typ != _slice {
+					break
+				}
+				arg.s.tidy(t.Shape[i])
+				newshape = append(newshape, arg.s.size())
+			}
+
 			newshape = slices.Concat(newshape, t.Shape[len(args):])
 		}
 	}
@@ -328,42 +343,41 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		indices = append(indices, idx)
 	}
 
-	type sliceIdx struct {
-		idx int
-		values []int
-	}
-	sliceIndices := []*sliceIdx{}
+	sliceAt := []int{}
+	slices := [][]int{}
 	for i, arg := range args {
 		if arg.typ != _slice {
 			continue
 		}
 
-		sliceIndices = append(sliceIndices, &sliceIdx{idx: i, values: arg.s.indices()})
+		sliceAt = append(sliceAt, i)
+		arg.s.tidy(t.Shape[i])
+		slices = append(slices, arg.s.indices())
 	}
 
-	cartesians := func(orig [][]int, si []*sliceIdx) [][]int {
-		if len(a) == 0 {
-			return [][]int{}
-		}
+	sliceIndices := cartesians(slices)
+	nindices := [][]int{}
 
-		var result [][]int
-		var current []int
-		var f func(int)
-		f = func(pos int) {
-			if pos == len(a) {
-				temp := make([]int, len(current))
-				copy(temp, current)
-				result = append(result, temp)
-				return
-			}
-			for _, n := range a[pos] {
-				current = append(current, n)
-				f(pos + 1)
-				current = current[:len(current)-1]
+	if separated || args[0].typ == _slice {
+		for _, sliceIdx := range sliceIndices {
+			for _, idx := range indices {
+				c := copySlice(idx)
+				for i, si := range sliceIdx {
+					c[sliceAt[i]] = si
+				}
+				nindices = append(nindices, c)
 			}
 		}
-		f(0)
-		return result
+	} else {
+		for _, idx := range indices {
+			for _, sliceIdx := range sliceIndices {
+				c := copySlice(idx)
+				for i, si := range sliceIdx {
+					c[sliceAt[i]] = si
+				}
+				nindices = append(nindices, c)
+			}
+		}
 	}
 
 	var r []float64

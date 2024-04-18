@@ -11,7 +11,7 @@ func TestIndex(t *testing.T) {
 		args      []*IndexArg
 		expected  *Tensor
 		expectErr bool
-		run bool
+		run       bool
 	}{
 		{
 			name:     "vector 1",
@@ -390,7 +390,6 @@ func TestIndex(t *testing.T) {
 					{4, 3, 4},
 				},
 			}),
-			run: true,
 		},
 		{
 			name:   "slice follows2",
@@ -425,6 +424,7 @@ func TestIndex(t *testing.T) {
 					{3, 4},
 				},
 			}),
+			run: true,
 		},
 		{
 			name:   "separated",
@@ -498,9 +498,6 @@ func TestIndex(t *testing.T) {
 
 	for _, tc := range tests {
 		tc := tc
-		// if !tc.run {
-		// 	continue
-		// }
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := tc.tensor.Index(tc.args...)
