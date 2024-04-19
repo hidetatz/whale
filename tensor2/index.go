@@ -287,41 +287,20 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		//     inserted into the result array at the same spot as they were in the initial array
 		//     (the latter logic is what makes simple advanced indexing behave just like slicing).
 
-		// So coming here means it's not separated, so first determine slice is at the head or bottom.
-		if args[0].typ == _tensor || args[0].typ == _int {
-			// If bottom, shape will be (broadcastedshape, slice shapes, else).
-			newshape = broadcastedshape
-			for _, arg := range args {
-				if arg.typ != _slice {
-					continue
-				}
+		appended := false
+		for _, arg := range args {
+			if arg.typ == _slice {
 				newshape = append(newshape, arg.s.size())
-			}
-			newshape = append(newshape, t.Shape[len(args):]...)
-		} else {
-			// If head, shape will be (slice shapes, broadcastedshape, slice shapes, else).
-			e := 0
-			for i, arg := range args {
-				if arg.typ != _slice {
-					e = i
-					break
-				}
-				newshape = append(newshape, arg.s.size())
-			}
-			newshape = slices.Concat(newshape, broadcastedshape)
-			for i, arg := range args {
-				if i <= e {
-					continue
-				}
-
-				if arg.typ != _slice {
-					break
-				}
-				newshape = append(newshape, arg.s.size())
+				continue
 			}
 
-			newshape = slices.Concat(newshape, t.Shape[len(args):])
+			if !appended {
+				newshape = slices.Concat(newshape, broadcastedshape)
+				appended = true
+			}
+
 		}
+		newshape = slices.Concat(newshape, t.Shape[len(args):])
 	}
 
 	/*
