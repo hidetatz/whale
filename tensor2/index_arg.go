@@ -123,14 +123,14 @@ func (a *IndexArg) String() string {
 	case _slice:
 		return fmt.Sprintf("%v", a.s)
 	case _tensor:
-		return a.t.asPythonListString()
+		return a.t.OnelineString()
 	}
 	panic(fmt.Sprintf("unknown typ in IndexArg: %v", a.typ))
 }
 
 func (a *IndexArg) numpyIndexString() string {
 	if a.typ == _tensor {
-		return a.t.asPythonListString()
+		return a.t.OnelineString()
 	}
 
 	return a.String()

@@ -11,10 +11,7 @@ type indexResult struct {
 }
 
 func (r *indexResult) String() string {
-	return fmt.Sprintf(`{
-  t: %v,
-  origIndices: %v
-}`, r.t, r.origIndices)
+	return fmt.Sprintf("t: %v, origIndices: %v", r.t.OnelineString(), r.origIndices)
 }
 
 func (t *Tensor) Index(args ...*IndexArg) (*Tensor, error) {
@@ -48,6 +45,11 @@ func (t *Tensor) index(args ...*IndexArg) (*indexResult, error) {
 	return t.basicIndex(args...)
 }
 
+// basicIndex is a indexing method to work the same as numpy's basic indexing.
+// https://numpy.org/doc/stable/user/basics.indexing.html#basic-indexing
+// Basic indexing happens when index arguments are only consists of integer and slice.
+// In basic indexing, the returned tensor might be a view of the original tensor t (might be sharing internal data with t).
+// This means only reading returned tensor is safe, but modifying it can break original t.
 func (t *Tensor) basicIndex(args ...*IndexArg) (*indexResult, error) {
 	// fill args to be the same length as ndim
 	if len(args) < t.Ndim() {
@@ -113,6 +115,9 @@ func (t *Tensor) basicIndex(args ...*IndexArg) (*indexResult, error) {
 	return &indexResult{t: newtensor, origIndices: origIndices}, nil
 }
 
+// advancedIndex is a indexing method which works the same as numpy's advanced indexing.
+// https://numpy.org/doc/stable/user/basics.indexing.html#advanced-indexing
+// This indexing happens when indexing arguments contains at least one tensor.
 func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 	containslice := slices.ContainsFunc(args, func(a *IndexArg) bool { return a.typ == _slice })
 	if containslice {
@@ -205,6 +210,9 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 	return &indexResult{t: newtensor, origIndices: origIndices}, nil
 }
 
+// advancedAndBasicCombinedIndex is a special indexing method which is a part of advanced indexing,
+// but in particular arguments contains both slice and tensor.
+// https://numpy.org/doc/stable/user/basics.indexing.html#combining-advanced-and-basic-indexing
 func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult, error) {
 	/*
 	 * First, determine new shape.
@@ -298,7 +306,6 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 				newshape = slices.Concat(newshape, broadcastedshape)
 				appended = true
 			}
-
 		}
 		newshape = slices.Concat(newshape, t.Shape[len(args):])
 	}
@@ -307,53 +314,72 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 	 * pick up values.
 	 */
 
-	var indices [][]int
-	var current []int
+	type argpair struct {
+		idx  int
+		vals []int
+	}
 
-	var f func(pos int, follow bool, followidx int)
-	f = func(pos int, follow bool, followidx int) {
-		if pos == len(args) {
-			indices = append(indices, copySlice(current))
+	reorderedArgpairs := [][]*argpair{}
+	idx := -1
+
+	if separated {
+		reorderedArgpairs = append(reorderedArgpairs, []*argpair{})
+		idx = 0
+	}
+
+	for i, arg := range args {
+		switch arg.typ {
+		case _int, _tensor:
+			if idx == -1 {
+				reorderedArgpairs = append(reorderedArgpairs, []*argpair{})
+				idx = i
+			}
+
+			vals := all(arg.i, product(broadcastedshape))
+			if arg.typ == _tensor {
+				tb := Must(arg.t.BroadcastTo(broadcastedshape...))
+				vals = toint(tb.Flatten())
+			}
+			reorderedArgpairs[idx] = append(
+				reorderedArgpairs[idx],
+				&argpair{idx: i, vals: vals},
+			)
+
+		case _slice:
+			reorderedArgpairs = append(reorderedArgpairs, []*argpair{&argpair{idx: i, vals: arg.s.indices()}})
+		}
+	}
+
+	var indices [][]int
+	var f func(pos int, cur []int)
+	f = func(pos int, cur []int) {
+		if len(reorderedArgpairs) == pos {
+			indices = append(indices, copySlice(cur))
 			return
 		}
 
-		arg := args[pos]
-		switch arg.typ {
-		case _int:
-			if follow {
-				current = append(current, arg.i)
-				f(pos+1, follow, followidx)
-				current = current[:len(current)-1]
-			} else {
-				for i := range product(broadcastedshape) {
-					current = append(current, arg.i)
-					f(pos+1, true, i)
-					current = current[:len(current)-1]
+		argpairs := reorderedArgpairs[pos]
+
+		if pos == 0 {
+			cur = make([]int, len(args))
+		}
+
+		if len(args) > 1 {
+			for i := range len(argpairs[0].vals) {
+				for _, ap := range argpairs {
+					cur[ap.idx] = ap.vals[i]
 				}
+				f(pos+1, cur)
 			}
-		case _slice:
-			sindices := arg.s.indices()
-			for _, sidx := range sindices {
-				current = append(current, sidx)
-				f(pos+1, follow, followidx)
-				current = current[:len(current)-1]
-			}
-		case _tensor:
-			tindices := Must(arg.t.BroadcastTo(broadcastedshape...)).Flatten()
-			if follow {
-				current = append(current, int(tindices[followidx]))
-				f(pos+1, follow, followidx)
-				current = current[:len(current)-1]
-			} else {
-				for i, tidx := range tindices {
-					current = append(current, int(tidx))
-					f(pos+1, true, i)
-					current = current[:len(current)-1]
-				}
+		} else {
+			ap := argpairs[0]
+			for _, v := range ap.vals {
+				cur[ap.idx] = v
+				f(pos+1, cur)
 			}
 		}
 	}
-	f(0, false, 0)
+	f(0, nil)
 
 	var r []float64
 	var origIndices []int

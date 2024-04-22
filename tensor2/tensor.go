@@ -106,82 +106,71 @@ func (t *Tensor) Flatten() []float64 {
 	return result
 }
 
-// String implements Stringer interface.
 func (t *Tensor) String() string {
-	if t.IsScalar() {
-		return fmt.Sprintf("%v", t.AsScalar())
-	}
-
-	if slices.Contains(t.Shape, 0) {
-		return fmt.Sprintf("([], shape=%v)", t.Shape)
-	}
-
-	if t.IsVector() {
-		return fmt.Sprintf("%v", strings.Join(strings.Fields(fmt.Sprint(t.AsVector())), ", "))
-	}
-
-	var sb strings.Builder
-	var w func(index []int)
-	w = func(index []int) {
-		indent := strings.Repeat("  ", len(index))
-
-		// at last, print actual values
-		if len(index) == len(t.Shape)-1 {
-			data := Must(t.Index(intsToIndices(index)...)).Flatten()
-			sb.WriteString(fmt.Sprintf("%s%v\n", indent, strings.Join(strings.Fields(fmt.Sprint(data)), ", ")))
-			return
-		}
-
-		// else, print "[",  internal data, and "]" recursively
-		sb.WriteString(fmt.Sprintf("%s[\n", indent))
-
-		for i := range t.Shape[len(index)] {
-			w(append(index, i))
-		}
-
-		sb.WriteString(fmt.Sprintf("%s]\n", indent))
-	}
-
-	w([]int{})
-	return sb.String()
+	return t.tostring(true)
 }
 
-func (t *Tensor) asPythonListString() string {
+func (t *Tensor) OnelineString() string {
+	return t.tostring(false)
+}
+
+func (t *Tensor) tostring(linebreak bool) string {
 	if t.IsScalar() {
 		return fmt.Sprintf("%v", t.AsScalar())
 	}
 
 	if slices.Contains(t.Shape, 0) {
-		return "[]"
+		if linebreak {
+			return fmt.Sprintf("([], shape=%v)", t.Shape)
+		} else {
+			return "[]"
+		}
 	}
 
 	if t.IsVector() {
 		return fmt.Sprintf("%v", strings.Join(strings.Fields(fmt.Sprint(t.AsVector())), ", "))
 	}
 
-	var sb strings.Builder
-	var w func(index []int)
-	w = func(index []int) {
-		// at last, print actual values
-		if len(index) == len(t.Shape)-1 {
-			data := Must(t.Index(intsToIndices(index)...)).Flatten()
-			sb.WriteString(fmt.Sprintf("%v", strings.Join(strings.Fields(fmt.Sprint(data)), ", ")))
-			sb.WriteString(", ")
-			return
+	tostr := func(fs []float64) []string {
+		ss := make([]string, len(fs))
+		for i, f := range fs {
+			ss[i] = fmt.Sprintf("%v", f)
 		}
-
-		// else, print "[",  internal data, and "]" recursively
-		sb.WriteString("[")
-
-		for i := range t.Shape[len(index)] {
-			w(append(index, i))
-		}
-
-		sb.WriteString("],")
+		return ss
 	}
 
-	w([]int{})
-	return strings.TrimSuffix(sb.String(), ",")
+	var w func(index []int) string
+	w = func(index []int) string {
+		indent := strings.Repeat("  ", len(index))
+
+		if len(index) == len(t.Shape)-1 {
+			data := Must(t.Index(intsToIndices(index)...)).Flatten()
+			vals := strings.Join(tostr(data), ", ")
+			if linebreak {
+				return fmt.Sprintf("%s[%v]", indent, vals)
+			} else {
+				return fmt.Sprintf("[%v]", vals)
+			}
+		}
+
+		outer := make([]string, t.Shape[len(index)])
+		for i := range t.Shape[len(index)] {
+			inner := w(append(index, i))
+			outer[i] = inner
+		}
+
+		if linebreak {
+			return fmt.Sprintf("%s[\n", indent) + strings.Join(outer, "\n") + fmt.Sprintf("\n%s]", indent)
+		} else {
+			return "[" + strings.Join(outer, ", ") + "]"
+		}
+	}
+
+	if linebreak {
+		return w([]int{}) + "\n"
+	} else {
+		return w([]int{})
+	}
 }
 
 func (t *Tensor) Raw() string {

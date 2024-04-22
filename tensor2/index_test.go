@@ -11,7 +11,6 @@ func TestIndex(t *testing.T) {
 		args      []*IndexArg
 		expected  *Tensor
 		expectErr bool
-		run       bool
 	}{
 		{
 			name:     "vector 1",
