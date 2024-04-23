@@ -47,12 +47,14 @@ func (t *Tensor) indexPut(args []*IndexArg, fn func(orig, arg float64) float64, 
 		return fmt.Errorf("operands could not broadcast together with shapes %v, %v", target.Shape, r.t.Shape)
 	}
 
+	c := t.Copy()
+
 	it := tgt.Iterator()
 	i := 0
 	for it.HasNext() {
 		tg := it.Next()
 		idx := r.origIndices[i]
-		t.data[idx] = fn(t.data[idx], tg)
+		t.data[idx] = fn(c.data[idx], tg)
 		i++
 	}
 

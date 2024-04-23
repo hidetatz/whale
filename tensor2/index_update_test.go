@@ -8,6 +8,10 @@ func TestIndexPut(t *testing.T) {
 	tensor.IndexAdd([]*IndexArg{At(1)}, Scalar(2))
 	mustEq(t, Vector([]float64{1, 4, 3, 4, 5}), tensor)
 
+	tensor = Vector([]float64{1, 2, 3, 4, 5})
+	tensor.IndexAdd([]*IndexArg{List(Vector([]float64{1, 1}))}, Scalar(2))
+	mustEq(t, Vector([]float64{1, 4, 3, 4, 5}), tensor)
+
 	// Sub
 	tensor = Must(New([][]float64{{1, 2}, {3, 4}}))
 	tensor.IndexSub([]*IndexArg{At(0)}, Scalar(2))
