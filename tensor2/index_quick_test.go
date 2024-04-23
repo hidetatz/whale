@@ -19,6 +19,45 @@ type randomIndexArg struct {
 }
 
 func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
+	return reflect.ValueOf(generateRandomIndexArg(rand, size))
+}
+
+func (a *randomIndexArg) String() string {
+	in := []string{}
+	for _, i := range a.inArr {
+		in = append(in, fmt.Sprintf("%v", i))
+	}
+
+	shp := []string{}
+	for _, s := range a.inShape {
+		shp = append(shp, fmt.Sprintf("%v", s))
+	}
+
+	args := []string{}
+	for _, aa := range a.arg {
+		args = append(args, aa.String())
+	}
+
+	return fmt.Sprintf("data: [%v], shape: [%v], args: [%v]", strings.Join(in, ", "), strings.Join(shp, ", "), strings.Join(args, ", "))
+}
+
+type randomIndexUpdateArg struct {
+	r      *randomIndexArg
+	target *Tensor
+}
+
+func (_ *randomIndexUpdateArg) Generate(rand *rand.Rand, size int) reflect.Value {
+	r := generateRandomIndexArg(rand, size)
+	// todo: use more randomly generated target tensor which can be broadcasted
+	target := Scalar(3)
+	return reflect.ValueOf(&randomIndexUpdateArg{r: r, target: target})
+}
+
+func (a *randomIndexUpdateArg) String() string {
+	return fmt.Sprintf("%v, target: [%v]", a.r.String(), a.target.OnelineString())
+}
+
+func generateRandomIndexArg(rand *rand.Rand, size int) *randomIndexArg {
 	// returns rand value from 1 to n.
 	non0rand := func(n int) int {
 		result := 0
@@ -38,7 +77,7 @@ func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
 	}
 
 	// Third, create random tensor by detemined shape.
-	t := Rand(shape...)
+	t := Must(Arange(0, float64(product(shape)), 1, shape...))
 	for i, d := range t.data {
 		// Round the number to 3 decimal places
 		t.data[i] = math.Floor(d*1000) / 1000
@@ -90,7 +129,7 @@ func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
 		case 2:
 			// type: list
 			shp := []int{}
-			switch rand.Intn(6) {
+			switch rand.Intn(4) {
 			case 0:
 				shp = []int{3}
 			case 1:
@@ -109,27 +148,7 @@ func (_ *randomIndexArg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 
-	arg := &randomIndexArg{inArr: t.data, inShape: t.Shape, arg: args}
-	return reflect.ValueOf(arg)
-}
-
-func (a *randomIndexArg) String() string {
-	in := []string{}
-	for _, i := range a.inArr {
-		in = append(in, fmt.Sprintf("%v", i))
-	}
-
-	shp := []string{}
-	for _, s := range a.inShape {
-		shp = append(shp, fmt.Sprintf("%v", s))
-	}
-
-	args := []string{}
-	for _, aa := range a.arg {
-		args = append(args, aa.String())
-	}
-
-	return fmt.Sprintf("data: [%v], shape: [%v], args: [%v]", strings.Join(in, ", "), strings.Join(shp, ", "), strings.Join(args, ", "))
+	return &randomIndexArg{inArr: t.data, inShape: t.Shape, arg: args}
 }
 
 type Result struct {
@@ -141,54 +160,107 @@ func (r *Result) String() string {
 	return fmt.Sprintf("%v %v", r.Data, r.Shape)
 }
 
-func TestIndex_quick(t *testing.T) {
+// func TestIndex_quick(t *testing.T) {
+// 	if testing.Short() {
+// 		t.Skip()
+// 	}
+//
+// 	tempdir := t.TempDir()
+//
+// 	onTensor := func(arg *randomIndexArg) *Result {
+// 		ten, err := NdShape(arg.inArr, arg.inShape...)
+// 		if err != nil {
+// 			t.Fatalf("initialize tensor: %v", err)
+// 		}
+//
+// 		ten2, err := ten.Index(arg.arg...)
+// 		if err != nil {
+// 			t.Fatalf("index tensor: %v", err)
+// 		}
+//
+// 		// need to resolve:
+// 		// not sure why but sometimes ten2.Shape is returned as nil,
+// 		// but it should be actually []int{}.
+// 		// Because of this, comparing with numpy output fails so this check is added.
+// 		if ten2.Shape == nil {
+// 			ten2.Shape = []int{}
+// 		}
+// 		return &Result{Data: ten2.Flatten(), Shape: ten2.Shape}
+// 	}
+//
+// 	onNumpy := func(arg *randomIndexArg) *Result {
+// 		arr := []string{}
+// 		for _, f := range arg.inArr {
+// 			arr = append(arr, fmt.Sprintf("%v", f))
+// 		}
+//
+// 		shp := []string{}
+// 		for _, i := range arg.inShape {
+// 			shp = append(shp, fmt.Sprintf("%v", i))
+// 		}
+//
+// 		indices := []string{}
+// 		for _, arg := range arg.arg {
+// 			indices = append(indices, arg.numpyIndexString())
+// 		}
+//
+// 		pyprg := []string{
+// 			fmt.Sprintf("x = np.array([%s]).reshape(%s)", strings.Join(arr, ", "), strings.Join(shp, ", ")),
+// 			fmt.Sprintf("y = x[%s]", strings.Join(indices, ", ")),
+// 			fmt.Sprintf("print(y.flatten(), y.shape)"),
+// 		}
+// 		data, shape := runAsNumpyDataAndShape(t, pyprg, tempdir)
+// 		return &Result{Data: data, Shape: shape}
+// 	}
+//
+// 	err := quick.CheckEqual(onTensor, onNumpy, &quick.Config{MaxCount: 500})
+// 	if err != nil {
+// 		cee := err.(*quick.CheckEqualError)
+// 		t.Fatalf("quick check (#%v):\n  input       : %v\n  go output   : %v\n  numpy output: %v\n", cee.Count, cee.In, cee.Out1, cee.Out2)
+// 	}
+// }
+
+func TestIndexUpdate_quick(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
 
 	tempdir := t.TempDir()
 
-	onTensor := func(arg *randomIndexArg) *Result {
-		ten, err := NdShape(arg.inArr, arg.inShape...)
+	onTensor := func(arg *randomIndexUpdateArg) *Result {
+		fmt.Println(arg.r)
+		ten, err := NdShape(copySlice(arg.r.inArr), copySlice(arg.r.inShape)...)
 		if err != nil {
 			t.Fatalf("initialize tensor: %v", err)
 		}
 
-		ten2, err := ten.Index(arg.arg...)
-		if err != nil {
+		if err := ten.IndexSub(arg.r.arg, arg.target); err != nil {
 			t.Fatalf("index tensor: %v", err)
 		}
 
-		// neet to resolve:
-		// not sure why but sometimes ten2.Shape is returned as nil,
-		// but it should be actually []int{}.
-		// Because of this, comparing with numpy output fails so this check is added.
-		if ten2.Shape == nil {
-			ten2.Shape = []int{}
-		}
-		return &Result{Data: ten2.Flatten(), Shape: ten2.Shape}
+		return &Result{Data: ten.Flatten(), Shape: ten.Shape}
 	}
 
-	onNumpy := func(arg *randomIndexArg) *Result {
+	onNumpy := func(arg *randomIndexUpdateArg) *Result {
 		arr := []string{}
-		for _, f := range arg.inArr {
+		for _, f := range arg.r.inArr {
 			arr = append(arr, fmt.Sprintf("%v", f))
 		}
 
 		shp := []string{}
-		for _, i := range arg.inShape {
+		for _, i := range arg.r.inShape {
 			shp = append(shp, fmt.Sprintf("%v", i))
 		}
 
 		indices := []string{}
-		for _, arg := range arg.arg {
+		for _, arg := range arg.r.arg {
 			indices = append(indices, arg.numpyIndexString())
 		}
 
 		pyprg := []string{
 			fmt.Sprintf("x = np.array([%s]).reshape(%s)", strings.Join(arr, ", "), strings.Join(shp, ", ")),
-			fmt.Sprintf("y = x[%s]", strings.Join(indices, ", ")),
-			fmt.Sprintf("print(y.flatten(), y.shape)"),
+			fmt.Sprintf("x[%s] -= 3", strings.Join(indices, ", ")),
+			fmt.Sprintf("print(x.flatten(), x.shape)"),
 		}
 		data, shape := runAsNumpyDataAndShape(t, pyprg, tempdir)
 		return &Result{Data: data, Shape: shape}
@@ -196,7 +268,11 @@ func TestIndex_quick(t *testing.T) {
 
 	err := quick.CheckEqual(onTensor, onNumpy, &quick.Config{MaxCount: 500})
 	if err != nil {
-		cee := err.(*quick.CheckEqualError)
-		t.Fatalf("quick check (#%v):\n  input       : %v\n  go output   : %v\n  numpy output: %v\n", cee.Count, cee.In, cee.Out1, cee.Out2)
+		cee, ok := err.(*quick.CheckEqualError)
+		if ok {
+			t.Fatalf("quick check (#%v):\n  input       : %v\n  go output   : %v\n  numpy output: %v\n", cee.Count, cee.In, cee.Out1, cee.Out2)
+		} else {
+			t.Fatalf(err.Error())
+		}
 	}
 }

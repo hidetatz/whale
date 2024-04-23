@@ -9,8 +9,8 @@ func product(x []int) int {
 	return p
 }
 
-func copySlice(s []int) []int {
-	c := make([]int, len(s))
+func copySlice[T int | float64](s []T) []T {
+	c := make([]T, len(s))
 	copy(c, s)
 	return c
 }
