@@ -160,65 +160,65 @@ func (r *Result) String() string {
 	return fmt.Sprintf("%v %v", r.Data, r.Shape)
 }
 
-// func TestIndex_quick(t *testing.T) {
-// 	if testing.Short() {
-// 		t.Skip()
-// 	}
-//
-// 	tempdir := t.TempDir()
-//
-// 	onTensor := func(arg *randomIndexArg) *Result {
-// 		ten, err := NdShape(arg.inArr, arg.inShape...)
-// 		if err != nil {
-// 			t.Fatalf("initialize tensor: %v", err)
-// 		}
-//
-// 		ten2, err := ten.Index(arg.arg...)
-// 		if err != nil {
-// 			t.Fatalf("index tensor: %v", err)
-// 		}
-//
-// 		// need to resolve:
-// 		// not sure why but sometimes ten2.Shape is returned as nil,
-// 		// but it should be actually []int{}.
-// 		// Because of this, comparing with numpy output fails so this check is added.
-// 		if ten2.Shape == nil {
-// 			ten2.Shape = []int{}
-// 		}
-// 		return &Result{Data: ten2.Flatten(), Shape: ten2.Shape}
-// 	}
-//
-// 	onNumpy := func(arg *randomIndexArg) *Result {
-// 		arr := []string{}
-// 		for _, f := range arg.inArr {
-// 			arr = append(arr, fmt.Sprintf("%v", f))
-// 		}
-//
-// 		shp := []string{}
-// 		for _, i := range arg.inShape {
-// 			shp = append(shp, fmt.Sprintf("%v", i))
-// 		}
-//
-// 		indices := []string{}
-// 		for _, arg := range arg.arg {
-// 			indices = append(indices, arg.numpyIndexString())
-// 		}
-//
-// 		pyprg := []string{
-// 			fmt.Sprintf("x = np.array([%s]).reshape(%s)", strings.Join(arr, ", "), strings.Join(shp, ", ")),
-// 			fmt.Sprintf("y = x[%s]", strings.Join(indices, ", ")),
-// 			fmt.Sprintf("print(y.flatten(), y.shape)"),
-// 		}
-// 		data, shape := runAsNumpyDataAndShape(t, pyprg, tempdir)
-// 		return &Result{Data: data, Shape: shape}
-// 	}
-//
-// 	err := quick.CheckEqual(onTensor, onNumpy, &quick.Config{MaxCount: 500})
-// 	if err != nil {
-// 		cee := err.(*quick.CheckEqualError)
-// 		t.Fatalf("quick check (#%v):\n  input       : %v\n  go output   : %v\n  numpy output: %v\n", cee.Count, cee.In, cee.Out1, cee.Out2)
-// 	}
-// }
+func TestIndex_quick(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	tempdir := t.TempDir()
+
+	onTensor := func(arg *randomIndexArg) *Result {
+		ten, err := NdShape(arg.inArr, arg.inShape...)
+		if err != nil {
+			t.Fatalf("initialize tensor: %v", err)
+		}
+
+		ten2, err := ten.Index(arg.arg...)
+		if err != nil {
+			t.Fatalf("index tensor: %v", err)
+		}
+
+		// need to resolve:
+		// not sure why but sometimes ten2.Shape is returned as nil,
+		// but it should be actually []int{}.
+		// Because of this, comparing with numpy output fails so this check is added.
+		if ten2.Shape == nil {
+			ten2.Shape = []int{}
+		}
+		return &Result{Data: ten2.Flatten(), Shape: ten2.Shape}
+	}
+
+	onNumpy := func(arg *randomIndexArg) *Result {
+		arr := []string{}
+		for _, f := range arg.inArr {
+			arr = append(arr, fmt.Sprintf("%v", f))
+		}
+
+		shp := []string{}
+		for _, i := range arg.inShape {
+			shp = append(shp, fmt.Sprintf("%v", i))
+		}
+
+		indices := []string{}
+		for _, arg := range arg.arg {
+			indices = append(indices, arg.numpyIndexString())
+		}
+
+		pyprg := []string{
+			fmt.Sprintf("x = np.array([%s]).reshape(%s)", strings.Join(arr, ", "), strings.Join(shp, ", ")),
+			fmt.Sprintf("y = x[%s]", strings.Join(indices, ", ")),
+			fmt.Sprintf("print(y.flatten(), y.shape)"),
+		}
+		data, shape := runAsNumpyDataAndShape(t, pyprg, tempdir)
+		return &Result{Data: data, Shape: shape}
+	}
+
+	err := quick.CheckEqual(onTensor, onNumpy, &quick.Config{MaxCount: 500})
+	if err != nil {
+		cee := err.(*quick.CheckEqualError)
+		t.Fatalf("quick check (#%v):\n  input       : %v\n  go output   : %v\n  numpy output: %v\n", cee.Count, cee.In, cee.Out1, cee.Out2)
+	}
+}
 
 func TestIndexUpdate_quick(t *testing.T) {
 	if testing.Short() {
@@ -228,7 +228,11 @@ func TestIndexUpdate_quick(t *testing.T) {
 	tempdir := t.TempDir()
 
 	onTensor := func(arg *randomIndexUpdateArg) *Result {
-		fmt.Println(arg.r)
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("recovered from panic: %v", r)
+			}
+		}()
 		ten, err := NdShape(copySlice(arg.r.inArr), copySlice(arg.r.inShape)...)
 		if err != nil {
 			t.Fatalf("initialize tensor: %v", err)

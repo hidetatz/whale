@@ -195,11 +195,24 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 		}
 		r = append(r, t2.Flatten()...)
 
-		origIdx := 0
-		for i, id := range idx {
-			origIdx += id * t.Strides[i]
+		combi := [][]int{}
+		for i := 0; i < len(idx); i++ {
+			combi = append(combi, []int{idx[i]})
 		}
-		origIndices = append(origIndices, origIdx)
+		if len(idx) < t.Ndim() {
+			for i := len(idx); i < t.Ndim(); i++ {
+				combi = append(combi, until(t.Shape[i]))
+			}
+		}
+
+		rawindices := cartesians(combi)
+		for _, rawidx := range rawindices {
+			origIdx := 0
+			for i := range rawidx {
+				origIdx += rawidx[i] * t.Strides[i]
+			}
+			origIndices = append(origIndices, origIdx)
+		}
 	}
 
 	newtensor, err := NdShape(r, newshape...)
@@ -390,11 +403,30 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		}
 		r = append(r, t2.Flatten()...)
 
-		origIdx := 0
-		for i, id := range idx {
-			origIdx += id * t.Strides[i]
+		// origIdx := 0
+		// for i, id := range idx {
+		// 	origIdx += id * t.Strides[i]
+		// }
+		// origIndices = append(origIndices, origIdx)
+
+		combi := [][]int{}
+		for i := 0; i < len(idx); i++ {
+			combi = append(combi, []int{idx[i]})
 		}
-		origIndices = append(origIndices, origIdx)
+		if len(idx) < t.Ndim() {
+			for i := len(idx); i < t.Ndim(); i++ {
+				combi = append(combi, until(t.Shape[i]))
+			}
+		}
+
+		rawindices := cartesians(combi)
+		for _, rawidx := range rawindices {
+			origIdx := 0
+			for i := range rawidx {
+				origIdx += rawidx[i] * t.Strides[i]
+			}
+			origIndices = append(origIndices, origIdx)
+		}
 	}
 
 	newtensor, err := NdShape(r, newshape...)

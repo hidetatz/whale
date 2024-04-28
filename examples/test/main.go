@@ -7,19 +7,34 @@ import (
 )
 
 func main() {
-	t := tensor.Rand(2, 2, 2)
-	// t2, err := t.Index(
-	// 	tensor.FromTo(0, 2),
-	// 	tensor.At(3),
-	// 	tensor.FromTo(1, 6),
-	// 	tensor.List(tensor.Vector([]float64{1, 5, 2})),
-	// 	tensor.List(tensor.Vector([]float64{0, 0, 0})),
-	// )
+	t, err := tensor.Arange(0, 200, 1, 1, 5, 4, 2, 5)
+	// t := tensor.ArangeVec(0, 5, 1)
+	if err != nil {
+		panic(err)
+	}
+	args := []*tensor.IndexArg{
+		tensor.At(0),
+		tensor.List(tensor.Vector([]float64{0, 1, 0})),
+		tensor.At(2),
+		tensor.At(1),
+	}
 
-	// if err != nil {
-	// 	panic(err)
-	// }
+	read := false
 
-	fmt.Println(t.String())
-	fmt.Println(t.OnelineString())
+	if !read {
+		err := t.IndexSub(args, tensor.Scalar(3))
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(t)
+	} else {
+		t2, err := t.Index(args...)
+
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(t2)
+	}
 }

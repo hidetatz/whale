@@ -23,6 +23,14 @@ func copyArgs(a []*IndexArg) []*IndexArg {
 	return c
 }
 
+func until(v int) []int {
+	r := make([]int, v)
+	for i := range v {
+		r[i] = i
+	}
+	return r
+}
+
 func all(v, length int) []int {
 	r := make([]int, length)
 	for i := range length {
