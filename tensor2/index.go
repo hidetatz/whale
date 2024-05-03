@@ -207,7 +207,7 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 
 		rawindices := cartesians(combi)
 		for _, rawidx := range rawindices {
-			origIdx := 0
+			origIdx := t.offset
 			for i := range rawidx {
 				origIdx += rawidx[i] * t.Strides[i]
 			}
@@ -421,7 +421,7 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 
 		rawindices := cartesians(combi)
 		for _, rawidx := range rawindices {
-			origIdx := 0
+			origIdx := t.offset
 			for i := range rawidx {
 				origIdx += rawidx[i] * t.Strides[i]
 			}
