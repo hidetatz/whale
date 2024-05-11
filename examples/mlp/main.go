@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/hidetatz/whale"
-	"github.com/hidetatz/whale/tensor"
+	tensor "github.com/hidetatz/whale/tensor2"
 )
 
-var device = &whale.CPU{}
+// var device = &whale.CPU{}
 
 func Predict(m whale.Model, x *whale.Variable) *whale.Variable {
 	pred, err := m.Train(x)
@@ -63,7 +63,7 @@ func main() {
 	Train(mlp, x, y)
 
 	p := whale.NewPlot()
-	if err := p.Scatter(xt.Data, yt.Data, "blue"); err != nil {
+	if err := p.Scatter(xt.Flatten(), yt.Flatten(), "blue"); err != nil {
 		panic(err)
 	}
 
@@ -73,7 +73,7 @@ func main() {
 	}
 	tv := whale.NewVar(t)
 	pred := Predict(mlp, tv)
-	if err = p.Line(tv.GetData().Data, pred.GetData().Data, "red"); err != nil {
+	if err = p.Line(tv.GetData().Flatten(), pred.GetData().Flatten(), "red"); err != nil {
 		panic(err)
 	}
 

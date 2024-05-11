@@ -4,14 +4,20 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/hidetatz/whale/tensor"
+	tensor "github.com/hidetatz/whale/tensor2"
 )
 
-var device Device
-
-func init() {
-	device = &CPU{}
+func copySlice(s []int) []int {
+	c := make([]int, len(s))
+	copy(c, s)
+	return c
 }
+
+// var device Device
+//
+// func init() {
+// 	device = &CPU{}
+// }
 
 func asvars(t *tensor.Tensor) []*Variable {
 	return []*Variable{NewVar(t)}
@@ -39,7 +45,7 @@ func Reshape(v *Variable, shape ...int) (*Variable, error) {
 		return v, nil
 	}
 
-	f := NewFunction(&reshape{origshape: v.data.CopyShape(), shape: shape})
+	f := NewFunction(&reshape{origshape: v.data.Shape, shape: shape})
 	y, err := f.forward(v)
 	if err != nil {
 		return nil, err
@@ -110,11 +116,11 @@ func (t *transpose) String() string {
 
 // BroadcastTo broadcasts the tensor to the given shape.
 func BroadcastTo(v *Variable, shape ...int) (*Variable, error) {
-	if slices.Equal(v.data.CopyShape(), shape) {
+	if slices.Equal(v.data.Shape, shape) {
 		return v, nil
 	}
 
-	f := NewFunction(&broadcastTo{origshape: v.data.CopyShape(), shape: shape})
+	f := NewFunction(&broadcastTo{origshape: v.data.Shape, shape: shape})
 	y, err := f.forward(v)
 	if err != nil {
 		return nil, err
@@ -154,7 +160,7 @@ func (b *broadcastTo) String() string {
  */
 
 func Sum(v *Variable, keepdims bool, axes ...int) (*Variable, error) {
-	f := NewFunction(&sum{keepdims: keepdims, axes: axes, origshape: v.data.CopyShape()})
+	f := NewFunction(&sum{keepdims: keepdims, axes: axes, origshape: v.data.Shape})
 	y, err := f.forward(v)
 	if err != nil {
 		return nil, err
@@ -182,12 +188,11 @@ func (s *sum) Backward(gy ...*Variable) ([]*Variable, error) {
 	gy0 := gy[0]
 	ndim := len(s.origshape)
 
-	shape := gy0.data.CopyShape()
+	shape := copySlice(gy0.data.Shape)
 	if ndim != 0 && len(s.axes) != 0 && !s.keepdims {
-		sorted := make([]int, len(s.axes))
-		copy(sorted, s.axes)
-		slices.Sort(sorted)
-		for _, a := range sorted {
+		axes := copySlice(s.axes)
+		slices.Sort(axes)
+		for _, a := range axes {
 			// insert a
 			shape = append(shape[:a], append([]int{1}, shape[a:]...)...)
 		}
@@ -211,11 +216,11 @@ func (s *sum) String() string {
 }
 
 func SumTo(v *Variable, shape ...int) (*Variable, error) {
-	if slices.Equal(v.data.CopyShape(), shape) {
+	if slices.Equal(v.data.Shape, shape) {
 		return v, nil
 	}
 
-	f := NewFunction(&sumTo{origshape: v.data.CopyShape(), shape: shape})
+	f := NewFunction(&sumTo{origshape: v.data.Shape, shape: shape})
 	y, err := f.forward(v)
 
 	if err != nil {
@@ -270,7 +275,7 @@ type exp struct {
 }
 
 func (e *exp) Forward(inputs ...*Variable) ([]*Variable, error) {
-	v := NewVar(device.Exp(inputs[0].data))
+	v := NewVar(inputs[0].data.Exp())
 	e.output = v
 	return []*Variable{v}, nil
 }
@@ -293,7 +298,7 @@ func (e *exp) String() string {
  */
 
 func Add(x0, x1 *Variable) (*Variable, error) {
-	f := NewFunction(&add{x0shape: x0.data.CopyShape(), x1shape: x1.data.CopyShape()})
+	f := NewFunction(&add{x0shape: x0.data.Shape, x1shape: x1.data.Shape})
 	y, err := f.forward(x0, x1)
 	if err != nil {
 		return nil, err
@@ -308,7 +313,11 @@ type add struct {
 }
 
 func (a *add) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Add(inputs[0].data, inputs[1].data)), nil
+	add, err := inputs[0].data.Add(inputs[1].data)
+	if err != nil {
+		return nil, err
+	}
+	return asvars(add), nil
 }
 
 func (a *add) Backward(gy ...*Variable) ([]*Variable, error) {
@@ -333,7 +342,7 @@ func (a *add) String() string {
 }
 
 func Sub(x0, x1 *Variable) (*Variable, error) {
-	f := NewFunction(&sub{x0shape: x0.data.CopyShape(), x1shape: x1.data.CopyShape()})
+	f := NewFunction(&sub{x0shape: x0.data.Shape, x1shape: x1.data.Shape})
 	y, err := f.forward(x0, x1)
 	if err != nil {
 		return nil, err
@@ -348,7 +357,11 @@ type sub struct {
 }
 
 func (s *sub) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Sub(inputs[0].data, inputs[1].data)), nil
+	sub, err := inputs[0].data.Sub(inputs[1].data)
+	if err != nil {
+		return nil, err
+	}
+	return asvars(sub), nil
 }
 
 func (s *sub) Backward(gy ...*Variable) ([]*Variable, error) {
@@ -378,7 +391,7 @@ func (s *sub) String() string {
 }
 
 func Mul(x0, x1 *Variable) (*Variable, error) {
-	f := NewFunction(&mul{x0: x0, x1: x1, x0shape: x0.data.CopyShape(), x1shape: x1.data.CopyShape()})
+	f := NewFunction(&mul{x0: x0, x1: x1, x0shape: x0.data.Shape, x1shape: x1.data.Shape})
 	y, err := f.forward(x0, x1)
 	if err != nil {
 		return nil, err
@@ -395,7 +408,11 @@ type mul struct {
 }
 
 func (m *mul) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Mul(m.x0.data, m.x1.data)), nil
+	mul, err := m.x0.data.Mul(m.x1.data)
+	if err != nil {
+		return nil, err
+	}
+	return asvars(mul), nil
 }
 
 func (m *mul) Backward(gy ...*Variable) ([]*Variable, error) {
@@ -429,7 +446,7 @@ func (m *mul) String() string {
 }
 
 func Div(x0, x1 *Variable) (*Variable, error) {
-	f := NewFunction(&div{x0: x0, x1: x1, x0shape: x0.data.CopyShape(), x1shape: x1.data.CopyShape()})
+	f := NewFunction(&div{x0: x0, x1: x1, x0shape: x0.data.Shape, x1shape: x1.data.Shape})
 	y, err := f.forward(x0, x1)
 	if err != nil {
 		return nil, err
@@ -446,7 +463,11 @@ type div struct {
 }
 
 func (d *div) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Div(inputs[0].data, inputs[1].data)), nil
+	div, err := inputs[0].data.Div(inputs[1].data)
+	if err != nil {
+		return nil, err
+	}
+	return asvars(div), nil
 }
 
 func (d *div) Backward(gy ...*Variable) ([]*Variable, error) {
@@ -507,7 +528,7 @@ func Neg(x *Variable) (*Variable, error) {
 type neg struct{}
 
 func (n *neg) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Neg(inputs[0].data)), nil
+	return asvars(inputs[0].data.Neg()), nil
 }
 
 func (n *neg) Backward(gy ...*Variable) ([]*Variable, error) {
@@ -539,28 +560,34 @@ type pow struct {
 }
 
 func (p *pow) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Pow(inputs[0].data, p.c.data)), nil
+	pow, err := inputs[0].data.Pow(p.c.data)
+	if err != nil {
+		return nil, err
+	}
+
+	return asvars(pow), nil
 }
 
 func (p *pow) Backward(gy ...*Variable) ([]*Variable, error) {
 	t1, err := Sub(p.c, NewVar(tensor.Scalar(1)))
 	if err != nil {
-		return nil, fmt.Errorf("Pow Backward: %w", err)
+		return nil, fmt.Errorf("Pow Backward (Sub): %w", err)
 	}
 
 	t2, err := Pow(p.x, t1)
 	if err != nil {
-		return nil, fmt.Errorf("Pow Backward: %w", err)
+		return nil, fmt.Errorf("Pow Backward (Pow): %w", err)
 	}
 
 	t3, err := Mul(p.c, t2)
 	if err != nil {
-		return nil, fmt.Errorf("Pow Backward: %w", err)
+		return nil, fmt.Errorf("Pow Backward (Mul1): %w", err)
 	}
 
+	fmt.Println(t3.Shape(), gy[0].Shape())
 	gx, err := Mul(t3, gy[0])
 	if err != nil {
-		return nil, fmt.Errorf("Pow Backward: %w", err)
+		return nil, fmt.Errorf("Pow Backward (Mul2): %w", err)
 	}
 
 	return []*Variable{gx}, nil
@@ -584,7 +611,7 @@ type sin struct {
 }
 
 func (s *sin) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Sin(s.x.data)), nil
+	return asvars(s.x.data.Sin()), nil
 }
 
 func (s *sin) Backward(gy ...*Variable) ([]*Variable, error) {
@@ -620,7 +647,7 @@ type cos struct {
 }
 
 func (c *cos) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Cos(c.x.data)), nil
+	return asvars(c.x.data.Cos()), nil
 }
 
 func (c *cos) Backward(gy ...*Variable) ([]*Variable, error) {
@@ -661,7 +688,7 @@ type tanh struct {
 }
 
 func (t *tanh) Forward(inputs ...*Variable) ([]*Variable, error) {
-	y := NewVar(device.Tanh(t.x.data))
+	y := NewVar(t.x.data.Tanh())
 	t.y = y
 	return []*Variable{y}, nil
 }
@@ -705,7 +732,12 @@ type matmul struct {
 }
 
 func (m *matmul) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Dot(m.x.data, m.w.data)), nil
+	dot, err := m.x.data.Dot(m.w.data)
+	if err != nil {
+		return nil, err
+	}
+
+	return asvars(dot), nil
 }
 
 func (m *matmul) Backward(gy ...*Variable) ([]*Variable, error) {
@@ -752,15 +784,15 @@ type clip struct {
 }
 
 func (c *clip) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Clip(c.x.data, c.min, c.max)), nil
+	return asvars(c.x.data.Clip(c.min, c.max)), nil
 }
 
 func (c *clip) Backward(gy ...*Variable) ([]*Variable, error) {
-	minMask := c.x.data.ToBool(func(f float64) bool {
+	minMask := c.x.data.Bool(func(f float64) bool {
 		return f >= c.min
 	})
 
-	maxMask := c.x.data.ToBool(func(f float64) bool {
+	maxMask := c.x.data.Bool(func(f float64) bool {
 		return f <= c.max
 	})
 
@@ -796,7 +828,7 @@ type log struct {
 }
 
 func (l *log) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(device.Log(l.x.data)), nil
+	return asvars(l.x.data.Log()), nil
 }
 
 func (l *log) Backward(gy ...*Variable) ([]*Variable, error) {
@@ -828,11 +860,11 @@ type index struct {
 }
 
 func (i *index) Forward(inputs ...*Variable) ([]*Variable, error) {
-	args := []*tensor.Tensor{}
-	for _, idx := range i.indices {
-		args = append(args, idx.data)
+	args := make([]*tensor.IndexArg, len(i.indices))
+	for i, idx := range i.indices {
+		args[i] = tensor.List(idx.data)
 	}
-	t, err := i.x.data.Indices(args...)
+	t, err := i.x.data.Index(args...)
 	if err != nil {
 		return nil, err
 	}
@@ -841,7 +873,7 @@ func (i *index) Forward(inputs ...*Variable) ([]*Variable, error) {
 }
 
 func (i *index) Backward(gy ...*Variable) ([]*Variable, error) {
-	v, err := indexGrad(i.x.data.CopyShape(), i.indices, gy[0])
+	v, err := indexGrad(i.x.data.Shape, i.indices, gy[0])
 	if err != nil {
 		return nil, err
 	}
@@ -870,16 +902,18 @@ type indexgrad struct {
 
 func (i *indexgrad) Forward(inputs ...*Variable) ([]*Variable, error) {
 	gx := tensor.Zeros(i.xshape...)
-	in := make([]*tensor.Tensor, len(i.indices))
+
+	in := make([]*tensor.IndexArg, len(i.indices))
 	for i, index := range i.indices {
-		in[i] = index.data
+		in[i] = tensor.List(index.data)
 	}
-	t, err := gx.AddAt(in, inputs[0].data)
+
+	err := tensor.ADD.At(gx, in, inputs[0].data)
 	if err != nil {
 		return nil, err
 	}
 
-	return asvars(t), nil
+	return asvars(gx), nil
 }
 
 func (i *indexgrad) Backward(gy ...*Variable) ([]*Variable, error) {

@@ -1,9 +1,9 @@
 package whale
 
-import "github.com/hidetatz/whale/tensor"
+import tensor "github.com/hidetatz/whale/tensor2"
 
 type Optimizer interface {
-	Optimize(v *Variable)
+	Optimize(v *Variable) error
 }
 
 type SGD struct {
@@ -14,12 +14,19 @@ func NewSGD(learnRate float64) *SGD {
 	return &SGD{learnRate: tensor.Scalar(learnRate)}
 }
 
-func (s *SGD) Optimize(v *Variable) {
-	newData := device.Sub(
-		v.GetData(),
-		device.Mul(v.GetGrad().GetData(), s.learnRate),
-	)
+func (s *SGD) Optimize(v *Variable) error {
+	delta, err := v.GetGrad().GetData().Mul(s.learnRate)
+	if err != nil {
+		return err
+	}
+
+	newData, err := v.GetData().Sub(delta)
+	if err != nil {
+		return err
+	}
+
 	v.SetData(newData)
+	return nil
 }
 
 type MomentumSGD struct {
@@ -36,12 +43,31 @@ func NewMomentumSGD(learnRate, momentum float64) *MomentumSGD {
 	}
 }
 
-func (s *MomentumSGD) Optimize(v *Variable) {
+func (s *MomentumSGD) Optimize(v *Variable) error {
 	if _, ok := s.velocities[v]; !ok {
 		s.velocities[v] = tensor.ZerosLike(v.GetData())
 	}
 	velocity := s.velocities[v]
-	velocity = device.Mul(velocity, s.momentum)
-	velocity = device.Sub(velocity, device.Mul(s.learnRate, v.GetGrad().GetData()))
-	v.SetData(device.Add(v.GetData(), velocity))
+	velocity, err := velocity.Mul(s.momentum)
+	if err != nil {
+		return err
+	}
+
+	delta, err := s.learnRate.Mul(v.GetGrad().GetData())
+	if err != nil {
+		return err
+	}
+
+	velocity, err = velocity.Sub(delta)
+	if err != nil {
+		return err
+	}
+
+	newv, err := v.GetData().Add(velocity)
+	if err != nil {
+		return err
+	}
+
+	v.SetData(newv)
+	return nil
 }

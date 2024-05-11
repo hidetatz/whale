@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"unsafe"
 
-	"github.com/hidetatz/whale/tensor"
+	tensor "github.com/hidetatz/whale/tensor2"
 )
 
 // VisualizeGraph outputs the calculation graph as graph.png on the current directory.

@@ -1,7 +1,7 @@
 package whale
 
 import (
-	"github.com/hidetatz/whale/tensor"
+	tensor "github.com/hidetatz/whale/tensor2"
 )
 
 type MLP struct {

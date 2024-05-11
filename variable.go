@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/hidetatz/whale/tensor"
+	tensor "github.com/hidetatz/whale/tensor2"
 )
 
 var EnableBackprop = true
@@ -34,8 +34,12 @@ func (v *Variable) clone() *Variable {
 	}
 }
 
+func (v *Variable) Shape() []int {
+	return v.data.Shape
+}
+
 func (v *Variable) Len() int {
-	return len(v.data.Data)
+	return v.data.Size()
 }
 
 func (v *Variable) SetData(t *tensor.Tensor) {

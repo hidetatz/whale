@@ -4,12 +4,14 @@ import (
 	"math"
 	"math/rand"
 
-	"github.com/hidetatz/whale/tensor"
+	tensor "github.com/hidetatz/whale/tensor2"
 )
 
 func RandSin(shape ...int) (*tensor.Tensor, *tensor.Tensor) {
 	x := tensor.Rand(shape...)
-	y := device.Add(device.Sin(device.Mul(x, device.Mul(tensor.Scalar(2), tensor.Scalar(math.Pi)))), tensor.Rand(shape...))
+
+	sin := tensor.Must(tensor.Scalar(2 * math.Pi).Mul(x))
+	y := tensor.Must(tensor.Rand(shape...).Add(sin))
 	return x, y
 }
 
@@ -33,7 +35,7 @@ func RandSpiral() (*tensor.Tensor, *tensor.Tensor) {
 		flat = append(flat, x[i]...)
 	}
 
-	xt := tensor.MustNd(flat, 300, 2)
+	xt := tensor.Must(tensor.NdShape(flat, 300, 2))
 	tt := tensor.Vector(t)
 
 	return xt, tt

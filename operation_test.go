@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/hidetatz/whale/tensor"
+	tensor "github.com/hidetatz/whale/tensor2"
 )
 
 // Tests each calculation function correctness.
@@ -407,7 +407,7 @@ func scalar(t *testing.T, data float64) *tensor.Tensor {
 
 func nd(t *testing.T, data []float64, shape ...int) *tensor.Tensor {
 	t.Helper()
-	tsr, _ := tensor.Nd(data, shape...)
+	tsr, _ := tensor.NdShape(data, shape...)
 	return tsr
 }
 
