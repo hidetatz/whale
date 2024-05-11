@@ -584,7 +584,6 @@ func (p *pow) Backward(gy ...*Variable) ([]*Variable, error) {
 		return nil, fmt.Errorf("Pow Backward (Mul1): %w", err)
 	}
 
-	fmt.Println(t3.Shape(), gy[0].Shape())
 	gx, err := Mul(t3, gy[0])
 	if err != nil {
 		return nil, fmt.Errorf("Pow Backward (Mul2): %w", err)
