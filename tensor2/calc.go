@@ -18,7 +18,8 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 		var result float64
 		iter := t.Iterator()
 		for iter.HasNext() {
-			result += iter.Next()
+			_, v := iter.Next()
+			result += v
 		}
 
 		if keepdims {

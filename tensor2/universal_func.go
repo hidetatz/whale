@@ -44,12 +44,10 @@ func ufuncAt(x *Tensor, indices []*IndexArg, fn func(orig, arg float64) float64,
 	}
 
 	it := tgt.Iterator()
-	i := 0
 	for it.HasNext() {
-		tg := it.Next()
+		i, tg := it.Next()
 		idx := r.origIndices[i]
 		x.data[idx] = fn(x.data[idx], tg)
-		i++
 	}
 
 	return nil

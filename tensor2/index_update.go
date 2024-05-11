@@ -50,12 +50,10 @@ func (t *Tensor) indexPut(args []*IndexArg, fn func(orig, arg float64) float64, 
 	c := t.Copy()
 
 	it := tgt.Iterator()
-	i := 0
 	for it.HasNext() {
-		tg := it.Next()
+		i, tg := it.Next()
 		idx := r.origIndices[i]
 		t.data[idx] = fn(c.data[idx], tg)
-		i++
 	}
 
 	return nil

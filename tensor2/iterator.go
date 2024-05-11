@@ -24,10 +24,11 @@ func (i *Iterator) HasNext() bool {
 	return i.offset < len(i.indices)
 }
 
-func (i *Iterator) Next() float64 {
+func (i *Iterator) Next() (int, float64) {
+	curoffset := i.offset
 	if i.t.IsScalar() {
 		i.offset++
-		return i.t.AsScalar()
+		return curoffset, i.t.AsScalar()
 	}
 
 	idx := i.indices[i.offset]
@@ -41,5 +42,5 @@ func (i *Iterator) Next() float64 {
 	}
 
 	i.offset++
-	return s.AsScalar()
+	return curoffset, s.AsScalar()
 }
