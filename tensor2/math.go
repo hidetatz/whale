@@ -1,89 +1,81 @@
 package tensor2
 
-import "fmt"
+import "math"
 
-func (t *Tensor) Argmax(keepdims bool, axis int) (*Tensor, error) {
-	return t.argFunc(keepdims, axis, "max")
-}
+func (t *Tensor) apply1(fn func(f float64) float64) *Tensor {
+	d := make([]float64, t.Size())
 
-func (t *Tensor) Argmin(keepdims bool, axis int) (*Tensor, error) {
-	return t.argFunc(keepdims, axis, "min")
-}
-
-func (t *Tensor) argFunc(keepdims bool, axis int, fn string) (*Tensor, error) {
-	if fn != "max" && fn != "min" {
-		// this must not happen
-		panic("argFunc received invalid fn value: " + fn)
-	}
-
-	if t.Ndim() <= axis {
-		return nil, fmt.Errorf("axis %v	is out of bounds for array dimension is %v", axis, t.Ndim())
-	}
-
-	if axis < 0 {
-		arg := t.argFuncFlat(fn)
-
-		if !keepdims {
-			return Scalar(float64(arg)), nil
-		}
-
-		return NdShape([]float64{float64(arg)}, all(1, t.Ndim())...)
-	}
-
-	newshape := copySlice(t.Shape)
-	if keepdims {
-		newshape[axis] = 1
-	} else {
-		newshape = append(newshape[:axis], newshape[axis+1:]...)
-	}
-
-	data := make([]float64, product(newshape))
-	shp := copySlice(t.Shape)
-	shp[axis] = 1
-
-	indexArgs := cartesianIdx(shp)
-	for i, indexArg := range indexArgs {
-		indexArg[axis] = All()
-		t2, err := t.Index(indexArg...)
-		if err != nil {
-			// this must not happen
-			panic("index() returns err: " + err.Error())
-		}
-
-		arg := t2.argFuncFlat(fn)
-		data[i] = float64(arg)
-	}
-
-	return NdShape(data, newshape...)
-}
-
-func (t *Tensor) argFuncFlat(fn string) int {
-	var cur float64 // actual value
-	var arg int     // index to be returned
 	iter := t.Iterator()
-	i := 0
 	for iter.HasNext() {
-		f := iter.Next()
-		if i == 0 {
-			cur = f
-			arg = 0
-			i++
-			continue
-		}
-
-		update := false
-		if fn == "max" {
-			update = cur < f
-		} else {
-			update = f < cur
-		}
-
-		if update {
-			cur = f
-			arg = i
-		}
-		i++
+		i, v := iter.Next()
+		d[i] = fn(v)
 	}
 
-	return arg
+	return Must(NdShape(d, copySlice(t.Shape)...))
+}
+
+func (t *Tensor) apply2(t2 *Tensor, fn func(f1, f2 float64) float64) (*Tensor, error) {
+	nt, nt2, err := Broadcast(t, t2)
+	if err != nil {
+		return nil, err
+	}
+
+	d := make([]float64, nt.Size())
+
+	t1iter := nt.Iterator()
+	t2iter := nt2.Iterator()
+	for t1iter.HasNext() {
+		i, v1 := t1iter.Next()
+		_, v2 := t2iter.Next()
+
+		d[i] = fn(v1, v2)
+	}
+
+	return NdShape(d, copySlice(nt.Shape)...)
+}
+
+// apply1 operations
+func (t *Tensor) Exp() *Tensor {
+	return t.apply1(func(f float64) float64 { return math.Exp(f) })
+}
+
+func (t *Tensor) Neg() *Tensor {
+	return t.apply1(func(f float64) float64 { return -f })
+}
+
+func (t *Tensor) Sin() *Tensor {
+	return t.apply1(func(f float64) float64 { return math.Sin(f) })
+}
+
+func (t *Tensor) Cos() *Tensor {
+	return t.apply1(func(f float64) float64 { return math.Cos(f) })
+}
+
+func (t *Tensor) Tanh() *Tensor {
+	return t.apply1(func(f float64) float64 { return math.Tanh(f) })
+}
+
+func (t *Tensor) Log() *Tensor {
+	return t.apply1(func(f float64) float64 { return math.Log(f) })
+}
+
+// apply2 operations
+func (t *Tensor) Pow(t2 *Tensor) (*Tensor, error) {
+	return t.apply2(t2, func(f1, f2 float64) float64 { return math.Pow(f1, f2) })
+}
+
+func (t *Tensor) Add(t2 *Tensor) (*Tensor, error) {
+	return t.apply2(t2, func(f1, f2 float64) float64 { return f1 + f2 })
+}
+
+func (t *Tensor) Sub(t2 *Tensor) (*Tensor, error) {
+	return t.apply2(t2, func(f1, f2 float64) float64 { return f1 - f2 })
+}
+
+func (t *Tensor) Mul(t2 *Tensor) (*Tensor, error) {
+	return t.apply2(t2, func(f1, f2 float64) float64 { return f1 * f2 })
+}
+
+func (t *Tensor) Div(t2 *Tensor) (*Tensor, error) {
+	return t.apply2(t2, func(f1, f2 float64) float64 { return f1 / f2 })
 }

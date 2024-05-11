@@ -211,3 +211,23 @@ func (t *Tensor) argFuncFlat(fn string) int {
 
 	return arg
 }
+
+func (t *Tensor) Clip(min, max float64) *Tensor {
+	data := make([]float64, t.Size())
+
+	iter := t.Iterator()
+	for iter.HasNext() {
+		i, f := iter.Next()
+		if f < min {
+			f = min
+		}
+
+		if max < f {
+			f = max
+		}
+
+		data[i] = f
+	}
+
+	return Must(NdShape(data, copySlice(t.Shape)...))
+}

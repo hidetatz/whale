@@ -92,6 +92,26 @@ func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
 	return &Tensor{data: t.data, offset: t.offset, Shape: newshape, Strides: newstrides}, nil
 }
 
+func Broadcast(t1, t2 *Tensor) (newt1, newt2 *Tensor, err error) {
+	broadcastedShape, err := CanBroadcast([]*Tensor{t1, t2})
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	nt1, err := t1.BroadcastTo(broadcastedShape...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	nt2, err := t2.BroadcastTo(broadcastedShape...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return nt1, nt2, nil
+}
+
 func CanBroadcast(tensors []*Tensor) ([]int, error) {
 	// just for error message...
 	origshapes := make([][]int, len(tensors))
