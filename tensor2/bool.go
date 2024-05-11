@@ -1,14 +1,17 @@
 package tensor2
 
 func (t *Tensor) Bool(f func(f float64) bool) *Tensor {
-	c := t.Copy()
-	for i := range c.data {
-		if f(c.data[i]) {
-			c.data[i] = 1
+	d := make([]float64, t.Size())
+
+	iter := t.Iterator()
+	for iter.HasNext() {
+		i, v := iter.Next()
+		if f(v) {
+			d[i] = 1
 		} else {
-			c.data[i] = 0
+			d[i] = 0
 		}
 	}
 
-	return c
+	return Must(NdShape(d, copySlice(t.Shape)...))
 }
