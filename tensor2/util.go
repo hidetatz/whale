@@ -99,19 +99,26 @@ func cartesiansIdx(a [][]int) [][]*IndexArg {
 	return args
 }
 
-// creates cartesian product, but regards given a as
-// index slice. For example, if a is [2, 3, 2],
-// this function actually returns cartesians([[0, 1], [0, 1, 2], [0, 1]]).
+// creates cartesian product, but regards given a as index slice.
 func cartesian(a []int) [][]int {
-	arg := make([][]int, len(a))
-	for i, n := range a {
-		s := make([]int, n)
-		for j := range n {
-			s[j] = j
-		}
-		arg[i] = s
+	strides := make([]int, len(a))
+	for i := range a {
+		strides[i] = product(a[i+1:])
 	}
-	return cartesians(arg)
+
+	result := make([][]int, product(a))
+	for i := range result {
+		r := make([]int, len(strides))
+		carry := i
+		for j, stride := range strides {
+			div := carry / stride
+			r[j] = div
+			carry -= stride * div
+		}
+		result[i] = r
+	}
+
+	return result
 }
 
 func cartesianIdx(a []int) [][]*IndexArg {
