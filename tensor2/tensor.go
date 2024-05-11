@@ -89,19 +89,14 @@ func (t *Tensor) Flatten() []float64 {
 		return []float64{t.AsScalar()}
 	}
 
-	indices := cartesianIdx(t.Shape)
+	indices := cartesian(t.Shape)
 	result := make([]float64, len(indices))
 	for i, index := range indices {
-		s, err := t.Index(index...)
-		if err != nil {
-			panic(fmt.Errorf("Flatten: index access problem: %v", index))
+		rawIdx := t.offset
+		for j, idx := range index {
+			rawIdx += t.Strides[j] * idx
 		}
-
-		if !s.IsScalar() {
-			panic("Flatten: non scalar")
-		}
-
-		result[i] = s.AsScalar()
+		result[i] = t.data[rawIdx]
 	}
 	return result
 }
