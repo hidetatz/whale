@@ -1,21 +1,21 @@
 package tensor2
 
 type Iterator struct {
-	data   []float64
-	offset int
-	t      *Tensor
+	data     []float64
+	offset   int
+	isscalar bool
 }
 
 func (t *Tensor) Iterator() *Iterator {
 	if t.IsScalar() {
-		return &Iterator{data: nil, offset: 0, t: t}
+		return &Iterator{data: []float64{t.AsScalar()}, offset: 0, isscalar: t.IsScalar()}
 	}
 
-	return &Iterator{data: t.Flatten(), offset: 0, t: t}
+	return &Iterator{data: t.Flatten(), offset: 0, isscalar: t.IsScalar()}
 }
 
 func (i *Iterator) HasNext() bool {
-	if i.t.IsScalar() {
+	if i.isscalar {
 		return i.offset == 0
 	}
 
@@ -24,9 +24,9 @@ func (i *Iterator) HasNext() bool {
 
 func (i *Iterator) Next() (int, float64) {
 	curoffset := i.offset
-	if i.t.IsScalar() {
+	if i.isscalar {
 		i.offset++
-		return curoffset, i.t.AsScalar()
+		return curoffset, i.data[0]
 	}
 
 	v := i.data[i.offset]
