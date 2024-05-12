@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"runtime/pprof"
 	"time"
 
 	"github.com/hidetatz/whale"
@@ -22,7 +20,7 @@ func Train(m whale.Model, x, y *whale.Variable) {
 	lossCalc := m.Loss()
 	optim := m.Optimizer()
 
-	for i := range 3000 {
+	for i := range 10000 {
 		pred, err := m.Train(x)
 		if err != nil {
 			panic(err)
@@ -44,9 +42,9 @@ func Train(m whale.Model, x, y *whale.Variable) {
 			optim.Optimize(p)
 		}
 
-		if i%100 == 0 {
-			fmt.Println(i)
-		}
+		// if i%100 == 0 {
+		// 	fmt.Println(i)
+		// }
 
 		if i%1000 == 0 {
 			fmt.Println(loss)
@@ -56,19 +54,19 @@ func Train(m whale.Model, x, y *whale.Variable) {
 }
 
 func main() {
-	f, err := os.Create("cpu.prof")
-	if err != nil {
-		panic(err)
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			panic(err)
-		}
-	}()
-	if err := pprof.StartCPUProfile(f); err != nil {
-		panic(err)
-	}
-	defer pprof.StopCPUProfile()
+	// f, err := os.Create("cpu.prof")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer func() {
+	// 	if err := f.Close(); err != nil {
+	// 		panic(err)
+	// 	}
+	// }()
+	// if err := pprof.StartCPUProfile(f); err != nil {
+	// 	panic(err)
+	// }
+	// defer pprof.StopCPUProfile()
 	xt, yt := whale.RandSin(100, 1)
 	x := whale.NewVar(xt)
 	y := whale.NewVar(yt)
