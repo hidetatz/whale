@@ -101,24 +101,37 @@ func cartesiansIdx(a [][]int) [][]*IndexArg {
 
 // creates cartesian product, but regards given a as index slice.
 func cartesian(a []int) [][]int {
-	strides := make([]int, len(a))
-	for i := range a {
-		strides[i] = product(a[i+1:])
+	n := len(a)
+
+	strides := make([]int, n)
+	strides[n-1] = 1
+
+	// perf tuning: count mul from right to left to reuse
+	// pre-multiplied stride.
+	for i := n - 2; i >= 0; i-- {
+		strides[i] = strides[i+1] * a[i+1]
 	}
 
-	result := make([][]int, product(a))
-	for i := range result {
-		r := make([]int, len(strides))
+	// perf tuning: allocate a single slice which can contain
+	// all the cartesian production result at once, then
+	// split them into multiple slices.
+	total := strides[0] * a[0]
+	result := make([]int, total*n)
+	for i := 0; i < total; i++ {
 		carry := i
-		for j, stride := range strides {
-			div := carry / stride
-			r[j] = div
-			carry -= stride * div
+		for j := 0; j < n; j++ {
+			stride := strides[j]
+			result[i*n+j] = carry / stride
+			carry %= stride
 		}
-		result[i] = r
 	}
 
-	return result
+	slices := make([][]int, total)
+	for i := 0; i < total; i++ {
+		slices[i] = result[i*n : (i+1)*n]
+	}
+
+	return slices
 }
 
 func cartesianIdx(a []int) [][]*IndexArg {
