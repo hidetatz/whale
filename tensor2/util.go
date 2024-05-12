@@ -99,7 +99,6 @@ func cartesiansIdx(a [][]int) [][]*IndexArg {
 	return args
 }
 
-// creates cartesian product, but regards given a as index slice.
 func cartesian(a []int) [][]int {
 	n := len(a)
 
