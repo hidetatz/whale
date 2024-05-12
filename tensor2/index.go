@@ -118,7 +118,7 @@ func (t *Tensor) basicIndexForRead(args ...*IndexArg) (*Tensor, error) {
 	newshape = slices.DeleteFunc(newshape, deldummy)
 	newstrides = slices.DeleteFunc(newstrides, deldummy)
 
-	return &Tensor{data: t.data, offset: offset, Shape: newshape, Strides: newstrides}, nil
+	return t.view(offset, newshape, newstrides), nil
 }
 
 func (t *Tensor) basicIndexForWrite(args ...*IndexArg) (*indexResult, error) {

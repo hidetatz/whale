@@ -6,21 +6,22 @@ import (
 	"slices"
 )
 
+func (t *Tensor) view(offset int, shape, strides []int) *Tensor {
+	return &Tensor{data: t.data, offset: offset, Shape: shape, Strides: strides, isview: true}
+}
+
 func (t *Tensor) Reshape(shape ...int) (*Tensor, error) {
 	if product(shape) != t.Size() {
 		return nil, fmt.Errorf("cannot reshape size %v tensor into %v", t.Size(), shape)
 	}
 
-	// reshape shares original tensor data/offset, only shape and strides are modified.
-	t2 := &Tensor{data: t.data, offset: t.offset}
-	t2.Shape = shape
 	strides := make([]int, len(shape))
 	for i := range shape {
 		strides[i] = product(shape[i+1:])
 	}
-	t2.Strides = strides
 
-	return t2, nil
+	// reshape shares original tensor data/offset, only shape and strides are modified.
+	return t.view(t.offset, shape, strides), nil
 }
 
 func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
@@ -54,7 +55,7 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 
 	// do transpose
 
-	t2 := &Tensor{data: t.data, offset: t.offset, Shape: make([]int, t.Ndim()), Strides: make([]int, t.Ndim())}
+	t2 := t.view(t.offset, make([]int, t.Ndim()), make([]int, t.Ndim()))
 	for i, axis := range axes {
 		t2.Shape[i] = t.Shape[axis]
 		t2.Strides[i] = t.Strides[axis]
@@ -89,7 +90,7 @@ func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
 		}
 	}
 
-	return &Tensor{data: t.data, offset: t.offset, Shape: newshape, Strides: newstrides}, nil
+	return t.view(t.offset, newshape, newstrides), nil
 }
 
 func Broadcast(t1, t2 *Tensor) (newt1, newt2 *Tensor, err error) {
@@ -192,5 +193,5 @@ func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
 		newstrides[delta+i] = 0
 	}
 
-	return &Tensor{data: t.data, offset: t.offset, Shape: shape, Strides: newstrides}, nil
+	return t.view(t.offset, shape, newstrides), nil
 }

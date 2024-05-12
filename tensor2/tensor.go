@@ -11,6 +11,7 @@ type Tensor struct {
 	offset  int
 	Shape   []int
 	Strides []int
+	isview  bool
 }
 
 // Equals returns if t and t2 are the same.
@@ -70,6 +71,11 @@ func (t *Tensor) Copy() *Tensor {
 func (t *Tensor) Flatten() []float64 {
 	if t.IsScalar() {
 		return []float64{t.AsScalar()}
+	}
+
+	// fast path: no need to calculate cartesian from strides
+	if !t.isview {
+		return copySlice(t.data)
 	}
 
 	indices := cartesian(t.Shape)
