@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/pprof"
+	"time"
 
 	"github.com/hidetatz/whale"
 	tensor "github.com/hidetatz/whale/tensor2"
@@ -49,6 +50,7 @@ func Train(m whale.Model, x, y *whale.Variable) {
 
 		if i%1000 == 0 {
 			fmt.Println(loss)
+			fmt.Println(time.Now())
 		}
 	}
 }
