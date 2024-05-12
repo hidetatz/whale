@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/hidetatz/whale"
 	tensor "github.com/hidetatz/whale/tensor2"
@@ -13,69 +12,90 @@ var p = whale.NewPlot()
 func main() {
 	// spiral test data
 	xt, tt := whale.RandSpiral()
-	plot(xt, tt)
 
 	x := whale.NewVar(xt)
 	t := whale.NewVar(tt)
 
-	// training
+	/*
+	 * do training
+	 */
 	layer := [][]int{{2, 10}, {10, 3}}
 	mlp := whale.NewMLP(layer, true, whale.NewSigmoid(), whale.NewSoftmaxCrossEntropy(), whale.NewSGD(1.0))
 	Train(mlp, x, t)
 
-	// visualize trained result
+	/*
+	 * inference and visualize trained result
+	 */
 
-	// find test data min and max point
-	xmin := math.Inf(1)
-	ymin := math.Inf(1)
-	xmax := math.Inf(-1)
-	ymax := math.Inf(-1)
-	for i, d := range xt.Flatten() {
-		if i%2 == 0 {
-			if d < xmin {
-				xmin = d
-			} else if xmax < d {
-				xmax = d
-			}
-		} else {
-			if d < ymin {
-				ymin = d
-			} else if ymax < d {
-				ymax = d
-			}
-		}
-	}
+	// testdata
+	xmin := tensor.Must(x.Index(tensor.All(), tensor.At(0))).Min().AsScalar() - 0.1
+	xmax := tensor.Must(x.Index(tensor.All(), tensor.At(0))).Max().AsScalar() + 0.1
 
-	X, Y, err := tensor.MeshGrid(tensor.ArangeVec(xmin, xmax, 0.01), tensor.ArangeVec(ymin, ymax, 0.01))
+	ymin := tensor.Must(x.Index(tensor.All(), tensor.At(1))).Min().AsScalar() - 0.1
+	ymax := tensor.Must(x.Index(tensor.All(), tensor.At(1))).Max().AsScalar() + 0.1
+
+	// test date with even intervals.
+	// x-axis-size = (xmax - xmin) / 0.05
+	// y-axis-size = (xmax - xmin) / 0.05
+	xs := tensor.ArangeVec(xmin, xmax, 0.05)
+	ys := tensor.ArangeVec(ymin, ymax, 0.05)
+
+	// X, Y's shape: (x-axis-size, y-axis-size)
+	X, Y, err := tensor.MeshGrid(xs, ys)
 	if err != nil {
 		panic(err)
 	}
 
-	// interleave
-	xdata := []float64{}
+	// convert into the shape (x-axis-size * y-axis-size, 2) to input into the model.
+	// [
+	//   [x_0, y_0],
+	//   [x_1, y_1],
+	//   [x_2, y_2],
+	//   ...
+	//   [x_x-axis-size*y-axis-size, y_x-axis-size*y-axis-size],
+	// ]
+	// total size is (x-axis-size * y-axis-size * 2).
+	testdata := []float64{}
 	xf := X.Flatten()
 	yf := Y.Flatten()
 	for i := range xf {
-		xdata = append(xdata, xf[i])
-		xdata = append(xdata, yf[i])
+		testdata = append(testdata, xf[i])
+		testdata = append(testdata, yf[i])
 	}
+	xd := tensor.Must(tensor.NdShape(testdata, X.Size(), 2))
 
-	xd := tensor.Must(tensor.NdShape(xdata, len(xf), 2))
-
+	// do inference.
+	// score's shape is (x-axis-size * y-axis-size, 3)
+	// [
+	//   // vertical size is (x-axis-size * y-axis-size)
+	//   [p1, p2, p3],
+	//   [p1, p2, p3],
+	//   [p1, p2, p3],
+	//   ...
+	//   [p1, p2, p3],
+	// ]
+	// total size is (x-axis-size * y-axis-size * 2).
 	score, err := mlp.Train(whale.NewVar(xd))
 	if err != nil {
 		panic(err)
 	}
 
-	z, err := score.GetData().Argmax(false, 1)
+	// pick max from (p1, p2, p3)
+	// shape: (x-axis-size * y-axis-size)
+	// [
+	//   // vertical size is (x-axis-size * y-axis-size)
+	//   0,
+	//   2,
+	//   2,
+	//   1,
+	//   0,
+	//   ...
+	//   1,
+	// ]
+	prediceCls, err := score.GetData().Argmax(false, 1)
 	if err != nil {
 		panic(err)
 	}
-
-	// z, err = z.Reshape(xx.Shape...)
-	// if err != nil {
-	// 	panic(err)
-	// }
 
 	xs0 := []float64{}
 	ys0 := []float64{}
@@ -86,19 +106,19 @@ func main() {
 	xs2 := []float64{}
 	ys2 := []float64{}
 
-	zdata := z.Flatten()
-	for i := 0; i < len(xdata); i += 2 {
-		label := zdata[i/2]
+	pi := prediceCls.Iterator()
+	for pi.HasNext() {
+		i, label := pi.Next()
 		switch label {
 		case 0:
-			xs0 = append(xs0, xdata[i])
-			ys0 = append(ys0, xdata[i+1])
+			xs0 = append(xs0, xf[i])
+			ys0 = append(ys0, yf[i])
 		case 1:
-			xs1 = append(xs1, xdata[i])
-			ys1 = append(ys1, xdata[i+1])
+			xs1 = append(xs1, xf[i])
+			ys1 = append(ys1, yf[i])
 		case 2:
-			xs2 = append(xs2, xdata[i])
-			ys2 = append(ys2, xdata[i+1])
+			xs2 = append(xs2, xf[i])
+			ys2 = append(ys2, yf[i])
 		}
 	}
 
@@ -114,9 +134,12 @@ func main() {
 		panic(err)
 	}
 
+	plot(xt, tt)
+
 	if err := p.Exec(); err != nil {
 		panic(err)
 	}
+
 }
 
 func Train(m whale.Model, x, t *whale.Variable) {
@@ -166,7 +189,7 @@ func Train(m whale.Model, x, t *whale.Variable) {
 				optim.Optimize(p)
 			}
 
-			sumloss += loss.GetData().AsScalar() * float64(batchT.Len())
+			sumloss += loss.GetData().AsScalar() * float64(batchT.Size())
 		}
 
 		fmt.Println("epoch: ", epoch+1, ", loss: ", sumloss/300)

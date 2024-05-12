@@ -28,7 +28,7 @@ func (m *MSE) Calculate(pred, actual *Variable) (*Variable, error) {
 		return nil, err
 	}
 
-	return Div(sm, NewVar(tensor.Scalar(float64(diff.Len()))))
+	return Div(sm, NewVar(tensor.Scalar(float64(diff.Size()))))
 }
 
 type SoftmaxCrossEntropy struct{}

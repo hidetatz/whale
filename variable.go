@@ -34,11 +34,15 @@ func (v *Variable) clone() *Variable {
 	}
 }
 
+func (v *Variable) Index(args ...*tensor.IndexArg) (*tensor.Tensor, error) {
+	return v.data.Index(args...)
+}
+
 func (v *Variable) Shape() []int {
 	return v.data.Shape
 }
 
-func (v *Variable) Len() int {
+func (v *Variable) Size() int {
 	return v.data.Size()
 }
 
