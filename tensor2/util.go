@@ -31,8 +31,8 @@ func until(v int) []int {
 	return r
 }
 
-func all(v, length int) []int {
-	r := make([]int, length)
+func all[T int | float64](v T, length int) []T {
+	r := make([]T, length)
 	for i := range length {
 		r[i] = v
 	}
