@@ -12,6 +12,8 @@ type Tensor struct {
 	Shape   []int
 	Strides []int
 	isview  bool
+
+	RespErr *errResponser
 }
 
 // Equals returns if t and t2 are the same.
