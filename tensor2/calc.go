@@ -5,25 +5,29 @@ import (
 	"slices"
 )
 
-func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
-	if t.IsScalar() {
+func (t *Tensor) Sum(keepdims bool, axes ...int) *Tensor {
+	return MustGet(t.ErrResponser().Sum(keepdims, axes...))
+}
+
+func (er *tensorErrResponser) Sum(keepdims bool, axes ...int) (*Tensor, error) {
+	if er.t.IsScalar() {
 		if len(axes) != 0 {
 			return nil, fmt.Errorf("axis out of bounds: %v", axes)
 		}
-		return t, nil
+		return er.t, nil
 	}
 
 	if len(axes) == 0 {
 		// when axes is empty, sum all.
 		var result float64
-		iter := t.Iterator()
+		iter := er.t.Iterator()
 		for iter.HasNext() {
 			_, v := iter.Next()
 			result += v
 		}
 
 		if keepdims {
-			return RespErr.NdShape([]float64{result}, all(1, len(t.Shape))...)
+			return RespErr.NdShape([]float64{result}, all(1, len(er.t.Shape))...)
 		}
 
 		return Scalar(result), nil
@@ -39,7 +43,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	}
 
 	if slices.ContainsFunc(copied, func(axis int) bool {
-		return axis < 0 || t.Ndim()-1 < axis
+		return axis < 0 || er.t.Ndim()-1 < axis
 	}) {
 		return nil, fmt.Errorf("axis out of bounds: %v", axes)
 	}
@@ -50,7 +54,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	// result will be
 	// [[0, :, 0], [0, :, 1], [0, :, 2], [0, :, 3], [1, :, 0], [1, :, 1], [1, :, 2], [1, :, 3]]
 	ss := [][]*IndexArg{}
-	template := make([]*IndexArg, t.Ndim())
+	template := make([]*IndexArg, er.t.Ndim())
 	for i := range template {
 		template[i] = All()
 	}
@@ -62,7 +66,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 			return
 		}
 
-		for i := 0; i < t.Shape[axes[index]]; i++ {
+		for i := 0; i < er.t.Shape[axes[index]]; i++ {
 			current[axes[index]] = At(i)
 			gen(index+1, current)
 			current[axes[index]] = All()
@@ -71,9 +75,9 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	gen(0, template)
 
 	// extract each slice and sum them
-	data := make([]float64, t.Size()/len(ss))
+	data := make([]float64, er.t.Size()/len(ss))
 	for _, s := range ss {
-		t2, err := t.Index(s...)
+		t2, err := er.t.Index(s...)
 		if err != nil {
 			panic(err)
 		}
@@ -84,7 +88,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 		}
 	}
 
-	newshape := copySlice(t.Shape)
+	newshape := copySlice(er.t.Shape)
 	if keepdims {
 		// if keepdims, dim will be 1
 		for _, axis := range axes {
@@ -101,9 +105,13 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	return RespErr.NdShape(data, newshape...)
 }
 
-func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
+func (t *Tensor) SumTo(shape ...int) *Tensor {
+	return MustGet(t.ErrResponser().SumTo(shape...))
+}
+
+func (er *tensorErrResponser) SumTo(shape ...int) (*Tensor, error) {
 	ndim := len(shape)
-	lead := t.Ndim() - ndim
+	lead := er.t.Ndim() - ndim
 	leadAxis := seq[int](0, lead)
 
 	var axes []int
@@ -113,7 +121,7 @@ func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
 		}
 	}
 
-	y, err := t.Sum(true, append(leadAxis, axes...)...)
+	y, err := er.Sum(true, append(leadAxis, axes...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -129,12 +137,20 @@ func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
 	return y, nil
 }
 
-func (t *Tensor) Argmax(keepdims bool, axis int) (*Tensor, error) {
-	return t.argFunc(keepdims, axis, "max")
+func (t *Tensor) Argmax(keepdims bool, axis int) *Tensor {
+	return MustGet(t.ErrResponser().Argmax(keepdims, axis))
 }
 
-func (t *Tensor) Argmin(keepdims bool, axis int) (*Tensor, error) {
-	return t.argFunc(keepdims, axis, "min")
+func (er *tensorErrResponser) Argmax(keepdims bool, axis int) (*Tensor, error) {
+	return er.t.argFunc(keepdims, axis, "max")
+}
+
+func (t *Tensor) Argmin(keepdims bool, axis int) *Tensor {
+	return MustGet(t.ErrResponser().Argmin(keepdims, axis))
+}
+
+func (er *tensorErrResponser) Argmin(keepdims bool, axis int) (*Tensor, error) {
+	return er.t.argFunc(keepdims, axis, "min")
 }
 
 func (t *Tensor) argFunc(keepdims bool, axis int, fn string) (*Tensor, error) {

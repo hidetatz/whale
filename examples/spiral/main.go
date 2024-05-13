@@ -89,10 +89,7 @@ func main() {
 	//   ...
 	//   1,
 	// ]
-	prediceCls, err := score.GetData().Argmax(false, 1)
-	if err != nil {
-		panic(err)
-	}
+	prediceCls := score.GetData().Argmax(false, 1)
 
 	xs0 := []float64{}
 	ys0 := []float64{}

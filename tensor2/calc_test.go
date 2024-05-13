@@ -318,7 +318,7 @@ func TestSum(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := tc.tensor.Sum(tc.keepdims, tc.axes...)
+			got, err := tc.tensor.ErrResponser().Sum(tc.keepdims, tc.axes...)
 			checkErr(t, tc.expectErr, err)
 			mustEq(t, tc.expected, got)
 		})
@@ -363,7 +363,7 @@ func TestSumTo(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := tc.tensor.SumTo(tc.shape...)
+			got, err := tc.tensor.ErrResponser().SumTo(tc.shape...)
 			checkErr(t, tc.expectErr, err)
 			mustEq(t, tc.expected, got)
 		})
@@ -592,11 +592,11 @@ func TestArgmax_Argmin(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			max, err := tc.tensor.Argmax(tc.keepdims, tc.axis)
+			max, err := tc.tensor.ErrResponser().Argmax(tc.keepdims, tc.axis)
 			checkErr(t, tc.expectErr, err)
 			mustEq(t, tc.expectedMax, max)
 
-			min, err := tc.tensor.Argmin(tc.keepdims, tc.axis)
+			min, err := tc.tensor.ErrResponser().Argmin(tc.keepdims, tc.axis)
 			checkErr(t, tc.expectErr, err)
 			mustEq(t, tc.expectedMin, min)
 		})

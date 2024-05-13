@@ -176,11 +176,7 @@ type sum struct {
 }
 
 func (s *sum) Forward(inputs ...*Variable) ([]*Variable, error) {
-	y, err := inputs[0].data.Sum(s.keepdims, s.axes...)
-	if err != nil {
-		return nil, fmt.Errorf("Sum: %w", err)
-	}
-
+	y := inputs[0].data.Sum(s.keepdims, s.axes...)
 	return asvars(y), nil
 }
 
@@ -236,11 +232,7 @@ type sumTo struct {
 }
 
 func (s *sumTo) Forward(inputs ...*Variable) ([]*Variable, error) {
-	y, err := inputs[0].data.SumTo(s.shape...)
-	if err != nil {
-		return nil, fmt.Errorf("SumTo: %w", err)
-	}
-
+	y := inputs[0].data.SumTo(s.shape...)
 	return asvars(y), nil
 }
 
