@@ -2,7 +2,11 @@ package tensor2
 
 import "fmt"
 
-func MeshGrid(t1, t2 *Tensor) (*Tensor, *Tensor, error) {
+func MeshGrid(t1, t2 *Tensor) (*Tensor, *Tensor) {
+	return MustGet2(RespErr.MeshGrid(t1, t2))
+}
+
+func (_ *plainErrResponser) MeshGrid(t1, t2 *Tensor) (*Tensor, *Tensor, error) {
 	if !t1.IsVector() || !t2.IsVector() {
 		return nil, nil, fmt.Errorf("argument must be vector")
 	}

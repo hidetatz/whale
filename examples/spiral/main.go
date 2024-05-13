@@ -41,10 +41,7 @@ func main() {
 	ys := tensor.ArangeVec(ymin, ymax, 0.05)
 
 	// X, Y's shape: (x-axis-size, y-axis-size)
-	X, Y, err := tensor.MeshGrid(xs, ys)
-	if err != nil {
-		panic(err)
-	}
+	X, Y := tensor.MeshGrid(xs, ys)
 
 	// convert into the shape (x-axis-size * y-axis-size, 2) to input into the model.
 	// [
