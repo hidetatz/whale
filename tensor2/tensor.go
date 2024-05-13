@@ -6,17 +6,34 @@ import (
 	"strings"
 )
 
+// Tensor is a multi dimensional array.
+// A scalar, vector, matrix, and tensor which has more than 3-dimension can be
+// represented using Tensor.
 type Tensor struct {
 	data    []float64
 	offset  int
+
+	// Shape is a shape of the tensor.
+	// Empty shape means the tensor is actually a scalar.
+	// Writing Shape directly makese the tensor invalid state, so it should not be done
+	// on library client side.
 	Shape   []int
+
+	// Strides is a interval between the value on an axis.
+	// The length of strides must be the same with Shape, and len(Shape) == len(Strides) == dimension number.
+	// Writing Strides directly makes the tensor invalid state, so it should not be done
+	// on library client side.
 	Strides []int
+
 	isview  bool
 
+	// RespErr is a special object for those who want this package to use methods which
+	// has return error type if it happens.
+	// Without using RespErr, most methods panics on error.
 	RespErr *errResponser
 }
 
-// Equals returns if t and t2 are the same.
+// Equals returns if t and t2 are logically the same.
 func (t *Tensor) Equals(t2 *Tensor) bool {
 	return slices.Equal(t.Shape, t2.Shape) && slices.Equal(t.Flatten(), t2.Flatten())
 }
