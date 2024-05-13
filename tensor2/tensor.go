@@ -36,6 +36,9 @@ func (t *Tensor) IsScalar() bool {
 	return len(t.Shape) == 0
 }
 
+// AsScalar returns a concrete type scalar value of the tensor.
+// Note that AsScalar internally does not check if t is a scalar,
+// it is caller's responsibility.
 func (t *Tensor) AsScalar() float64 {
 	return t.data[t.offset]
 }
@@ -45,6 +48,9 @@ func (t *Tensor) IsVector() bool {
 	return len(t.Shape) == 1
 }
 
+// AsScalar returns a concrete type vector slice of the tensor.
+// Note that AsVector internally does not check if t is a vector,
+// it is caller's responsibility.
 func (t *Tensor) AsVector() []float64 {
 	indices := cartesianIdx(t.Shape)
 	result := make([]float64, t.Shape[0])
