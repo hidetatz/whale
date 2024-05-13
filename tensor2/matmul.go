@@ -64,5 +64,5 @@ func (t *Tensor) Dot(t2 *Tensor) (*Tensor, error) {
 		}
 	}
 
-	return NdShape(data, newshape...)
+	return RespErr.NdShape(data, newshape...)
 }

@@ -11,7 +11,7 @@ func (t *Tensor) apply1(fn func(f float64) float64) *Tensor {
 		d[i] = fn(v)
 	}
 
-	return Must(NdShape(d, copySlice(t.Shape)...))
+	return NdShape(d, copySlice(t.Shape)...)
 }
 
 func (t *Tensor) apply2(t2 *Tensor, fn func(f1, f2 float64) float64) (*Tensor, error) {
@@ -31,7 +31,7 @@ func (t *Tensor) apply2(t2 *Tensor, fn func(f1, f2 float64) float64) (*Tensor, e
 		d[i] = fn(v1, v2)
 	}
 
-	return NdShape(d, copySlice(nt.Shape)...)
+	return RespErr.NdShape(d, copySlice(nt.Shape)...)
 }
 
 // apply1 operations

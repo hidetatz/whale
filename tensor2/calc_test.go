@@ -337,25 +337,25 @@ func TestSumTo(t *testing.T) {
 			name:     "2d 1",
 			tensor:   Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
 			shape:    []int{1, 3},
-			expected: Must(NdShape([]float64{3, 5, 7}, 1, 3)),
+			expected: NdShape([]float64{3, 5, 7}, 1, 3),
 		},
 		{
 			name:     "2d 2",
 			tensor:   Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
 			shape:    []int{2, 1},
-			expected: Must(NdShape([]float64{3, 12}, 2, 1)),
+			expected: NdShape([]float64{3, 12}, 2, 1),
 		},
 		{
 			name:     "2d 3",
 			tensor:   Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
 			shape:    []int{1, 1},
-			expected: Must(NdShape([]float64{15}, 1, 1)),
+			expected: NdShape([]float64{15}, 1, 1),
 		},
 		{
 			name:     "3d 1",
 			tensor:   Must(ArangeVec(0, 24, 1).Reshape(2, 3, 4)),
 			shape:    []int{2, 1, 1},
-			expected: Must(NdShape([]float64{66, 210}, 2, 1, 1)),
+			expected: NdShape([]float64{66, 210}, 2, 1, 1),
 		},
 	}
 
@@ -469,8 +469,8 @@ func TestArgmax_Argmin(t *testing.T) {
 			})),
 			keepdims:    true,
 			axis:        -1,
-			expectedMax: Must(NdShape([]float64{6}, 1, 1, 1)),
-			expectedMin: Must(NdShape([]float64{7}, 1, 1, 1)),
+			expectedMax: NdShape([]float64{6}, 1, 1, 1),
+			expectedMin: NdShape([]float64{7}, 1, 1, 1),
 		},
 		{
 			name: "3d 3",
@@ -488,8 +488,8 @@ func TestArgmax_Argmin(t *testing.T) {
 			})),
 			keepdims:    false,
 			axis:        0,
-			expectedMax: Must(NdShape([]float64{1, 0, 1, 1, 0, 0}, 3, 2)),
-			expectedMin: Must(NdShape([]float64{0, 1, 0, 0, 1, 1}, 3, 2)),
+			expectedMax: NdShape([]float64{1, 0, 1, 1, 0, 0}, 3, 2),
+			expectedMin: NdShape([]float64{0, 1, 0, 0, 1, 1}, 3, 2),
 		},
 		{
 			name: "3d 4",
@@ -507,8 +507,8 @@ func TestArgmax_Argmin(t *testing.T) {
 			})),
 			keepdims:    true,
 			axis:        0,
-			expectedMax: Must(NdShape([]float64{1, 0, 1, 1, 0, 0}, 1, 3, 2)),
-			expectedMin: Must(NdShape([]float64{0, 1, 0, 0, 1, 1}, 1, 3, 2)),
+			expectedMax: NdShape([]float64{1, 0, 1, 1, 0, 0}, 1, 3, 2),
+			expectedMin: NdShape([]float64{0, 1, 0, 0, 1, 1}, 1, 3, 2),
 		},
 		{
 			name: "3d 5",
@@ -526,8 +526,8 @@ func TestArgmax_Argmin(t *testing.T) {
 			})),
 			keepdims:    false,
 			axis:        1,
-			expectedMax: Must(NdShape([]float64{2, 2, 0, 1}, 2, 2)),
-			expectedMin: Must(NdShape([]float64{0, 0, 2, 0}, 2, 2)),
+			expectedMax: NdShape([]float64{2, 2, 0, 1}, 2, 2),
+			expectedMin: NdShape([]float64{0, 0, 2, 0}, 2, 2),
 		},
 		{
 			name: "3d 6",
@@ -545,8 +545,8 @@ func TestArgmax_Argmin(t *testing.T) {
 			})),
 			keepdims:    true,
 			axis:        1,
-			expectedMax: Must(NdShape([]float64{2, 2, 0, 1}, 2, 1, 2)),
-			expectedMin: Must(NdShape([]float64{0, 0, 2, 0}, 2, 1, 2)),
+			expectedMax: NdShape([]float64{2, 2, 0, 1}, 2, 1, 2),
+			expectedMin: NdShape([]float64{0, 0, 2, 0}, 2, 1, 2),
 		},
 		{
 			name: "3d 7",
@@ -564,8 +564,8 @@ func TestArgmax_Argmin(t *testing.T) {
 			})),
 			keepdims:    false,
 			axis:        2,
-			expectedMax: Must(NdShape([]float64{1, 1, 1, 0, 0, 1}, 2, 3)),
-			expectedMin: Must(NdShape([]float64{0, 0, 0, 1, 1, 0}, 2, 3)),
+			expectedMax: NdShape([]float64{1, 1, 1, 0, 0, 1}, 2, 3),
+			expectedMin: NdShape([]float64{0, 0, 0, 1, 1, 0}, 2, 3),
 		},
 		{
 			name: "3d 8",
@@ -583,8 +583,8 @@ func TestArgmax_Argmin(t *testing.T) {
 			})),
 			keepdims:    true,
 			axis:        2,
-			expectedMax: Must(NdShape([]float64{1, 1, 1, 0, 0, 1}, 2, 3, 1)),
-			expectedMin: Must(NdShape([]float64{0, 0, 0, 1, 1, 0}, 2, 3, 1)),
+			expectedMax: NdShape([]float64{1, 1, 1, 0, 0, 1}, 2, 3, 1),
+			expectedMin: NdShape([]float64{0, 0, 0, 1, 1, 0}, 2, 3, 1),
 		},
 	}
 

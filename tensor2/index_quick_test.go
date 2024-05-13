@@ -144,7 +144,7 @@ func generateRandomIndexArg(rand *rand.Rand, size int) *randomIndexArg {
 			for i := range len(data) {
 				data[i] = float64(rand.Intn(dim))
 			}
-			args[i] = List(Must(NdShape(data, shp...)))
+			args[i] = List(NdShape(data, shp...))
 		}
 	}
 
@@ -168,7 +168,7 @@ func TestIndex_quick(t *testing.T) {
 	tempdir := t.TempDir()
 
 	onTensor := func(arg *randomIndexArg) *Result {
-		ten, err := NdShape(arg.inArr, arg.inShape...)
+		ten, err := RespErr.NdShape(arg.inArr, arg.inShape...)
 		if err != nil {
 			t.Fatalf("initialize tensor: %v", err)
 		}
@@ -233,7 +233,7 @@ func TestIndexUpdate_quick(t *testing.T) {
 				t.Fatalf("recovered from panic: %v", r)
 			}
 		}()
-		ten, err := NdShape(copySlice(arg.r.inArr), copySlice(arg.r.inShape)...)
+		ten, err := RespErr.NdShape(copySlice(arg.r.inArr), copySlice(arg.r.inShape)...)
 		if err != nil {
 			t.Fatalf("initialize tensor: %v", err)
 		}

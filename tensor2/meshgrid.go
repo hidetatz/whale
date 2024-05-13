@@ -15,7 +15,7 @@ func MeshGrid(t1, t2 *Tensor) (*Tensor, *Tensor, error) {
 		d1 = append(d1, v1...)
 	}
 
-	r1, err := NdShape(d1, newshape...)
+	r1, err := RespErr.NdShape(d1, newshape...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -25,7 +25,7 @@ func MeshGrid(t1, t2 *Tensor) (*Tensor, *Tensor, error) {
 		d2 = append(d2, all(v2[i], t1.Size())...)
 	}
 
-	r2, err := NdShape(d2, newshape...)
+	r2, err := RespErr.NdShape(d2, newshape...)
 	if err != nil {
 		return nil, nil, err
 	}

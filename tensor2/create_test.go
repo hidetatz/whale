@@ -138,7 +138,7 @@ func TestNdShape(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := NdShape(tc.data, tc.shape...)
+			got, err := RespErr.NdShape(tc.data, tc.shape...)
 			checkErr(t, tc.expectErr, err)
 			mustEq(t, tc.expected, got)
 		})
@@ -250,7 +250,7 @@ func TestFactories(t *testing.T) {
 		{
 			name: "zeroslike",
 			factory: func() (*Tensor, error) {
-				return ZerosLike(MustNdShape([]float64{1, 2, 3, 4}, 2, 2)), nil
+				return ZerosLike(NdShape([]float64{1, 2, 3, 4}, 2, 2)), nil
 			},
 			expected: &Tensor{
 				data:    []float64{0, 0, 0, 0},
@@ -274,7 +274,7 @@ func TestFactories(t *testing.T) {
 		{
 			name: "oneslike",
 			factory: func() (*Tensor, error) {
-				return OnesLike(MustNdShape([]float64{1, 2, 3, 4}, 2, 2)), nil
+				return OnesLike(NdShape([]float64{1, 2, 3, 4}, 2, 2)), nil
 			},
 			expected: &Tensor{
 				data:    []float64{1, 1, 1, 1},

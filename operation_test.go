@@ -407,8 +407,7 @@ func scalar(t *testing.T, data float64) *tensor.Tensor {
 
 func nd(t *testing.T, data []float64, shape ...int) *tensor.Tensor {
 	t.Helper()
-	tsr, _ := tensor.NdShape(data, shape...)
-	return tsr
+	return tensor.NdShape(data, shape...)
 }
 
 func arng(t *testing.T, from, to int, shape ...int) *tensor.Tensor {

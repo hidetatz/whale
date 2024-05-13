@@ -6,25 +6,13 @@ import (
 	"reflect"
 )
 
-// Scalar returns a tensor as scalar.
-func Scalar(s float64) *Tensor { return &Tensor{data: []float64{s}} }
+type errResponser struct{}
 
-// Vector returns a tensor as vector.
-func Vector(v []float64) *Tensor { return &Tensor{data: v, Shape: []int{len(v)}, Strides: []int{1}} }
+// RespErr makes it possible to handle error on library caller side.
+// Without Safe, error causes panic.
+var RespErr = &errResponser{}
 
-// MustNdShape returns a multi dimensional tensor but panics on error.
-func MustNdShape(data []float64, shape ...int) *Tensor {
-	t, err := NdShape(data, shape...)
-	if err != nil {
-		panic(err)
-	}
-
-	return t
-}
-
-// NdShape returns multi dimensional array by given data and shape.
-// If the shape is empty, the given data is treated as vector.
-func NdShape(data []float64, shape ...int) (*Tensor, error) {
+func (h *errResponser) NdShape(data []float64, shape ...int) (*Tensor, error) {
 	if len(shape) == 0 {
 		if len(data) == 1 {
 			return Scalar(data[0]), nil
@@ -43,6 +31,40 @@ func NdShape(data []float64, shape ...int) (*Tensor, error) {
 
 	return &Tensor{data: data, Shape: shape, Strides: strides}, nil
 }
+
+// Scalar returns a tensor as scalar.
+func Scalar(s float64) *Tensor { return &Tensor{data: []float64{s}} }
+
+// Vector returns a tensor as vector.
+func Vector(v []float64) *Tensor { return &Tensor{data: v, Shape: []int{len(v)}, Strides: []int{1}} }
+
+// NdShape returns a multi dimensional tensor.
+func NdShape(data []float64, shape ...int) *Tensor {
+	return MustGet(RespErr.NdShape(data, shape...))
+}
+
+// NdShape returns multi dimensional array by given data and shape.
+// If the shape is empty, the given data is treated as vector.
+// func NdShape(data []float64, shape ...int) (*Tensor, error) {
+// 	return Careful.NdShape(data, shape...)
+// 	// if len(shape) == 0 {
+// 	// 	if len(data) == 1 {
+// 	// 		return Scalar(data[0]), nil
+// 	// 	}
+// 	// 	return Vector(data), nil
+// 	// }
+//
+// 	// if len(data) != product(shape) {
+// 	// 	return nil, fmt.Errorf("wrong shape: %v for %v data", shape, len(data))
+// 	// }
+//
+// 	// strides := make([]int, len(shape))
+// 	// for i := range shape {
+// 	// 	strides[i] = product(shape[i+1:])
+// 	// }
+//
+// 	// return &Tensor{data: data, Shape: shape, Strides: strides}, nil
+// }
 
 // New inspects the dimension and shape of the given arr and creates a tensor based on them.
 // The arr must be homogeneous, this consists of the 2 rules:
@@ -100,7 +122,7 @@ func New(arr any) (*Tensor, error) {
 		return Scalar(data[0]), nil
 	}
 
-	return NdShape(data, shape...)
+	return RespErr.NdShape(data, shape...)
 }
 
 func MustNew(arr any) *Tensor { return Must(New(arr)) }
@@ -111,7 +133,7 @@ func Rand(shape ...int) *Tensor {
 	for i := range data {
 		data[i] = rand.Float64()
 	}
-	return MustNdShape(data, shape...) // error never happens
+	return NdShape(data, shape...) // error never happens
 }
 
 // RandNorm creates a tensor by the given shape
@@ -121,13 +143,13 @@ func RandNorm(shape ...int) *Tensor {
 	for i := range data {
 		data[i] = rand.NormFloat64()
 	}
-	return MustNdShape(data, shape...) // error never happens
+	return NdShape(data, shape...) // error never happens
 }
 
 // Zeros creates a tensor by the given shape with all values 0.
 func Zeros(shape ...int) *Tensor {
 	data := make([]float64, product(shape)) // initialized by 0
-	return MustNdShape(data, shape...)      // error never happens
+	return NdShape(data, shape...)          // error never happens
 }
 
 // ZerosLike creates a tensor by the given tensor's shape with all values 0.
@@ -141,7 +163,7 @@ func Ones(shape ...int) *Tensor {
 	for i := range data {
 		data[i] = 1
 	}
-	return MustNdShape(data, shape...) // error never happens
+	return NdShape(data, shape...) // error never happens
 }
 
 // OnesLike creates a tensor by the given tensor's shape with all values 1.
@@ -155,7 +177,7 @@ func Full(v float64, shape ...int) *Tensor {
 	for i := range data {
 		data[i] = v
 	}
-	return MustNdShape(data, shape...) // error never happens
+	return NdShape(data, shape...) // error never happens
 }
 
 // Arange creates a tensor which has data between from and to by the given interval.
@@ -171,12 +193,7 @@ func Arange(from, to, interval float64, shape ...int) (*Tensor, error) {
 		return Vector(data), nil
 	}
 
-	t, err := NdShape(data, shape...)
-	if err != nil {
-		return nil, err
-	}
-
-	return t, nil
+	return RespErr.NdShape(data, shape...)
 }
 
 // ArangeVec creates a vector tensor by the given params.

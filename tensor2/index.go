@@ -244,7 +244,7 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 		}
 	}
 
-	newtensor, err := NdShape(r, newshape...)
+	newtensor, err := RespErr.NdShape(r, newshape...)
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +458,7 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		}
 	}
 
-	newtensor, err := NdShape(r, newshape...)
+	newtensor, err := RespErr.NdShape(r, newshape...)
 	if err != nil {
 		return nil, err
 	}

@@ -79,7 +79,7 @@ func TestAt_ADD(t *testing.T) {
 				List(Vector([]float64{0, 0, 1})),
 			},
 			target:   Scalar(1),
-			expected: Must(NdShape([]float64{3, 4, 5, 5, 6, 7}, 2, 3)),
+			expected: NdShape([]float64{3, 4, 5, 5, 6, 7}, 2, 3),
 		},
 		{
 			name: "2d 2",
@@ -89,7 +89,7 @@ func TestAt_ADD(t *testing.T) {
 				List(Vector([]float64{1, 2})),
 			},
 			target:   Scalar(1),
-			expected: Must(NdShape([]float64{1, 3, 3, 4, 5, 7}, 2, 3)),
+			expected: NdShape([]float64{1, 3, 3, 4, 5, 7}, 2, 3),
 		},
 		{
 			name: "2d 3",
@@ -99,7 +99,7 @@ func TestAt_ADD(t *testing.T) {
 				List(Vector([]float64{1, 2})),
 			},
 			target:   Vector([]float64{1, 2}),
-			expected: Must(NdShape([]float64{1, 3, 3, 4, 5, 8}, 2, 3)),
+			expected: NdShape([]float64{1, 3, 3, 4, 5, 8}, 2, 3),
 		},
 		{
 			name: "2d err",
@@ -133,7 +133,7 @@ func TestAt_ADD(t *testing.T) {
 				List(Vector([]float64{1, 0})),
 			},
 			target:   Vector([]float64{1, 2}),
-			expected: Must(NdShape([]float64{1, 2, 3, 5, 5, 6, 7, 8, 9, 10, 13, 12}, 2, 3, 2)),
+			expected: NdShape([]float64{1, 2, 3, 5, 5, 6, 7, 8, 9, 10, 13, 12}, 2, 3, 2),
 		},
 	}
 

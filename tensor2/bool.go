@@ -13,5 +13,5 @@ func (t *Tensor) Bool(f func(f float64) bool) *Tensor {
 		}
 	}
 
-	return Must(NdShape(d, copySlice(t.Shape)...))
+	return NdShape(d, copySlice(t.Shape)...)
 }

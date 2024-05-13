@@ -35,7 +35,7 @@ func RandSpiral() (*tensor.Tensor, *tensor.Tensor) {
 		flat = append(flat, x[i]...)
 	}
 
-	xt := tensor.Must(tensor.NdShape(flat, 300, 2))
+	xt := tensor.NdShape(flat, 300, 2)
 	tt := tensor.Vector(t)
 
 	return xt, tt

@@ -16,13 +16,13 @@ func TestReshape(t *testing.T) {
 			name:     "scalar",
 			tensor:   Scalar(1),
 			shape:    []int{1, 1},
-			expected: MustNdShape([]float64{1}, 1, 1),
+			expected: NdShape([]float64{1}, 1, 1),
 		},
 		{
 			name:     "scalar 2",
 			tensor:   Scalar(1),
 			shape:    []int{1, 1, 1},
-			expected: MustNdShape([]float64{1}, 1, 1, 1),
+			expected: NdShape([]float64{1}, 1, 1, 1),
 		},
 		{
 			name:      "invalid shape",
@@ -34,19 +34,19 @@ func TestReshape(t *testing.T) {
 			name:     "vector",
 			tensor:   Vector([]float64{1, 2, 3, 4}),
 			shape:    []int{1, 4, 1},
-			expected: MustNdShape([]float64{1, 2, 3, 4}, 1, 4, 1),
+			expected: NdShape([]float64{1, 2, 3, 4}, 1, 4, 1),
 		},
 		{
 			name:     "vector 2",
 			tensor:   Vector([]float64{1, 2, 3, 4}),
 			shape:    []int{2, 2},
-			expected: MustNdShape([]float64{1, 2, 3, 4}, 2, 2),
+			expected: NdShape([]float64{1, 2, 3, 4}, 2, 2),
 		},
 		{
 			name:     "vector after indexed",
-			tensor:   Must(MustNdShape([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(At(0))),
+			tensor:   Must(NdShape([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(At(0))),
 			shape:    []int{2, 1},
-			expected: MustNdShape([]float64{1, 2}, 2, 1),
+			expected: NdShape([]float64{1, 2}, 2, 1),
 		},
 	}
 

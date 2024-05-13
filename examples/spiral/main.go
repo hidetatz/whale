@@ -62,7 +62,7 @@ func main() {
 		testdata = append(testdata, xf[i])
 		testdata = append(testdata, yf[i])
 	}
-	xd := tensor.Must(tensor.NdShape(testdata, X.Size(), 2))
+	xd := tensor.NdShape(testdata, X.Size(), 2)
 
 	// do inference.
 	// score's shape is (x-axis-size * y-axis-size, 3)

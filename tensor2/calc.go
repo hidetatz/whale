@@ -23,7 +23,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 		}
 
 		if keepdims {
-			return NdShape([]float64{result}, all(1, len(t.Shape))...)
+			return RespErr.NdShape([]float64{result}, all(1, len(t.Shape))...)
 		}
 
 		return Scalar(result), nil
@@ -98,7 +98,7 @@ func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 		}
 	}
 
-	return NdShape(data, newshape...)
+	return RespErr.NdShape(data, newshape...)
 }
 
 func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
@@ -154,7 +154,7 @@ func (t *Tensor) argFunc(keepdims bool, axis int, fn string) (*Tensor, error) {
 			return Scalar(float64(arg)), nil
 		}
 
-		return NdShape([]float64{float64(arg)}, all(1, t.Ndim())...)
+		return RespErr.NdShape([]float64{float64(arg)}, all(1, t.Ndim())...)
 	}
 
 	newshape := copySlice(t.Shape)
@@ -181,7 +181,7 @@ func (t *Tensor) argFunc(keepdims bool, axis int, fn string) (*Tensor, error) {
 		data[i] = float64(arg)
 	}
 
-	return NdShape(data, newshape...)
+	return RespErr.NdShape(data, newshape...)
 }
 
 func (t *Tensor) argFuncFlat(fn string) int {
@@ -229,5 +229,5 @@ func (t *Tensor) Clip(min, max float64) *Tensor {
 		data[i] = f
 	}
 
-	return Must(NdShape(data, copySlice(t.Shape)...))
+	return NdShape(data, copySlice(t.Shape)...)
 }
