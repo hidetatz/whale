@@ -98,10 +98,17 @@ func (t *Tensor) Flatten() []float64 {
 	return result
 }
 
+// Raw prints the tensor raw internal structure for debug purpose.
+func (t *Tensor) Raw() string {
+	return fmt.Sprintf("{data: %v, offset: %v, Shape: %v, Strides: %v, isview: %v}", t.data, t.offset, t.Shape, t.Strides, t.isview)
+}
+
+// String implements fmt.Stringer interface.
 func (t *Tensor) String() string {
 	return t.tostring(true)
 }
 
+// OnelineString prints the tensor in one line string.
 func (t *Tensor) OnelineString() string {
 	return t.tostring(false)
 }
@@ -165,6 +172,3 @@ func (t *Tensor) tostring(linebreak bool) string {
 	}
 }
 
-func (t *Tensor) Raw() string {
-	return fmt.Sprintf("{data: %v, offset: %v, Shape: %v, Strides: %v}", t.data, t.offset, t.Shape, t.Strides)
-}
