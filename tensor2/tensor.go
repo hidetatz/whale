@@ -10,14 +10,14 @@ import (
 // A scalar, vector, matrix, and tensor which has more than 3-dimension can be
 // represented using Tensor.
 type Tensor struct {
-	data    []float64
-	offset  int
+	data   []float64
+	offset int
 
 	// Shape is a shape of the tensor.
 	// Empty shape means the tensor is actually a scalar.
 	// Writing Shape directly makese the tensor invalid state, so it should not be done
 	// on library client side.
-	Shape   []int
+	Shape []int
 
 	// Strides is a interval between the value on an axis.
 	// The length of strides must be the same with Shape, and len(Shape) == len(Strides) == dimension number.
@@ -25,12 +25,15 @@ type Tensor struct {
 	// on library client side.
 	Strides []int
 
-	isview  bool
+	isview bool
+}
 
-	// RespErr is a special object for those who want this package to use methods which
-	// has return error type if it happens.
-	// Without using RespErr, most methods panics on error.
-	RespErr *errResponser
+// ErrResponser returns a special object error responser.
+// All the tensor methods called via the returned object from ErrResponser()
+// uses a method which has return type error.
+// Without using ErrResponser, most methods panics on error.
+func (t *Tensor) ErrResponser() *tensorErrResponser {
+	return &tensorErrResponser{t: t}
 }
 
 // Equals returns if t and t2 are logically the same.
@@ -188,4 +191,3 @@ func (t *Tensor) tostring(linebreak bool) string {
 		return w([]int{})
 	}
 }
-

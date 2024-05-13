@@ -731,12 +731,7 @@ type matmul struct {
 }
 
 func (m *matmul) Forward(inputs ...*Variable) ([]*Variable, error) {
-	dot, err := m.x.data.Dot(m.w.data)
-	if err != nil {
-		return nil, err
-	}
-
-	return asvars(dot), nil
+	return asvars(m.x.data.Dot(m.w.data)), nil
 }
 
 func (m *matmul) Backward(gy ...*Variable) ([]*Variable, error) {

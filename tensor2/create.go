@@ -116,7 +116,7 @@ func Arange(from, to, interval float64, shape ...int) *Tensor {
 	return MustGet(RespErr.Arange(from, to, interval, shape...))
 }
 
-func (_ *errResponser) NdShape(data []float64, shape ...int) (*Tensor, error) {
+func (_ *plainErrResponser) NdShape(data []float64, shape ...int) (*Tensor, error) {
 	if len(shape) == 0 {
 		if len(data) == 1 {
 			return Scalar(data[0]), nil
@@ -136,7 +136,7 @@ func (_ *errResponser) NdShape(data []float64, shape ...int) (*Tensor, error) {
 	return &Tensor{data: data, Shape: shape, Strides: strides}, nil
 }
 
-func (_ *errResponser) New(arr any) (*Tensor, error) {
+func (_ *plainErrResponser) New(arr any) (*Tensor, error) {
 	val := reflect.ValueOf(arr)
 	data := []float64{}
 	shape := []int{}
@@ -186,7 +186,7 @@ func (_ *errResponser) New(arr any) (*Tensor, error) {
 	return RespErr.NdShape(data, shape...)
 }
 
-func (_ *errResponser) Arange(from, to, interval float64, shape ...int) (*Tensor, error) {
+func (_ *plainErrResponser) Arange(from, to, interval float64, shape ...int) (*Tensor, error) {
 	data := make([]float64, int((to-from)/interval))
 	for i := range data {
 		data[i] = from + interval*float64(i)

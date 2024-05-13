@@ -28,23 +28,23 @@ func (t *Tensor) matrixCol(col int) ([]float64, error) {
 	return result, nil
 }
 
-func (t *Tensor) Dot(t2 *Tensor) (*Tensor, error) {
-	if t.Ndim() != 2 || t2.Ndim() != 2 {
-		return nil, fmt.Errorf("Dot() requires matrix x matrix but got shape %v x %v", t.Shape, t2.Shape)
+func (er *tensorErrResponser) Dot(t2 *Tensor) (*Tensor, error) {
+	if er.t.Ndim() != 2 || t2.Ndim() != 2 {
+		return nil, fmt.Errorf("Dot() requires matrix x matrix but got shape %v x %v", er.t.Shape, t2.Shape)
 	}
 
-	if t.Shape[1] != t2.Shape[0] {
-		return nil, fmt.Errorf("Dot() requires shape1[1] is equal to shape2[0], but got shape %v x %v", t.Shape, t2.Shape)
+	if er.t.Shape[1] != t2.Shape[0] {
+		return nil, fmt.Errorf("Dot() requires shape1[1] is equal to shape2[0], but got shape %v x %v", er.t.Shape, t2.Shape)
 	}
 
-	rownum, colnum := t.Shape[0], t2.Shape[1]
+	rownum, colnum := er.t.Shape[0], t2.Shape[1]
 
 	newshape := []int{rownum, colnum}
 
 	data := make([]float64, rownum*colnum)
 	i := 0
 	for r := range rownum {
-		row, err := t.matrixRow(r)
+		row, err := er.t.matrixRow(r)
 		if err != nil {
 			return nil, err
 		}
@@ -65,4 +65,8 @@ func (t *Tensor) Dot(t2 *Tensor) (*Tensor, error) {
 	}
 
 	return RespErr.NdShape(data, newshape...)
+}
+
+func (t *Tensor) Dot(t2 *Tensor) *Tensor {
+	return MustGet(t.ErrResponser().Dot(t2))
 }
