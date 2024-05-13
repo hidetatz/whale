@@ -47,7 +47,7 @@ func (t *Tensor) AsVector() []float64 {
 	indices := cartesianIdx(t.Shape)
 	result := make([]float64, t.Shape[0])
 	for i, index := range indices {
-		f := Must(t.Index(index...))
+		f := MustGet(t.Index(index...))
 		result[i] = f.AsScalar()
 	}
 	return result
@@ -128,7 +128,7 @@ func (t *Tensor) tostring(linebreak bool) string {
 		indent := strings.Repeat("  ", len(index))
 
 		if len(index) == len(t.Shape)-1 {
-			data := Must(t.Index(intsToIndices(index)...)).Flatten()
+			data := MustGet(t.Index(intsToIndices(index)...)).Flatten()
 			vals := strings.Join(tostr(data), ", ")
 			if linebreak {
 				return fmt.Sprintf("%s[%v]", indent, vals)

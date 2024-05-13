@@ -412,7 +412,7 @@ func nd(t *testing.T, data []float64, shape ...int) *tensor.Tensor {
 
 func arng(t *testing.T, from, to int, shape ...int) *tensor.Tensor {
 	t.Helper()
-	tsr, _ := tensor.Arange(float64(from), float64(to), 1, shape...)
+	tsr := tensor.Arange(float64(from), float64(to), 1, shape...)
 	return tsr
 }
 

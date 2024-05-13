@@ -28,11 +28,11 @@ func main() {
 	 */
 
 	// testdata
-	xmin := tensor.Must(x.Index(tensor.All(), tensor.At(0))).Min().AsScalar() - 0.1
-	xmax := tensor.Must(x.Index(tensor.All(), tensor.At(0))).Max().AsScalar() + 0.1
+	xmin := tensor.MustGet(x.Index(tensor.All(), tensor.At(0))).Min().AsScalar() - 0.1
+	xmax := tensor.MustGet(x.Index(tensor.All(), tensor.At(0))).Max().AsScalar() + 0.1
 
-	ymin := tensor.Must(x.Index(tensor.All(), tensor.At(1))).Min().AsScalar() - 0.1
-	ymax := tensor.Must(x.Index(tensor.All(), tensor.At(1))).Max().AsScalar() + 0.1
+	ymin := tensor.MustGet(x.Index(tensor.All(), tensor.At(1))).Min().AsScalar() - 0.1
+	ymax := tensor.MustGet(x.Index(tensor.All(), tensor.At(1))).Max().AsScalar() + 0.1
 
 	// test date with even intervals.
 	// x-axis-size = (xmax - xmin) / 0.05
@@ -208,7 +208,7 @@ func plot(x, t *tensor.Tensor) {
 
 	for i := range t.Size() {
 		// 0 / 1 / 2
-		label := tensor.Must(t.Index(tensor.At(i))).AsScalar()
+		label := tensor.MustGet(t.Index(tensor.At(i))).AsScalar()
 
 		st, err := x.Index(tensor.At(i))
 		if err != nil {

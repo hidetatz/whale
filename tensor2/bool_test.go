@@ -23,9 +23,9 @@ func TestBool(t *testing.T) {
 		},
 		{
 			name:     "2d",
-			tensor:   Must(ArangeVec(1, 7, 1).Reshape(2, 3)),
+			tensor:   MustGet(ArangeVec(1, 7, 1).Reshape(2, 3)),
 			f:        func(f float64) bool { return int(f)%2 == 0 },
-			expected: Must(Vector([]float64{0, 1, 0, 1, 0, 1}).Reshape(2, 3)),
+			expected: MustGet(Vector([]float64{0, 1, 0, 1, 0, 1}).Reshape(2, 3)),
 		},
 	}
 

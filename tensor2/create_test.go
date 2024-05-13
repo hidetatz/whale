@@ -174,7 +174,7 @@ func TestNew(t *testing.T) {
 				{4, 5, 6},
 				{7, 8, 9},
 			},
-			expected: Must(ArangeVec(1, 10, 1).Reshape(3, 3)),
+			expected: MustGet(ArangeVec(1, 10, 1).Reshape(3, 3)),
 		},
 		{
 			name: "2d 2",
@@ -183,7 +183,7 @@ func TestNew(t *testing.T) {
 				{},
 				{},
 			},
-			expected: Must(Vector([]float64{}).Reshape(3, 0)),
+			expected: MustGet(Vector([]float64{}).Reshape(3, 0)),
 		},
 		{
 			name: "non homogeneous",
@@ -213,7 +213,7 @@ func TestNew(t *testing.T) {
 					{25, 26, 27},
 				},
 			},
-			expected: Must(ArangeVec(1, 28, 1).Reshape(3, 3, 3)),
+			expected: MustGet(ArangeVec(1, 28, 1).Reshape(3, 3, 3)),
 		},
 	}
 
@@ -221,7 +221,7 @@ func TestNew(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := New(tc.arr)
+			got, err := RespErr.New(tc.arr)
 			checkErr(t, tc.expectErr, err)
 			mustEq(t, tc.expected, got)
 		})
@@ -230,15 +230,14 @@ func TestNew(t *testing.T) {
 
 func TestFactories(t *testing.T) {
 	tests := []struct {
-		name      string
-		factory   func() (*Tensor, error)
-		expectErr bool
-		expected  *Tensor
+		name     string
+		factory  func() *Tensor
+		expected *Tensor
 	}{
 		{
 			name: "zeros",
-			factory: func() (*Tensor, error) {
-				return Zeros(2, 2, 2), nil
+			factory: func() *Tensor {
+				return Zeros(2, 2, 2)
 			},
 			expected: &Tensor{
 				data:    []float64{0, 0, 0, 0, 0, 0, 0, 0},
@@ -249,8 +248,8 @@ func TestFactories(t *testing.T) {
 		},
 		{
 			name: "zeroslike",
-			factory: func() (*Tensor, error) {
-				return ZerosLike(NdShape([]float64{1, 2, 3, 4}, 2, 2)), nil
+			factory: func() *Tensor {
+				return ZerosLike(NdShape([]float64{1, 2, 3, 4}, 2, 2))
 			},
 			expected: &Tensor{
 				data:    []float64{0, 0, 0, 0},
@@ -261,8 +260,8 @@ func TestFactories(t *testing.T) {
 		},
 		{
 			name: "ones",
-			factory: func() (*Tensor, error) {
-				return Ones(2, 2, 2), nil
+			factory: func() *Tensor {
+				return Ones(2, 2, 2)
 			},
 			expected: &Tensor{
 				data:    []float64{1, 1, 1, 1, 1, 1, 1, 1},
@@ -273,8 +272,8 @@ func TestFactories(t *testing.T) {
 		},
 		{
 			name: "oneslike",
-			factory: func() (*Tensor, error) {
-				return OnesLike(NdShape([]float64{1, 2, 3, 4}, 2, 2)), nil
+			factory: func() *Tensor {
+				return OnesLike(NdShape([]float64{1, 2, 3, 4}, 2, 2))
 			},
 			expected: &Tensor{
 				data:    []float64{1, 1, 1, 1},
@@ -285,8 +284,8 @@ func TestFactories(t *testing.T) {
 		},
 		{
 			name: "full",
-			factory: func() (*Tensor, error) {
-				return Full(3, 2, 2, 2), nil
+			factory: func() *Tensor {
+				return Full(3, 2, 2, 2)
 			},
 			expected: &Tensor{
 				data:    []float64{3, 3, 3, 3, 3, 3, 3, 3},
@@ -297,7 +296,7 @@ func TestFactories(t *testing.T) {
 		},
 		{
 			name: "arange",
-			factory: func() (*Tensor, error) {
+			factory: func() *Tensor {
 				return Arange(0, 8, 1, 4, 2)
 			},
 			expected: &Tensor{
@@ -309,7 +308,7 @@ func TestFactories(t *testing.T) {
 		},
 		{
 			name: "arangeVec",
-			factory: func() (*Tensor, error) {
+			factory: func() *Tensor {
 				return Arange(0, 8, 1)
 			},
 			expected: &Tensor{
@@ -325,8 +324,7 @@ func TestFactories(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := tc.factory()
-			checkErr(t, tc.expectErr, err)
+			got := tc.factory()
 			mustEq(t, tc.expected, got)
 		})
 	}

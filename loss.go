@@ -54,10 +54,7 @@ func (s *SoftmaxCrossEntropy) Calculate(x, t *Variable) (*Variable, error) {
 		return nil, err
 	}
 
-	ar, err := tensor.Arange(0, float64(n), 1, n)
-	if err != nil {
-		return nil, err
-	}
+	ar := tensor.Arange(0, float64(n), 1, n)
 
 	tlogp, err := Index(logp, NewVar(ar), t)
 	if err != nil {

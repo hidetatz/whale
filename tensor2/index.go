@@ -379,7 +379,7 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 
 			vals := all(arg.i, product(broadcastedshape))
 			if arg.typ == _tensor {
-				tb := Must(arg.t.BroadcastTo(broadcastedshape...))
+				tb := MustGet(arg.t.BroadcastTo(broadcastedshape...))
 				vals = toint(tb.Flatten())
 			}
 			reorderedArgpairs[idx] = append(

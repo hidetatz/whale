@@ -44,7 +44,7 @@ func TestReshape(t *testing.T) {
 		},
 		{
 			name:     "vector after indexed",
-			tensor:   Must(NdShape([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(At(0))),
+			tensor:   MustGet(NdShape([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(At(0))),
 			shape:    []int{2, 1},
 			expected: NdShape([]float64{1, 2}, 2, 1),
 		},
@@ -107,9 +107,9 @@ func TestTranspose(t *testing.T) {
 		},
 		{
 			name:   "3d",
-			tensor: Must(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
+			tensor: MustGet(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
 			axes:   []int{},
-			expected: Must(New([][][]float64{
+			expected: New([][][]float64{
 				{
 					{1, 13},
 					{5, 17},
@@ -130,13 +130,13 @@ func TestTranspose(t *testing.T) {
 					{8, 20},
 					{12, 24},
 				},
-			})),
+			}),
 		},
 		{
 			name:   "3d 2",
-			tensor: Must(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
+			tensor: MustGet(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
 			axes:   []int{2, 1, 0},
-			expected: Must(New([][][]float64{
+			expected: New([][][]float64{
 				{
 					{1, 13},
 					{5, 17},
@@ -157,13 +157,13 @@ func TestTranspose(t *testing.T) {
 					{8, 20},
 					{12, 24},
 				},
-			})),
+			}),
 		},
 		{
 			name:   "3d 3",
-			tensor: Must(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
+			tensor: MustGet(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
 			axes:   []int{0, 2, 1},
-			expected: Must(New([][][]float64{
+			expected: New([][][]float64{
 				{
 					{1, 5, 9},
 					{2, 6, 10},
@@ -176,11 +176,11 @@ func TestTranspose(t *testing.T) {
 					{15, 19, 23},
 					{16, 20, 24},
 				},
-			})),
+			}),
 		},
 		{
 			name:      "non-unique axes",
-			tensor:    Must(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
+			tensor:    MustGet(ArangeVec(1, 25, 1).Reshape(2, 3, 4)),
 			axes:      []int{0, 2, 0},
 			expectErr: true,
 		},
@@ -207,55 +207,55 @@ func TestSqueeze(t *testing.T) {
 	}{
 		{
 			name:     "2d 1",
-			tensor:   Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
+			tensor:   MustGet(ArangeVec(0, 6, 1).Reshape(2, 3)),
 			axes:     []int{},
-			expected: Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
+			expected: MustGet(ArangeVec(0, 6, 1).Reshape(2, 3)),
 		},
 		{
 			name:     "3d 1",
-			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 2, 3)),
+			tensor:   MustGet(ArangeVec(0, 6, 1).Reshape(1, 2, 3)),
 			axes:     []int{},
-			expected: Must(ArangeVec(0, 6, 1).Reshape(2, 3)),
+			expected: MustGet(ArangeVec(0, 6, 1).Reshape(2, 3)),
 		},
 		{
 			name:     "3d 2",
-			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
+			tensor:   MustGet(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
 			axes:     []int{},
 			expected: ArangeVec(0, 6, 1),
 		},
 		{
 			name:     "3d 3",
-			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
+			tensor:   MustGet(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
 			axes:     []int{0},
-			expected: Must(ArangeVec(0, 6, 1).Reshape(6, 1)),
+			expected: MustGet(ArangeVec(0, 6, 1).Reshape(6, 1)),
 		},
 		{
 			name:     "3d 4",
-			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
+			tensor:   MustGet(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
 			axes:     []int{2},
-			expected: Must(ArangeVec(0, 6, 1).Reshape(1, 6)),
+			expected: MustGet(ArangeVec(0, 6, 1).Reshape(1, 6)),
 		},
 		{
 			name:     "3d 5",
-			tensor:   Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
+			tensor:   MustGet(ArangeVec(0, 6, 1).Reshape(1, 6, 1)),
 			axes:     []int{0, 2},
 			expected: ArangeVec(0, 6, 1),
 		},
 		{
 			name:     "3d 6",
-			tensor:   Must(Scalar(3).Reshape(1, 1, 1)),
+			tensor:   MustGet(Scalar(3).Reshape(1, 1, 1)),
 			axes:     []int{0, 2},
 			expected: Vector([]float64{3}),
 		},
 		{
 			name:     "3d 6",
-			tensor:   Must(Scalar(3).Reshape(1, 1, 1)),
+			tensor:   MustGet(Scalar(3).Reshape(1, 1, 1)),
 			axes:     []int{0, 2, 1},
 			expected: Scalar(3),
 		},
 		{
 			name:     "offset non-0",
-			tensor:   Must(Must(ArangeVec(0, 6, 1).Reshape(1, 6, 1)).Index(All(), FromTo(2, 5), All())),
+			tensor:   MustGet(MustGet(ArangeVec(0, 6, 1).Reshape(1, 6, 1)).Index(All(), FromTo(2, 5), All())),
 			axes:     []int{},
 			expected: ArangeVec(2, 5, 1),
 		},
@@ -302,37 +302,37 @@ func TestBroadcastTo(t *testing.T) {
 			name:     "vector 2",
 			tensor:   Vector([]float64{1, 2, 3}),
 			shape:    []int{3, 3},
-			expected: Must(Vector([]float64{1, 2, 3, 1, 2, 3, 1, 2, 3}).Reshape(3, 3)),
+			expected: MustGet(Vector([]float64{1, 2, 3, 1, 2, 3, 1, 2, 3}).Reshape(3, 3)),
 		},
 		{
 			name:     "2d 1",
-			tensor:   Must(ArangeVec(1, 7, 1).Reshape(2, 3)),
+			tensor:   MustGet(ArangeVec(1, 7, 1).Reshape(2, 3)),
 			shape:    []int{2, 2, 3},
-			expected: Must(Vector([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 3)),
+			expected: MustGet(Vector([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 3)),
 		},
 		{
 			name:      "2d err1",
-			tensor:    Must(ArangeVec(1, 7, 1).Reshape(2, 3)),
+			tensor:    MustGet(ArangeVec(1, 7, 1).Reshape(2, 3)),
 			shape:     []int{2, 4, 3},
 			expectErr: true,
 		},
 		{
 			name:     "2d 2",
-			tensor:   Must(ArangeVec(1, 7, 1).Reshape(1, 6)),
+			tensor:   MustGet(ArangeVec(1, 7, 1).Reshape(1, 6)),
 			shape:    []int{2, 2, 6},
-			expected: Must(Vector([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 6)),
+			expected: MustGet(Vector([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 6)),
 		},
 		{
 			name:      "2d err",
-			tensor:    Must(ArangeVec(1, 7, 1).Reshape(1, 6)),
+			tensor:    MustGet(ArangeVec(1, 7, 1).Reshape(1, 6)),
 			shape:     []int{2, 2, 12},
 			expectErr: true,
 		},
 		{
 			name:   "indexed",
-			tensor: Must(Must(ArangeVec(0, 24, 1).Reshape(2, 1, 12)).Index(At(1))),
+			tensor: MustGet(MustGet(ArangeVec(0, 24, 1).Reshape(2, 1, 12)).Index(At(1))),
 			shape:  []int{2, 2, 12},
-			expected: Must(New([][][]float64{
+			expected: New([][][]float64{
 				{
 					{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
 					{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
@@ -341,7 +341,7 @@ func TestBroadcastTo(t *testing.T) {
 					{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
 					{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
 				},
-			})),
+			}),
 		},
 	}
 

@@ -299,25 +299,25 @@ func TestIndex(t *testing.T) {
 		{
 			name:     "vector 2",
 			tensor:   ArangeVec(0, 6, 1),
-			args:     []*IndexArg{List(MustNew([][]float64{{2, 3, 5}, {0, 1, 4}}))},
-			expected: MustNew([][]float64{{2, 3, 5}, {0, 1, 4}}),
+			args:     []*IndexArg{List(New([][]float64{{2, 3, 5}, {0, 1, 4}}))},
+			expected: New([][]float64{{2, 3, 5}, {0, 1, 4}}),
 		},
 		{
 			name:   "too many indices",
 			tensor: ArangeVec(0, 6, 1),
 			args: []*IndexArg{
-				List(MustNew([][]float64{{2, 3, 5}, {0, 1, 4}})),
-				List(MustNew([][]float64{{2, 3, 5}, {0, 1, 4}})),
+				List(New([][]float64{{2, 3, 5}, {0, 1, 4}})),
+				List(New([][]float64{{2, 3, 5}, {0, 1, 4}})),
 			},
 			expectErr: true,
 		},
 		{
 			name:   "2d single list",
-			tensor: Must(Arange(0, 6, 1, 2, 3)),
+			tensor: Arange(0, 6, 1, 2, 3),
 			args: []*IndexArg{
 				List(Vector([]float64{0, 1, 0})),
 			},
-			expected: MustNew([][]float64{
+			expected: New([][]float64{
 				{0, 1, 2},
 				{3, 4, 5},
 				{0, 1, 2},
@@ -325,7 +325,7 @@ func TestIndex(t *testing.T) {
 		},
 		{
 			name:   "2d multiple lists",
-			tensor: Must(Arange(0, 6, 1, 2, 3)),
+			tensor: Arange(0, 6, 1, 2, 3),
 			args: []*IndexArg{
 				List(Vector([]float64{0, 1, 0})),
 				List(Vector([]float64{1, 0, 2})),
@@ -334,11 +334,11 @@ func TestIndex(t *testing.T) {
 		},
 		{
 			name:   "2d index on 2d",
-			tensor: Must(Arange(0, 6, 1, 2, 3)),
+			tensor: Arange(0, 6, 1, 2, 3),
 			args: []*IndexArg{
-				List(MustNew([][]float64{{0, 1, 0}, {1, 0, 1}})),
+				List(New([][]float64{{0, 1, 0}, {1, 0, 1}})),
 			},
-			expected: MustNew([][][]float64{
+			expected: New([][][]float64{
 				{
 					{0, 1, 2},
 					{3, 4, 5},
@@ -353,33 +353,33 @@ func TestIndex(t *testing.T) {
 		},
 		{
 			name:   "2d broadcast",
-			tensor: Must(Arange(0, 6, 1, 2, 3)),
+			tensor: Arange(0, 6, 1, 2, 3),
 			args: []*IndexArg{
-				List(MustNew([][]float64{{0, 1, 0}, {1, 0, 1}})),
+				List(New([][]float64{{0, 1, 0}, {1, 0, 1}})),
 				List(Scalar(2)),
 			},
-			expected: MustNew([][]float64{
+			expected: New([][]float64{
 				{2, 5, 2},
 				{5, 2, 5},
 			}),
 		},
 		{
 			name:   "invalid broadcast",
-			tensor: Must(Arange(0, 6, 1, 2, 3)),
+			tensor: Arange(0, 6, 1, 2, 3),
 			args: []*IndexArg{
-				List(MustNew([][]float64{{0, 1, 0}, {1, 0, 1}})),
+				List(New([][]float64{{0, 1, 0}, {1, 0, 1}})),
 				List(Vector([]float64{1, 0})),
 			},
 			expectErr: true,
 		},
 		{
 			name:   "slice combined",
-			tensor: Must(Arange(0, 6, 1, 2, 3)),
+			tensor: Arange(0, 6, 1, 2, 3),
 			args: []*IndexArg{
 				FromTo(0, 2),
-				List(MustNew([][]float64{{0, 1, 0}, {1, 0, 1}})),
+				List(New([][]float64{{0, 1, 0}, {1, 0, 1}})),
 			},
-			expected: MustNew([][][]float64{
+			expected: New([][][]float64{
 				{
 					{0, 1, 0},
 					{1, 0, 1},
@@ -392,12 +392,12 @@ func TestIndex(t *testing.T) {
 		},
 		{
 			name:   "slice follows2",
-			tensor: Must(Arange(0, 6, 1, 2, 3)),
+			tensor: Arange(0, 6, 1, 2, 3),
 			args: []*IndexArg{
 				FromToBy(1, 2, 2),
-				List(MustNew([][]float64{{0, 1, 0}, {1, 0, 1}})),
+				List(New([][]float64{{0, 1, 0}, {1, 0, 1}})),
 			},
-			expected: MustNew([][][]float64{
+			expected: New([][][]float64{
 				{
 					{3, 4, 3},
 					{4, 3, 4},
@@ -406,12 +406,12 @@ func TestIndex(t *testing.T) {
 		},
 		{
 			name:   "slice follows",
-			tensor: Must(Arange(0, 6, 1, 2, 3)),
+			tensor: Arange(0, 6, 1, 2, 3),
 			args: []*IndexArg{
-				List(MustNew([][]float64{{0, 1, 0}, {1, 0, 1}})),
+				List(New([][]float64{{0, 1, 0}, {1, 0, 1}})),
 				FromTo(0, 2),
 			},
-			expected: MustNew([][][]float64{
+			expected: New([][][]float64{
 				{
 					{0, 1},
 					{3, 4},
@@ -426,13 +426,13 @@ func TestIndex(t *testing.T) {
 		},
 		{
 			name:   "separated",
-			tensor: Must(Arange(0, 48, 1, 2, 3, 4, 2)),
+			tensor: Arange(0, 48, 1, 2, 3, 4, 2),
 			args: []*IndexArg{
 				At(1),
 				FromTo(1, 2),
-				List(MustNew([][]float64{{0, 1, 0}, {1, 0, 1}})),
+				List(New([][]float64{{0, 1, 0}, {1, 0, 1}})),
 			},
-			expected: MustNew([][][][]float64{
+			expected: New([][][][]float64{
 				{
 
 					{
@@ -460,13 +460,13 @@ func TestIndex(t *testing.T) {
 		},
 		{
 			name:   "separated2",
-			tensor: Must(Arange(0, 48, 1, 2, 3, 4, 2)),
+			tensor: Arange(0, 48, 1, 2, 3, 4, 2),
 			args: []*IndexArg{
 				List(Scalar(1)),
 				FromTo(1, 2),
-				List(MustNew([][]float64{{0, 1, 0}, {1, 0, 1}})),
+				List(New([][]float64{{0, 1, 0}, {1, 0, 1}})),
 			},
-			expected: MustNew([][][][]float64{
+			expected: New([][][][]float64{
 				{
 
 					{

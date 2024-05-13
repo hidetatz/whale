@@ -7,12 +7,7 @@ import (
 )
 
 func main() {
-	t, err := tensor.Arange(0, 200, 1, 1, 5, 4, 2, 5)
-	// t := tensor.ArangeVec(0, 5, 1)
-	if err != nil {
-		panic(err)
-	}
-
+	t := tensor.Arange(0, 200, 1, 1, 5, 4, 2, 5)
 	t2, err := t.Index(
 		tensor.At(0),
 		tensor.At(1),
