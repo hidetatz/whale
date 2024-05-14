@@ -11,6 +11,13 @@ type plainErrResponser struct{}
 // If not, panic will be triggered on an error.
 var RespErr = &plainErrResponser{}
 
+// MustDo panics if the given err is not nil.
+func MustDo(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 // MustGet receives (T, error), then panics on error is non-nil.
 // If error is nil, it returns the T.
 func MustGet[T any](obj T, err error) T {

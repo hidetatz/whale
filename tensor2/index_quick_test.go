@@ -235,10 +235,7 @@ func TestIndexUpdate_quick(t *testing.T) {
 			t.Fatalf("initialize tensor: %v", err)
 		}
 
-		if err := ten.IndexSub(arg.r.arg, arg.target); err != nil {
-			t.Fatalf("index tensor: %v", err)
-		}
-
+		ten.IndexSub(arg.r.arg, arg.target)
 		return &Result{Data: ten.Flatten(), Shape: ten.Shape}
 	}
 

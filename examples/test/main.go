@@ -20,14 +20,9 @@ func main() {
 	read := false
 
 	if !read {
-		err := t2.IndexSub(args, tensor.Scalar(3))
-		if err != nil {
-			panic(err)
-		}
-
+		t2.IndexSub(args, tensor.Scalar(3))
 		fmt.Println(t2)
 	} else {
-		t3 := t2.Index(args...)
-		fmt.Println(t3)
+		fmt.Println(t2.Index(args...))
 	}
 }
