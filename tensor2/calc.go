@@ -77,11 +77,7 @@ func (er *tensorErrResponser) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	// extract each slice and sum them
 	data := make([]float64, er.t.Size()/len(ss))
 	for _, s := range ss {
-		t2, err := er.t.Index(s...)
-		if err != nil {
-			panic(err)
-		}
-
+		t2 := er.t.Index(s...)
 		flat := t2.Flatten()
 		for i := range len(data) {
 			data[i] += flat[i]
@@ -187,12 +183,7 @@ func (t *Tensor) argFunc(keepdims bool, axis int, fn string) (*Tensor, error) {
 	indexArgs := cartesianIdx(shp)
 	for i, indexArg := range indexArgs {
 		indexArg[axis] = All()
-		t2, err := t.Index(indexArg...)
-		if err != nil {
-			// this must not happen
-			panic("index() returns err: " + err.Error())
-		}
-
+		t2 := t.Index(indexArg...)
 		arg := t2.argFuncFlat(fn)
 		data[i] = float64(arg)
 	}

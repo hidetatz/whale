@@ -14,8 +14,12 @@ func (r *indexResult) String() string {
 	return fmt.Sprintf("t: %v, origIndices: %v", r.t.OnelineString(), r.origIndices)
 }
 
-func (t *Tensor) Index(args ...*IndexArg) (*Tensor, error) {
-	return t.indexForRead(args...)
+func (t *Tensor) Index(args ...*IndexArg) *Tensor {
+	return MustGet(t.ErrResponser().Index(args...))
+}
+
+func (er *tensorErrResponser) Index(args ...*IndexArg) (*Tensor, error) {
+	return er.t.indexForRead(args...)
 }
 
 func (t *Tensor) checkIndexArgs(args ...*IndexArg) error {
@@ -218,7 +222,7 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 	var origIndices []int
 	var r []float64
 	for _, idx := range indices {
-		t2, err := t.Index(intsToIndices(idx)...)
+		t2, err := t.ErrResponser().Index(intsToIndices(idx)...)
 		if err != nil {
 			return nil, err
 		}
@@ -426,7 +430,7 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 	var r []float64
 	var origIndices []int
 	for _, idx := range indices {
-		t2, err := t.Index(intsToIndices(idx)...)
+		t2, err := t.ErrResponser().Index(intsToIndices(idx)...)
 		if err != nil {
 			return nil, err
 		}

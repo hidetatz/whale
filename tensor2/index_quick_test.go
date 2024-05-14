@@ -173,10 +173,7 @@ func TestIndex_quick(t *testing.T) {
 			t.Fatalf("initialize tensor: %v", err)
 		}
 
-		ten2, err := ten.Index(arg.arg...)
-		if err != nil {
-			t.Fatalf("index tensor: %v", err)
-		}
+		ten2 := ten.Index(arg.arg...)
 
 		// need to resolve:
 		// not sure why but sometimes ten2.Shape is returned as nil,

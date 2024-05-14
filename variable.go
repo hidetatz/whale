@@ -34,7 +34,7 @@ func (v *Variable) clone() *Variable {
 	}
 }
 
-func (v *Variable) Index(args ...*tensor.IndexArg) (*tensor.Tensor, error) {
+func (v *Variable) Index(args ...*tensor.IndexArg) *tensor.Tensor {
 	return v.data.Index(args...)
 }
 

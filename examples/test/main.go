@@ -8,13 +8,7 @@ import (
 
 func main() {
 	t := tensor.Arange(0, 200, 1, 1, 5, 4, 2, 5)
-	t2, err := t.Index(
-		tensor.At(0),
-		tensor.At(1),
-	)
-	if err != nil {
-		panic(err)
-	}
+	t2 := t.Index(tensor.At(0), tensor.At(1))
 
 	fmt.Println(t2)
 
@@ -33,12 +27,7 @@ func main() {
 
 		fmt.Println(t2)
 	} else {
-		t3, err := t2.Index(args...)
-
-		if err != nil {
-			panic(err)
-		}
-
+		t3 := t2.Index(args...)
 		fmt.Println(t3)
 	}
 }

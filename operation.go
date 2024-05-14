@@ -850,11 +850,7 @@ func (i *index) Forward(inputs ...*Variable) ([]*Variable, error) {
 	for i, idx := range i.indices {
 		args[i] = tensor.List(idx.data)
 	}
-	t, err := i.x.data.Index(args...)
-	if err != nil {
-		return nil, err
-	}
-
+	t := i.x.data.Index(args...)
 	return asvars(t), nil
 }
 

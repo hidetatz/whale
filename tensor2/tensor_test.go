@@ -25,8 +25,7 @@ func TestString(t *testing.T) {
 ]
 `)
 
-	tensor2, err := tensor.Index(At(0), At(2))
-	checkErr(t, false, err)
+	tensor2 := tensor.Index(At(0), At(2))
 	got = fmt.Sprintf("%v", tensor2)
 	musteq(t, got, `3`)
 
@@ -46,8 +45,7 @@ func TestString(t *testing.T) {
 ]
 `)
 
-	tensor4, err := tensor3.Index(From(1), To(1), FromTo(1, 3))
-	checkErr(t, false, err)
+	tensor4 := tensor3.Index(From(1), To(1), FromTo(1, 3))
 	got = fmt.Sprintf("%v", tensor4)
 	musteq(t, got, `[
   [
@@ -56,8 +54,7 @@ func TestString(t *testing.T) {
 ]
 `)
 
-	tensor5, err := tensor4.Index(From(1), To(1), FromTo(1, 2))
-	checkErr(t, false, err)
+	tensor5 := tensor4.Index(From(1), To(1), FromTo(1, 2))
 	got = fmt.Sprintf("%v", tensor5)
 	// mimics numpy
 	musteq(t, got, `([], shape=[0 1 1])`)

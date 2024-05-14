@@ -498,7 +498,7 @@ func TestIndex(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := tc.tensor.Index(tc.args...)
+			got, err := tc.tensor.ErrResponser().Index(tc.args...)
 			checkErr(t, tc.expectErr, err)
 			mustEq(t, tc.expected, got)
 		})
@@ -508,39 +508,31 @@ func TestIndex(t *testing.T) {
 func TestIndex_Complicated(t *testing.T) {
 	tensor := NdShape(seq[float64](1, 121), 2, 3, 4, 5)
 
-	tensor2, err := tensor.Index(At(0))
-	checkErr(t, false, err)
+	tensor2 := tensor.Index(At(0))
 	mustEq(t, NdShape(seq[float64](1, 61), 3, 4, 5), tensor2)
 
-	tensor3, err := tensor2.Index(At(2))
-	checkErr(t, false, err)
+	tensor3 := tensor2.Index(At(2))
 	mustEq(t, NdShape(seq[float64](41, 61), 4, 5), tensor3)
 
-	tensor4, err := tensor3.Index(At(1))
-	checkErr(t, false, err)
+	tensor4 := tensor3.Index(At(1))
 	mustEq(t, Vector(seq[float64](46, 51)), tensor4)
 
-	tensor5, err := tensor4.Index(At(4))
-	checkErr(t, false, err)
+	tensor5 := tensor4.Index(At(4))
 	mustEq(t, Scalar(50), tensor5)
 }
 
 func TestIndex_Complicated_slicing(t *testing.T) {
 	tensor := NdShape(seq[float64](1, 121), 2, 3, 4, 5)
 
-	tensor2, err := tensor.Index(From(1))
-	checkErr(t, false, err)
+	tensor2 := tensor.Index(From(1))
 	mustEq(t, NdShape(seq[float64](61, 121), 1, 3, 4, 5), tensor2)
 
-	tensor3, err := tensor2.Index(All(), From(2))
-	checkErr(t, false, err)
+	tensor3 := tensor2.Index(All(), From(2))
 	mustEq(t, NdShape(seq[float64](101, 121), 1, 1, 4, 5), tensor3)
 
-	tensor4, err := tensor3.Index(All(), All(), FromToBy(1, 4, 2))
-	checkErr(t, false, err)
+	tensor4 := tensor3.Index(All(), All(), FromToBy(1, 4, 2))
 	mustEq(t, NdShape([]float64{106, 107, 108, 109, 110, 116, 117, 118, 119, 120}, 1, 1, 2, 5), tensor4)
 
-	tensor5, err := tensor4.Index(All(), All(), All(), FromTo(2, 4))
-	checkErr(t, false, err)
+	tensor5 := tensor4.Index(All(), All(), All(), FromTo(2, 4))
 	mustEq(t, NdShape([]float64{108, 109, 118, 119}, 1, 1, 2, 2), tensor5)
 }

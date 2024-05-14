@@ -28,11 +28,11 @@ func main() {
 	 */
 
 	// testdata
-	xmin := tensor.MustGet(x.Index(tensor.All(), tensor.At(0))).Min().AsScalar() - 0.1
-	xmax := tensor.MustGet(x.Index(tensor.All(), tensor.At(0))).Max().AsScalar() + 0.1
+	xmin := x.Index(tensor.All(), tensor.At(0)).Min().AsScalar() - 0.1
+	xmax := x.Index(tensor.All(), tensor.At(0)).Max().AsScalar() + 0.1
 
-	ymin := tensor.MustGet(x.Index(tensor.All(), tensor.At(1))).Min().AsScalar() - 0.1
-	ymax := tensor.MustGet(x.Index(tensor.All(), tensor.At(1))).Max().AsScalar() + 0.1
+	ymin := x.Index(tensor.All(), tensor.At(1)).Min().AsScalar() - 0.1
+	ymax := x.Index(tensor.All(), tensor.At(1)).Max().AsScalar() + 0.1
 
 	// test date with even intervals.
 	// x-axis-size = (xmax - xmin) / 0.05
@@ -147,10 +147,7 @@ func Train(m whale.Model, x, t *whale.Variable) {
 		sumloss := 0.0
 
 		for i := range 10 {
-			batchIdx, err := index.Index(tensor.FromTo(i*batch, (i+1)*batch))
-			if err != nil {
-				panic(err)
-			}
+			batchIdx := index.Index(tensor.FromTo(i*batch, (i+1)*batch))
 
 			batchX, err := whale.Index(x, whale.NewVar(batchIdx))
 			if err != nil {
@@ -202,12 +199,9 @@ func plot(x, t *tensor.Tensor) {
 
 	for i := range t.Size() {
 		// 0 / 1 / 2
-		label := tensor.MustGet(t.Index(tensor.At(i))).AsScalar()
+		label := t.Index(tensor.At(i)).AsScalar()
 
-		st, err := x.Index(tensor.At(i))
-		if err != nil {
-			panic(err)
-		}
+		st := x.Index(tensor.At(i))
 
 		data := st.Flatten()
 		switch label {
