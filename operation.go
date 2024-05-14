@@ -13,12 +13,6 @@ func copySlice(s []int) []int {
 	return c
 }
 
-// var device Device
-//
-// func init() {
-// 	device = &CPU{}
-// }
-
 func asvars(t *tensor.Tensor) []*Variable {
 	return []*Variable{NewVar(t)}
 }
