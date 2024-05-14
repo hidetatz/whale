@@ -15,7 +15,7 @@ func (t *Tensor) apply1(fn func(f float64) float64) *Tensor {
 }
 
 func (t *Tensor) apply2(t2 *Tensor, fn func(f1, f2 float64) float64) (*Tensor, error) {
-	nt, nt2, err := Broadcast(t, t2)
+	nt, nt2, err := RespErr.Broadcast(t, t2)
 	if err != nil {
 		return nil, err
 	}

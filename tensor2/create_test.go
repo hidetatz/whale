@@ -174,7 +174,7 @@ func TestNew(t *testing.T) {
 				{4, 5, 6},
 				{7, 8, 9},
 			},
-			expected: MustGet(ArangeVec(1, 10, 1).Reshape(3, 3)),
+			expected: ArangeVec(1, 10, 1).Reshape(3, 3),
 		},
 		{
 			name: "2d 2",
@@ -183,7 +183,7 @@ func TestNew(t *testing.T) {
 				{},
 				{},
 			},
-			expected: MustGet(Vector([]float64{}).Reshape(3, 0)),
+			expected: Vector([]float64{}).Reshape(3, 0),
 		},
 		{
 			name: "non homogeneous",
@@ -213,7 +213,7 @@ func TestNew(t *testing.T) {
 					{25, 26, 27},
 				},
 			},
-			expected: MustGet(ArangeVec(1, 28, 1).Reshape(3, 3, 3)),
+			expected: ArangeVec(1, 28, 1).Reshape(3, 3, 3),
 		},
 	}
 

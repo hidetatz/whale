@@ -200,11 +200,7 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 			te = Scalar(float64(arg.i))
 		}
 
-		b, err := te.BroadcastTo(broadcastedshape...)
-		if err != nil {
-			// must not come here
-			panic(err)
-		}
+		b := te.BroadcastTo(broadcastedshape...)
 		flatargs[i] = toint(b.Flatten())
 	}
 
@@ -383,7 +379,7 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 
 			vals := all(arg.i, product(broadcastedshape))
 			if arg.typ == _tensor {
-				tb := MustGet(arg.t.BroadcastTo(broadcastedshape...))
+				tb := arg.t.BroadcastTo(broadcastedshape...)
 				vals = toint(tb.Flatten())
 			}
 			reorderedArgpairs[idx] = append(

@@ -123,7 +123,7 @@ func (er *tensorErrResponser) SumTo(shape ...int) (*Tensor, error) {
 	}
 
 	if lead > 0 {
-		y2, err := y.Squeeze(leadAxis...)
+		y2, err := y.ErrResponser().Squeeze(leadAxis...)
 		if err != nil {
 			return nil, err
 		}

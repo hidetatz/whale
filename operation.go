@@ -60,11 +60,7 @@ type reshape struct {
 }
 
 func (r *reshape) Forward(inputs ...*Variable) ([]*Variable, error) {
-	y, err := inputs[0].data.Reshape(r.shape...)
-	if err != nil {
-		return nil, fmt.Errorf("reshape: %w", err)
-	}
-
+	y := inputs[0].data.Reshape(r.shape...)
 	return asvars(y), nil
 }
 
@@ -94,10 +90,7 @@ type transpose struct {
 }
 
 func (t *transpose) Forward(inputs ...*Variable) ([]*Variable, error) {
-	tr, err := inputs[0].data.Transpose(t.axes...)
-	if err != nil {
-		return nil, err
-	}
+	tr := inputs[0].data.Transpose(t.axes...)
 	return []*Variable{NewVar(tr)}, nil
 }
 
@@ -135,11 +128,7 @@ type broadcastTo struct {
 }
 
 func (b *broadcastTo) Forward(inputs ...*Variable) ([]*Variable, error) {
-	y, err := inputs[0].data.BroadcastTo(b.shape...)
-	if err != nil {
-		return nil, fmt.Errorf("BroadcastTo: %w", err)
-	}
-
+	y := inputs[0].data.BroadcastTo(b.shape...)
 	return asvars(y), nil
 }
 
@@ -194,11 +183,7 @@ func (s *sum) Backward(gy ...*Variable) ([]*Variable, error) {
 		}
 	}
 
-	y, err := gy0.data.Reshape(shape...)
-	if err != nil {
-		return nil, fmt.Errorf("Sum Backward: %w", err)
-	}
-
+	y := gy0.data.Reshape(shape...)
 	gx, err := BroadcastTo(NewVar(y), s.origshape...)
 	if err != nil {
 		return nil, fmt.Errorf("Sum Backward: %w", err)
@@ -237,10 +222,7 @@ func (s *sumTo) Forward(inputs ...*Variable) ([]*Variable, error) {
 }
 
 func (s *sumTo) Backward(gy ...*Variable) ([]*Variable, error) {
-	y, err := gy[0].data.BroadcastTo(s.origshape...)
-	if err != nil {
-		return nil, fmt.Errorf("SumTo Backward: %w", err)
-	}
+	y := gy[0].data.BroadcastTo(s.origshape...)
 	return asvars(y), nil
 }
 

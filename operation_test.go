@@ -32,14 +32,14 @@ func TestSingleOperations(t *testing.T) {
 			extra:        []any{[]int{6, 2}},
 			variable:     true,
 			expected:     ts(arng(t, 1, 13, 6, 2)),
-			expectedGrad: ts(ones(t, 2, 2, 3)),
+			expectedGrad: ts(tensor.Ones(2, 2, 3)),
 		},
 		{
 			name:         "transpose",
 			fn:           Transpose,
 			in:           ts(arng(t, 1, 13, 2, 2, 3)),
-			expected:     ts(trans(t, arng(t, 1, 13, 2, 2, 3))),
-			expectedGrad: ts(ones(t, 2, 2, 3)),
+			expected:     ts(arng(t, 1, 13, 2, 2, 3).Transpose()),
+			expectedGrad: ts(tensor.Ones(2, 2, 3)),
 		},
 		{
 			name:         "broadcastto",
@@ -47,8 +47,8 @@ func TestSingleOperations(t *testing.T) {
 			in:           ts(arng(t, 1, 7, 2, 3)),
 			extra:        []any{[]int{3, 2, 3}},
 			variable:     true,
-			expected:     ts(nd(t, []float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, 3, 2, 3)),
-			expectedGrad: ts(nd(t, []float64{3, 3, 3, 3, 3, 3}, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}, 3, 2, 3)),
+			expectedGrad: ts(tensor.NdShape([]float64{3, 3, 3, 3, 3, 3}, 2, 3)),
 		},
 		{
 			name:         "sum",
@@ -56,8 +56,8 @@ func TestSingleOperations(t *testing.T) {
 			in:           ts(arng(t, 1, 7, 2, 3)),
 			extra:        []any{false, []int{0}},
 			variable:     true,
-			expected:     ts(nd(t, []float64{5, 7, 9}, 3)),
-			expectedGrad: ts(ones(t, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{5, 7, 9}, 3)),
+			expectedGrad: ts(tensor.Ones(2, 3)),
 		},
 		{
 			name:         "sum2",
@@ -65,8 +65,8 @@ func TestSingleOperations(t *testing.T) {
 			in:           ts(arng(t, 1, 7, 2, 3)),
 			extra:        []any{false, []int{1}},
 			variable:     true,
-			expected:     ts(nd(t, []float64{6, 15}, 2)),
-			expectedGrad: ts(ones(t, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{6, 15}, 2)),
+			expectedGrad: ts(tensor.Ones(2, 3)),
 		},
 		{
 			name:         "sum3",
@@ -74,8 +74,8 @@ func TestSingleOperations(t *testing.T) {
 			in:           ts(arng(t, 1, 7, 2, 3)),
 			extra:        []any{true, []int{1}},
 			variable:     true,
-			expected:     ts(nd(t, []float64{6, 15}, 2, 1)),
-			expectedGrad: ts(ones(t, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{6, 15}, 2, 1)),
+			expectedGrad: ts(tensor.Ones(2, 3)),
 		},
 		{
 			name:         "sumTo",
@@ -83,120 +83,120 @@ func TestSingleOperations(t *testing.T) {
 			in:           ts(arng(t, 1, 7, 2, 3)),
 			extra:        []any{[]int{1, 3}},
 			variable:     true,
-			expected:     ts(nd(t, []float64{5, 7, 9}, 1, 3)),
-			expectedGrad: ts(ones(t, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{5, 7, 9}, 1, 3)),
+			expectedGrad: ts(tensor.Ones(2, 3)),
 		},
 		{
 			name:         "exp",
 			fn:           Exp,
 			in:           ts(arng(t, 1, 7, 2, 3)),
-			expected:     ts(nd(t, []float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
-			expectedGrad: ts(nd(t, []float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
+			expectedGrad: ts(tensor.NdShape([]float64{2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766, 403.4287934927351}, 2, 3)),
 		},
 		{
 			name:         "add",
 			fn:           Add,
 			in:           ts(arng(t, 1, 7, 2, 3), arng(t, 7, 13, 2, 3)),
-			expected:     ts(nd(t, []float64{8, 10, 12, 14, 16, 18}, 2, 3)),
-			expectedGrad: ts(ones(t, 2, 3), ones(t, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{8, 10, 12, 14, 16, 18}, 2, 3)),
+			expectedGrad: ts(tensor.Ones(2, 3), tensor.Ones(2, 3)),
 		},
 		{
 			name:         "add2",
 			fn:           Add,
-			in:           ts(arng(t, 1, 7, 2, 3), scalar(t, 2)),
-			expected:     ts(nd(t, []float64{3, 4, 5, 6, 7, 8}, 2, 3)),
-			expectedGrad: ts(ones(t, 2, 3), scalar(t, 6)),
+			in:           ts(arng(t, 1, 7, 2, 3), tensor.Scalar(2)),
+			expected:     ts(tensor.NdShape([]float64{3, 4, 5, 6, 7, 8}, 2, 3)),
+			expectedGrad: ts(tensor.Ones(2, 3), tensor.Scalar(6)),
 		},
 		{
 			name:         "sub",
 			fn:           Sub,
 			in:           ts(arng(t, 1, 7, 2, 3), arng(t, 7, 13, 2, 3)),
-			expected:     ts(nd(t, []float64{-6, -6, -6, -6, -6, -6}, 2, 3)),
-			expectedGrad: ts(ones(t, 2, 3), nd(t, []float64{-1, -1, -1, -1, -1, -1}, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{-6, -6, -6, -6, -6, -6}, 2, 3)),
+			expectedGrad: ts(tensor.Ones(2, 3), tensor.NdShape([]float64{-1, -1, -1, -1, -1, -1}, 2, 3)),
 		},
 		{
 			name:         "sub2",
 			fn:           Sub,
-			in:           ts(arng(t, 1, 7, 2, 3), scalar(t, 2)),
-			expected:     ts(nd(t, []float64{-1, 0, 1, 2, 3, 4}, 2, 3)),
-			expectedGrad: ts(ones(t, 2, 3), scalar(t, -6)),
+			in:           ts(arng(t, 1, 7, 2, 3), tensor.Scalar(2)),
+			expected:     ts(tensor.NdShape([]float64{-1, 0, 1, 2, 3, 4}, 2, 3)),
+			expectedGrad: ts(tensor.Ones(2, 3), tensor.Scalar(-6)),
 		},
 		{
 			name:         "mul",
 			fn:           Mul,
 			in:           ts(arng(t, 1, 7, 2, 3), arng(t, 7, 13, 2, 3)),
-			expected:     ts(nd(t, []float64{7, 16, 27, 40, 55, 72}, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{7, 16, 27, 40, 55, 72}, 2, 3)),
 			expectedGrad: ts(arng(t, 7, 13, 2, 3), arng(t, 1, 7, 2, 3)),
 		},
 		{
 			name:         "mul2",
 			fn:           Mul,
-			in:           ts(arng(t, 1, 7, 2, 3), scalar(t, 2)),
-			expected:     ts(nd(t, []float64{2, 4, 6, 8, 10, 12}, 2, 3)),
-			expectedGrad: ts(nd(t, []float64{2, 2, 2, 2, 2, 2}, 2, 3), scalar(t, 21)),
+			in:           ts(arng(t, 1, 7, 2, 3), tensor.Scalar(2)),
+			expected:     ts(tensor.NdShape([]float64{2, 4, 6, 8, 10, 12}, 2, 3)),
+			expectedGrad: ts(tensor.NdShape([]float64{2, 2, 2, 2, 2, 2}, 2, 3), tensor.Scalar(21)),
 		},
 		{
 			name: "div",
 			fn:   Div,
 			in: ts(
-				nd(t, []float64{2, 4, 6, 8, 10, 12}, 2, 3),
-				nd(t, []float64{1, 2, 3, 4, 5, 6}, 2, 3),
+				tensor.NdShape([]float64{2, 4, 6, 8, 10, 12}, 2, 3),
+				tensor.NdShape([]float64{1, 2, 3, 4, 5, 6}, 2, 3),
 			),
 			expected: ts(
-				nd(t, []float64{2, 2, 2, 2, 2, 2}, 2, 3)),
+				tensor.NdShape([]float64{2, 2, 2, 2, 2, 2}, 2, 3)),
 			expectedGrad: ts(
-				nd(t, []float64{1, 0.5, 0.3333333333333333, 0.25, 0.2, 0.166666666666666666}, 2, 3),
-				nd(t, []float64{-2.0, -1.0, -0.6666666666666666, -0.5, -0.4, -0.3333333333333333}, 2, 3),
+				tensor.NdShape([]float64{1, 0.5, 0.3333333333333333, 0.25, 0.2, 0.166666666666666666}, 2, 3),
+				tensor.NdShape([]float64{-2.0, -1.0, -0.6666666666666666, -0.5, -0.4, -0.3333333333333333}, 2, 3),
 			),
 		},
 		{
 			name:         "div2",
 			fn:           Div,
-			in:           ts(arng(t, 1, 7, 2, 3), scalar(t, 2)),
-			expected:     ts(nd(t, []float64{0.5, 1, 1.5, 2, 2.5, 3}, 2, 3)),
-			expectedGrad: ts(nd(t, []float64{0.5, 0.5, 0.5, 0.5, 0.5, 0.5}, 2, 3), scalar(t, -5.25)),
+			in:           ts(arng(t, 1, 7, 2, 3), tensor.Scalar(2)),
+			expected:     ts(tensor.NdShape([]float64{0.5, 1, 1.5, 2, 2.5, 3}, 2, 3)),
+			expectedGrad: ts(tensor.NdShape([]float64{0.5, 0.5, 0.5, 0.5, 0.5, 0.5}, 2, 3), tensor.Scalar(-5.25)),
 		},
 		{
 			name:         "neg",
 			fn:           Neg,
 			in:           ts(arng(t, 1, 7, 2, 3)),
-			expected:     ts(nd(t, []float64{-1, -2, -3, -4, -5, -6}, 2, 3)),
-			expectedGrad: ts(nd(t, []float64{-1, -1, -1, -1, -1, -1}, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{-1, -2, -3, -4, -5, -6}, 2, 3)),
+			expectedGrad: ts(tensor.NdShape([]float64{-1, -1, -1, -1, -1, -1}, 2, 3)),
 		},
 		{
 			name:         "pow",
 			fn:           Pow,
-			in:           ts(arng(t, 1, 7, 2, 3), scalar(t, 2)),
-			expected:     ts(nd(t, []float64{1, 4, 9, 16, 25, 36}, 2, 3)),
-			expectedGrad: ts(nd(t, []float64{2, 4, 6, 8, 10, 12}, 2, 3), nil),
+			in:           ts(arng(t, 1, 7, 2, 3), tensor.Scalar(2)),
+			expected:     ts(tensor.NdShape([]float64{1, 4, 9, 16, 25, 36}, 2, 3)),
+			expectedGrad: ts(tensor.NdShape([]float64{2, 4, 6, 8, 10, 12}, 2, 3), nil),
 		},
 		{
 			name:         "sin",
 			fn:           Sin,
 			in:           ts(arng(t, 1, 7, 2, 3)),
-			expected:     ts(nd(t, []float64{0.8414709848078965, 0.9092974268256816, 0.1411200080598672, -0.7568024953079282, -0.9589242746631385, -0.27941549819892586}, 2, 3)),
-			expectedGrad: ts(nd(t, []float64{0.5403023058681398, -0.4161468365471424, -0.9899924966004454, -0.6536436208636119, 0.2836621854632263, 0.9601702866503661}, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{0.8414709848078965, 0.9092974268256816, 0.1411200080598672, -0.7568024953079282, -0.9589242746631385, -0.27941549819892586}, 2, 3)),
+			expectedGrad: ts(tensor.NdShape([]float64{0.5403023058681398, -0.4161468365471424, -0.9899924966004454, -0.6536436208636119, 0.2836621854632263, 0.9601702866503661}, 2, 3)),
 		},
 		{
 			name:         "cos",
 			fn:           Cos,
 			in:           ts(arng(t, 1, 7, 2, 3)),
-			expected:     ts(nd(t, []float64{0.5403023058681398, -0.4161468365471424, -0.9899924966004454, -0.6536436208636119, 0.2836621854632263, 0.9601702866503661}, 2, 3)),
-			expectedGrad: ts(nd(t, []float64{-0.8414709848078965, -0.9092974268256816, -0.1411200080598672, 0.7568024953079282, 0.9589242746631385, 0.27941549819892586}, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{0.5403023058681398, -0.4161468365471424, -0.9899924966004454, -0.6536436208636119, 0.2836621854632263, 0.9601702866503661}, 2, 3)),
+			expectedGrad: ts(tensor.NdShape([]float64{-0.8414709848078965, -0.9092974268256816, -0.1411200080598672, 0.7568024953079282, 0.9589242746631385, 0.27941549819892586}, 2, 3)),
 		},
 		{
 			name:         "tanh",
 			fn:           Tanh,
 			in:           ts(arng(t, 1, 7, 2, 3)),
-			expected:     ts(nd(t, []float64{0.7615941559557649, 0.9640275800758169, 0.9950547536867305, 0.999329299739067, 0.9999092042625951, 0.9999877116507956}, 2, 3)),
-			expectedGrad: ts(nd(t, []float64{0.41997434161402614, 0.07065082485316443, 0.009866037165440211, 0.0013409506830258655, 0.0001815832309438603, 2.4576547405286142e-05}, 2, 3)),
+			expected:     ts(tensor.NdShape([]float64{0.7615941559557649, 0.9640275800758169, 0.9950547536867305, 0.999329299739067, 0.9999092042625951, 0.9999877116507956}, 2, 3)),
+			expectedGrad: ts(tensor.NdShape([]float64{0.41997434161402614, 0.07065082485316443, 0.009866037165440211, 0.0013409506830258655, 0.0001815832309438603, 2.4576547405286142e-05}, 2, 3)),
 		},
 		{
 			name:         "matmul",
 			fn:           MatMul,
 			in:           ts(arng(t, 1, 7, 2, 3), arng(t, 1, 7, 3, 2)),
-			expected:     ts(nd(t, []float64{22, 28, 49, 64}, 2, 2)),
-			expectedGrad: ts(nd(t, []float64{3, 7, 11, 3, 7, 11}, 2, 3), nd(t, []float64{5, 5, 7, 7, 9, 9}, 3, 2)),
+			expected:     ts(tensor.NdShape([]float64{22, 28, 49, 64}, 2, 2)),
+			expectedGrad: ts(tensor.NdShape([]float64{3, 7, 11, 3, 7, 11}, 2, 3), tensor.NdShape([]float64{5, 5, 7, 7, 9, 9}, 3, 2)),
 		},
 	}
 
@@ -302,95 +302,6 @@ func verify(t *testing.T, in, out []*Variable, expected, expectedGrad []*tensor.
 	}
 }
 
-// type dzr struct {
-// 	y    []float64
-// 	ySp  []float64
-// 	ySt  []float64
-// 	xG   []float64
-// 	xGSp []float64
-// 	xGSt []float64
-// }
-
-// 1 input, 1 output
-// func verifyDezeroS(t *testing.T, name string, x, y []string, expected, expectedGrad []*tensor.Tensor) {
-// 	src := `
-// import dezero
-// import dezero.functions as F
-// import numpy as np
-//
-// x = dezero.Variable(%s)
-// y = %s
-// y.backward()
-// d = y.data
-// g = x.grad.data
-// # use flatten to parse easily on Go side.
-// print(f"{tuple(d.flatten())}_{d.shape}_{d.strides}_{tuple(g.flatten())}_{g.shape}_{g.strides}")
-// `
-// 	pyf := fmt.Sprintf("./python/%s.py", name)
-// 	err := os.WriteFile(pyf, []byte(fmt.Sprintf(src, x, y)), 0755)
-// 	if err != nil {
-// 		t.Errorf("unexpected err on writing python file %s.py: %v", name, err)
-// 		return
-// 	}
-//
-// 	t.Cleanup(func() { os.Remove(pyf) })
-//
-// 	out, err := exec.Command("python", pyf).CombinedOutput()
-// 	if err != nil {
-// 		t.Errorf("unexpected err on executing python %s.py: [%v] %s", name, err, string(out))
-// 		return
-// 	}
-//
-// 	vars := strings.Split(string(out), "_")
-// 	if len(vars) != 6 {
-// 		t.Errorf("unexpected python output %s.py: [%v] %s", name, err, string(out))
-// 		return
-// 	}
-//
-// 	parse := func(t *testing.T, s string, strides bool) []float64 {
-// 		s = strings.TrimLeft(s, "(")
-// 		s = strings.TrimRight(s, ")\n")
-// 		ns := strings.Split(s, ", ")
-// 		result := []float64{}
-// 		for _, n := range ns {
-// 			f, err := strconv.ParseFloat(n, 64)
-// 			if err != nil {
-// 				t.Fatalf("unexpected python output %s.py: fail to parse as float %s", name, n)
-// 			}
-// 			if strides {
-// 				// in numpy, stride is presented as bit count so convert to byte
-// 				f /= 8
-// 			}
-// 			result = append(result, f)
-// 		}
-// 		return result
-// 	}
-//
-// 	r := dzr{
-// 		y:    parse(t, vars[0], false),
-// 		ySp:  parse(t, vars[1], false),
-// 		ySt:  parse(t, vars[2], true),
-// 		xG:   parse(t, vars[3], false),
-// 		xGSp: parse(t, vars[4], false),
-// 		xGSt: parse(t, vars[5], true),
-// 	}
-//
-// 	toint := func(fs []float64) []int {
-// 		is := make([]int, len(fs))
-// 		for i := range fs {
-// 			is[i] = int(fs[i])
-// 		}
-// 		return is
-// 	}
-//
-// 	check(t, expected.Data, r.y, "y")
-// 	check(t, expected.CopyShape(), toint(r.ySp), "y.shape")
-// 	check(t, expected.CopyStrides(), toint(r.ySt), "y.strides")
-// 	check(t, expectedGrad.Data, r.xG, "x.grad")
-// 	check(t, expectedGrad.CopyShape(), toint(r.xGSp), "y.grad.shape")
-// 	check(t, expectedGrad.CopyStrides(), toint(r.xGSt), "y.grad.strides")
-// }
-
 func check[S ~[]E, E comparable](t *testing.T, expected, got S, name string) {
 	if !slices.Equal(expected, got) {
 		t.Fatalf("mismatch with python output (%s): expected: %v, got: %v", name, expected, got)
@@ -400,20 +311,10 @@ func check[S ~[]E, E comparable](t *testing.T, expected, got S, name string) {
 /*
  * tensor factory helpers
  */
-func scalar(t *testing.T, data float64) *tensor.Tensor {
-	t.Helper()
-	return tensor.Scalar(data)
-}
-
-func nd(t *testing.T, data []float64, shape ...int) *tensor.Tensor {
-	t.Helper()
-	return tensor.NdShape(data, shape...)
-}
 
 func arng(t *testing.T, from, to int, shape ...int) *tensor.Tensor {
 	t.Helper()
-	tsr := tensor.Arange(float64(from), float64(to), 1, shape...)
-	return tsr
+	return tensor.Arange(float64(from), float64(to), 1, shape...)
 }
 
 func ones(t *testing.T, shape ...int) *tensor.Tensor {
@@ -423,8 +324,7 @@ func ones(t *testing.T, shape ...int) *tensor.Tensor {
 
 func trans(t *testing.T, orig *tensor.Tensor, axes ...int) *tensor.Tensor {
 	t.Helper()
-	tr, _ := orig.Transpose(axes...)
-	return tr
+	return orig.Transpose(axes...)
 }
 
 // makes slice of tensors

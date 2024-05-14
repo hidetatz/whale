@@ -10,9 +10,13 @@ func (t *Tensor) view(offset int, shape, strides []int) *Tensor {
 	return &Tensor{data: t.data, offset: offset, Shape: shape, Strides: strides, isview: true}
 }
 
-func (t *Tensor) Reshape(shape ...int) (*Tensor, error) {
-	if product(shape) != t.Size() {
-		return nil, fmt.Errorf("cannot reshape size %v tensor into %v", t.Size(), shape)
+func (t *Tensor) Reshape(shape ...int) *Tensor {
+	return MustGet(t.ErrResponser().Reshape(shape...))
+}
+
+func (er *tensorErrResponser) Reshape(shape ...int) (*Tensor, error) {
+	if product(shape) != er.t.Size() {
+		return nil, fmt.Errorf("cannot reshape size %v tensor into %v", er.t.Size(), shape)
 	}
 
 	strides := make([]int, len(shape))
@@ -21,12 +25,16 @@ func (t *Tensor) Reshape(shape ...int) (*Tensor, error) {
 	}
 
 	// reshape shares original tensor data/offset, only shape and strides are modified.
-	return t.view(t.offset, shape, strides), nil
+	return er.t.view(er.t.offset, shape, strides), nil
 }
 
-func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
-	if t.IsScalar() {
-		return t, nil
+func (t *Tensor) Transpose(axes ...int) *Tensor {
+	return MustGet(t.ErrResponser().Transpose(axes...))
+}
+
+func (er *tensorErrResponser) Transpose(axes ...int) (*Tensor, error) {
+	if er.t.IsScalar() {
+		return er.t, nil
 	}
 
 	seq := func(from, to int) []int {
@@ -41,76 +49,83 @@ func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
 
 	if len(axes) == 0 {
 		// if axes is empty, create [0, 1, 2...] slice and reverses it
-		axes = seq(0, t.Ndim())
+		axes = seq(0, er.t.Ndim())
 		slices.Reverse(axes)
 	} else {
 		// else, axes must be an arbitrarily sorted slice of [0, 1, 2, ... dim].
-		copied := make([]int, len(axes))
-		copy(copied, axes)
+		copied := copySlice(axes)
 		slices.Sort(copied)
-		if !slices.Equal(copied, seq(0, t.Ndim())) {
-			return nil, fmt.Errorf("axes don't much: %v for shape %v", axes, t.Shape)
+		if !slices.Equal(copied, seq(0, er.t.Ndim())) {
+			return nil, fmt.Errorf("axes don't much: %v for shape %v", axes, er.t.Shape)
 		}
 	}
 
 	// do transpose
 
-	t2 := t.view(t.offset, make([]int, t.Ndim()), make([]int, t.Ndim()))
+	t2 := er.t.view(er.t.offset, make([]int, er.t.Ndim()), make([]int, er.t.Ndim()))
 	for i, axis := range axes {
-		t2.Shape[i] = t.Shape[axis]
-		t2.Strides[i] = t.Strides[axis]
+		t2.Shape[i] = er.t.Shape[axis]
+		t2.Strides[i] = er.t.Strides[axis]
 	}
 
 	return t2, nil
 }
 
-func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
+func (t *Tensor) Squeeze(axes ...int) *Tensor {
+	return MustGet(t.ErrResponser().Squeeze(axes...))
+}
+
+func (er *tensorErrResponser) Squeeze(axes ...int) (*Tensor, error) {
 	for _, axis := range axes {
-		if t.Ndim() < axis {
-			return nil, fmt.Errorf("axis out of bounds: %v for %v tensor", axis, t.Ndim())
+		if er.t.Ndim() < axis {
+			return nil, fmt.Errorf("axis out of bounds: %v for %v tensor", axis, er.t.Ndim())
 		}
 
-		if t.Shape[axis] != 1 {
-			return nil, fmt.Errorf("non-1 axis is specified: %v for axis whose size is %v", axis, t.Shape[axis])
+		if er.t.Shape[axis] != 1 {
+			return nil, fmt.Errorf("non-1 axis is specified: %v for axis whose size is %v", axis, er.t.Shape[axis])
 		}
 	}
 
 	newshape := []int{}
 	newstrides := []int{}
-	for i := range t.Shape {
-		if t.Shape[i] != 1 {
-			newshape = append(newshape, t.Shape[i])
-			newstrides = append(newstrides, t.Strides[i])
+	for i := range er.t.Shape {
+		if er.t.Shape[i] != 1 {
+			newshape = append(newshape, er.t.Shape[i])
+			newstrides = append(newstrides, er.t.Strides[i])
 			continue
 		}
 
 		if len(axes) != 0 && !slices.Contains(axes, i) {
-			newshape = append(newshape, t.Shape[i])
-			newstrides = append(newstrides, t.Strides[i])
+			newshape = append(newshape, er.t.Shape[i])
+			newstrides = append(newstrides, er.t.Strides[i])
 		}
 	}
 
-	return t.view(t.offset, newshape, newstrides), nil
+	return er.t.view(er.t.offset, newshape, newstrides), nil
 }
 
-func Broadcast(t1, t2 *Tensor) (newt1, newt2 *Tensor, err error) {
+func (_ *plainErrResponser) Broadcast(t1, t2 *Tensor) (newt1, newt2 *Tensor, err error) {
 	broadcastedShape, err := CanBroadcast([]*Tensor{t1, t2})
 
 	if err != nil {
 		return nil, nil, err
 	}
 
-	nt1, err := t1.BroadcastTo(broadcastedShape...)
+	nt1, err := t1.ErrResponser().BroadcastTo(broadcastedShape...)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	nt2, err := t2.BroadcastTo(broadcastedShape...)
+	nt2, err := t2.ErrResponser().BroadcastTo(broadcastedShape...)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	return nt1, nt2, nil
+}
+
+func Broadcast(t1, t2 *Tensor) (newt1, newt2 *Tensor) {
+	return MustGet2(RespErr.Broadcast(t1, t2))
 }
 
 func CanBroadcast(tensors []*Tensor) ([]int, error) {
@@ -166,32 +181,34 @@ func CanBroadcast(tensors []*Tensor) ([]int, error) {
 	return newshape, nil
 }
 
-func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
-	// validation
-	if len(t.Shape) > len(shape) {
+func (t *Tensor) BroadcastTo(shape ...int) *Tensor {
+	return MustGet(t.ErrResponser().BroadcastTo(shape...))
+}
+
+func (er *tensorErrResponser) BroadcastTo(shape ...int) (*Tensor, error) {
+	if len(er.t.Shape) > len(shape) {
 		return nil, fmt.Errorf("invalid desired shape")
 	}
 
-	// initialized with 0
-	delta := len(shape) - len(t.Shape)
+	delta := len(shape) - len(er.t.Shape)
 	newstrides := make([]int, len(shape))
-	for i := t.Ndim() - 1; 0 <= i; i-- {
-		if shape[delta+i] == t.Shape[i] && t.Shape[i] == 1 {
+	for i := er.t.Ndim() - 1; 0 <= i; i-- {
+		if shape[delta+i] == er.t.Shape[i] && er.t.Shape[i] == 1 {
 			newstrides[delta+i] = 0
 			continue
 		}
 
-		if shape[delta+i] == t.Shape[i] && t.Shape[i] != 1 {
-			newstrides[delta+i] = t.Strides[i]
+		if shape[delta+i] == er.t.Shape[i] && er.t.Shape[i] != 1 {
+			newstrides[delta+i] = er.t.Strides[i]
 			continue
 		}
 
-		if t.Shape[i] != 1 {
-			return nil, fmt.Errorf("cannot broadcast: original shape is %v, target is %v", t.Shape, shape)
+		if er.t.Shape[i] != 1 {
+			return nil, fmt.Errorf("cannot broadcast: original shape is %v, target is %v", er.t.Shape, shape)
 		}
 
 		newstrides[delta+i] = 0
 	}
 
-	return t.view(t.offset, shape, newstrides), nil
+	return er.t.view(er.t.offset, shape, newstrides), nil
 }
