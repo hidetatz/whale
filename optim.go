@@ -15,15 +15,8 @@ func NewSGD(learnRate float64) *SGD {
 }
 
 func (s *SGD) Optimize(v *Variable) error {
-	delta, err := v.GetGrad().GetData().Mul(s.learnRate)
-	if err != nil {
-		return err
-	}
-
-	newData, err := v.GetData().Sub(delta)
-	if err != nil {
-		return err
-	}
+	delta := v.GetGrad().GetData().Mul(s.learnRate)
+	newData := v.GetData().Sub(delta)
 
 	v.SetData(newData)
 	return nil
@@ -48,25 +41,13 @@ func (s *MomentumSGD) Optimize(v *Variable) error {
 		s.velocities[v] = tensor.ZerosLike(v.GetData())
 	}
 	velocity := s.velocities[v]
-	velocity, err := velocity.Mul(s.momentum)
-	if err != nil {
-		return err
-	}
+	velocity = velocity.Mul(s.momentum)
 
-	delta, err := s.learnRate.Mul(v.GetGrad().GetData())
-	if err != nil {
-		return err
-	}
+	delta := s.learnRate.Mul(v.GetGrad().GetData())
 
-	velocity, err = velocity.Sub(delta)
-	if err != nil {
-		return err
-	}
+	velocity = velocity.Sub(delta)
 
-	newv, err := v.GetData().Add(velocity)
-	if err != nil {
-		return err
-	}
+	newv := v.GetData().Add(velocity)
 
 	v.SetData(newv)
 	return nil

@@ -10,8 +10,8 @@ import (
 func RandSin(shape ...int) (*tensor.Tensor, *tensor.Tensor) {
 	x := tensor.Rand(shape...)
 
-	sin := tensor.MustGet(tensor.Scalar(2 * math.Pi).Mul(x))
-	y := tensor.MustGet(tensor.Rand(shape...).Add(sin))
+	sin := tensor.Scalar(2 * math.Pi).Mul(x)
+	y := tensor.Rand(shape...).Add(sin)
 	return x, y
 }
 

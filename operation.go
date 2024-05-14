@@ -287,10 +287,7 @@ type add struct {
 }
 
 func (a *add) Forward(inputs ...*Variable) ([]*Variable, error) {
-	add, err := inputs[0].data.Add(inputs[1].data)
-	if err != nil {
-		return nil, err
-	}
+	add := inputs[0].data.Add(inputs[1].data)
 	return asvars(add), nil
 }
 
@@ -331,10 +328,7 @@ type sub struct {
 }
 
 func (s *sub) Forward(inputs ...*Variable) ([]*Variable, error) {
-	sub, err := inputs[0].data.Sub(inputs[1].data)
-	if err != nil {
-		return nil, err
-	}
+	sub := inputs[0].data.Sub(inputs[1].data)
 	return asvars(sub), nil
 }
 
@@ -382,10 +376,7 @@ type mul struct {
 }
 
 func (m *mul) Forward(inputs ...*Variable) ([]*Variable, error) {
-	mul, err := m.x0.data.Mul(m.x1.data)
-	if err != nil {
-		return nil, err
-	}
+	mul := m.x0.data.Mul(m.x1.data)
 	return asvars(mul), nil
 }
 
@@ -437,10 +428,7 @@ type div struct {
 }
 
 func (d *div) Forward(inputs ...*Variable) ([]*Variable, error) {
-	div, err := inputs[0].data.Div(inputs[1].data)
-	if err != nil {
-		return nil, err
-	}
+	div := inputs[0].data.Div(inputs[1].data)
 	return asvars(div), nil
 }
 
@@ -534,11 +522,7 @@ type pow struct {
 }
 
 func (p *pow) Forward(inputs ...*Variable) ([]*Variable, error) {
-	pow, err := inputs[0].data.Pow(p.c.data)
-	if err != nil {
-		return nil, err
-	}
-
+	pow := inputs[0].data.Pow(p.c.data)
 	return asvars(pow), nil
 }
 

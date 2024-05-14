@@ -60,22 +60,43 @@ func (t *Tensor) Log() *Tensor {
 }
 
 // apply2 operations
-func (t *Tensor) Pow(t2 *Tensor) (*Tensor, error) {
-	return t.apply2(t2, func(f1, f2 float64) float64 { return math.Pow(f1, f2) })
+
+func (t *Tensor) Pow(t2 *Tensor) *Tensor {
+	return MustGet(t.ErrResponser().Pow(t2))
 }
 
-func (t *Tensor) Add(t2 *Tensor) (*Tensor, error) {
-	return t.apply2(t2, func(f1, f2 float64) float64 { return f1 + f2 })
+func (er *tensorErrResponser) Pow(t2 *Tensor) (*Tensor, error) {
+	return er.t.apply2(t2, func(f1, f2 float64) float64 { return math.Pow(f1, f2) })
 }
 
-func (t *Tensor) Sub(t2 *Tensor) (*Tensor, error) {
-	return t.apply2(t2, func(f1, f2 float64) float64 { return f1 - f2 })
+func (t *Tensor) Add(t2 *Tensor) *Tensor {
+	return MustGet(t.ErrResponser().Add(t2))
 }
 
-func (t *Tensor) Mul(t2 *Tensor) (*Tensor, error) {
-	return t.apply2(t2, func(f1, f2 float64) float64 { return f1 * f2 })
+func (er *tensorErrResponser) Add(t2 *Tensor) (*Tensor, error) {
+	return er.t.apply2(t2, func(f1, f2 float64) float64 { return f1 + f2 })
 }
 
-func (t *Tensor) Div(t2 *Tensor) (*Tensor, error) {
-	return t.apply2(t2, func(f1, f2 float64) float64 { return f1 / f2 })
+func (t *Tensor) Sub(t2 *Tensor) *Tensor {
+	return MustGet(t.ErrResponser().Sub(t2))
+}
+
+func (er *tensorErrResponser) Sub(t2 *Tensor) (*Tensor, error) {
+	return er.t.apply2(t2, func(f1, f2 float64) float64 { return f1 - f2 })
+}
+
+func (t *Tensor) Mul(t2 *Tensor) *Tensor {
+	return MustGet(t.ErrResponser().Mul(t2))
+}
+
+func (er *tensorErrResponser) Mul(t2 *Tensor) (*Tensor, error) {
+	return er.t.apply2(t2, func(f1, f2 float64) float64 { return f1 * f2 })
+}
+
+func (t *Tensor) Div(t2 *Tensor) *Tensor {
+	return MustGet(t.ErrResponser().Div(t2))
+}
+
+func (er *tensorErrResponser) Div(t2 *Tensor) (*Tensor, error) {
+	return er.t.apply2(t2, func(f1, f2 float64) float64 { return f1 / f2 })
 }
