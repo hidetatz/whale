@@ -174,7 +174,7 @@ func TestNew(t *testing.T) {
 				{4, 5, 6},
 				{7, 8, 9},
 			},
-			expected: ArangeVec(1, 10, 1).Reshape(3, 3),
+			expected: Arange(1, 10, 1).Reshape(3, 3),
 		},
 		{
 			name: "2d 2",
@@ -213,7 +213,7 @@ func TestNew(t *testing.T) {
 					{25, 26, 27},
 				},
 			},
-			expected: ArangeVec(1, 28, 1).Reshape(3, 3, 3),
+			expected: Arange(1, 28, 1).Reshape(3, 3, 3),
 		},
 	}
 
@@ -297,7 +297,7 @@ func TestFactories(t *testing.T) {
 		{
 			name: "arange",
 			factory: func() *Tensor {
-				return Arange(0, 8, 1, 4, 2)
+				return Arange(0, 8, 1).Reshape(4, 2)
 			},
 			expected: &Tensor{
 				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},

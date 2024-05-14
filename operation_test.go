@@ -314,7 +314,7 @@ func check[S ~[]E, E comparable](t *testing.T, expected, got S, name string) {
 
 func arng(t *testing.T, from, to int, shape ...int) *tensor.Tensor {
 	t.Helper()
-	return tensor.Arange(float64(from), float64(to), 1, shape...)
+	return tensor.Arange(float64(from), float64(to), 1).Reshape(shape...)
 }
 
 func ones(t *testing.T, shape ...int) *tensor.Tensor {

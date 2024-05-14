@@ -69,8 +69,8 @@ func Full(v float64, shape ...int) *Tensor {
 	return NdShape(data, shape...) // error never happens
 }
 
-// ArangeVec creates a vector tensor by the given params.
-func ArangeVec(from, to, interval float64) *Tensor {
+// Arange creates a vector tensor by the given params.
+func Arange(from, to, interval float64) *Tensor {
 	data := make([]float64, int((to-from)/interval))
 	for i := range data {
 		data[i] = from + interval*float64(i)
@@ -108,13 +108,6 @@ func NdShape(data []float64, shape ...int) *Tensor { return MustGet(RespErr.NdSh
 //   - Nd([]float64{1, 2, 3})          -> returns Vector([1, 2, 3])
 //   - Nd([][]float64{{1, 2}, {3, 4}}) -> returns NdShape([[1, 2, 3, 4], 2, 2) (= 2x2 matrix)
 func New(arr any) *Tensor { return MustGet(RespErr.New(arr)) }
-
-// Arange creates a tensor which has data between from and to by the given interval.
-// If shape is not given, it is treated as vector.
-// If from is bigger than to, the empty will be returned.
-func Arange(from, to, interval float64, shape ...int) *Tensor {
-	return MustGet(RespErr.Arange(from, to, interval, shape...))
-}
 
 func (_ *plainErrResponser) NdShape(data []float64, shape ...int) (*Tensor, error) {
 	if len(shape) == 0 {
@@ -181,19 +174,6 @@ func (_ *plainErrResponser) New(arr any) (*Tensor, error) {
 
 	if len(shape) == 0 && len(data) == 1 {
 		return Scalar(data[0]), nil
-	}
-
-	return RespErr.NdShape(data, shape...)
-}
-
-func (_ *plainErrResponser) Arange(from, to, interval float64, shape ...int) (*Tensor, error) {
-	data := make([]float64, int((to-from)/interval))
-	for i := range data {
-		data[i] = from + interval*float64(i)
-	}
-
-	if len(shape) == 0 {
-		return Vector(data), nil
 	}
 
 	return RespErr.NdShape(data, shape...)

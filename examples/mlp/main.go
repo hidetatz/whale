@@ -80,7 +80,7 @@ func main() {
 		panic(err)
 	}
 
-	t := tensor.Arange(0, 1, 0.01, 100, 1)
+	t := tensor.Arange(0, 1, 0.01).Reshape(100, 1)
 	tv := whale.NewVar(t)
 	pred := Predict(mlp, tv)
 	if err := p.Line(tv.GetData().Flatten(), pred.GetData().Flatten(), "red"); err != nil {

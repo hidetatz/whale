@@ -17,13 +17,13 @@ func TestBool(t *testing.T) {
 		},
 		{
 			name:     "vector",
-			tensor:   ArangeVec(1, 4, 1),
+			tensor:   Arange(1, 4, 1),
 			f:        func(f float64) bool { return f < 2 },
 			expected: Vector([]float64{1, 0, 0}),
 		},
 		{
 			name:     "2d",
-			tensor:   ArangeVec(1, 7, 1).Reshape(2, 3),
+			tensor:   Arange(1, 7, 1).Reshape(2, 3),
 			f:        func(f float64) bool { return int(f)%2 == 0 },
 			expected: Vector([]float64{0, 1, 0, 1, 0, 1}).Reshape(2, 3),
 		},

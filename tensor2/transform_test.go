@@ -83,31 +83,31 @@ func TestTranspose(t *testing.T) {
 		},
 		{
 			name:     "vector",
-			tensor:   ArangeVec(1, 13, 1),
+			tensor:   Arange(1, 13, 1),
 			axes:     []int{},
-			expected: ArangeVec(1, 13, 1),
+			expected: Arange(1, 13, 1),
 		},
 		{
 			name:     "vector",
-			tensor:   ArangeVec(1, 13, 1),
+			tensor:   Arange(1, 13, 1),
 			axes:     []int{0},
-			expected: ArangeVec(1, 13, 1),
+			expected: Arange(1, 13, 1),
 		},
 		{
 			name:      "axes too big",
-			tensor:    ArangeVec(1, 13, 1),
+			tensor:    Arange(1, 13, 1),
 			axes:      []int{1},
 			expectErr: true,
 		},
 		{
 			name:      "axes too many",
-			tensor:    ArangeVec(1, 13, 1),
+			tensor:    Arange(1, 13, 1),
 			axes:      []int{0, 1},
 			expectErr: true,
 		},
 		{
 			name:   "3d",
-			tensor: ArangeVec(1, 25, 1).Reshape(2, 3, 4),
+			tensor: Arange(1, 25, 1).Reshape(2, 3, 4),
 			axes:   []int{},
 			expected: New([][][]float64{
 				{
@@ -134,7 +134,7 @@ func TestTranspose(t *testing.T) {
 		},
 		{
 			name:   "3d 2",
-			tensor: ArangeVec(1, 25, 1).Reshape(2, 3, 4),
+			tensor: Arange(1, 25, 1).Reshape(2, 3, 4),
 			axes:   []int{2, 1, 0},
 			expected: New([][][]float64{
 				{
@@ -161,7 +161,7 @@ func TestTranspose(t *testing.T) {
 		},
 		{
 			name:   "3d 3",
-			tensor: ArangeVec(1, 25, 1).Reshape(2, 3, 4),
+			tensor: Arange(1, 25, 1).Reshape(2, 3, 4),
 			axes:   []int{0, 2, 1},
 			expected: New([][][]float64{
 				{
@@ -180,7 +180,7 @@ func TestTranspose(t *testing.T) {
 		},
 		{
 			name:      "non-unique axes",
-			tensor:    ArangeVec(1, 25, 1).Reshape(2, 3, 4),
+			tensor:    Arange(1, 25, 1).Reshape(2, 3, 4),
 			axes:      []int{0, 2, 0},
 			expectErr: true,
 		},
@@ -207,39 +207,39 @@ func TestSqueeze(t *testing.T) {
 	}{
 		{
 			name:     "2d 1",
-			tensor:   ArangeVec(0, 6, 1).Reshape(2, 3),
+			tensor:   Arange(0, 6, 1).Reshape(2, 3),
 			axes:     []int{},
-			expected: ArangeVec(0, 6, 1).Reshape(2, 3),
+			expected: Arange(0, 6, 1).Reshape(2, 3),
 		},
 		{
 			name:     "3d 1",
-			tensor:   ArangeVec(0, 6, 1).Reshape(1, 2, 3),
+			tensor:   Arange(0, 6, 1).Reshape(1, 2, 3),
 			axes:     []int{},
-			expected: ArangeVec(0, 6, 1).Reshape(2, 3),
+			expected: Arange(0, 6, 1).Reshape(2, 3),
 		},
 		{
 			name:     "3d 2",
-			tensor:   ArangeVec(0, 6, 1).Reshape(1, 6, 1),
+			tensor:   Arange(0, 6, 1).Reshape(1, 6, 1),
 			axes:     []int{},
-			expected: ArangeVec(0, 6, 1),
+			expected: Arange(0, 6, 1),
 		},
 		{
 			name:     "3d 3",
-			tensor:   ArangeVec(0, 6, 1).Reshape(1, 6, 1),
+			tensor:   Arange(0, 6, 1).Reshape(1, 6, 1),
 			axes:     []int{0},
-			expected: ArangeVec(0, 6, 1).Reshape(6, 1),
+			expected: Arange(0, 6, 1).Reshape(6, 1),
 		},
 		{
 			name:     "3d 4",
-			tensor:   ArangeVec(0, 6, 1).Reshape(1, 6, 1),
+			tensor:   Arange(0, 6, 1).Reshape(1, 6, 1),
 			axes:     []int{2},
-			expected: ArangeVec(0, 6, 1).Reshape(1, 6),
+			expected: Arange(0, 6, 1).Reshape(1, 6),
 		},
 		{
 			name:     "3d 5",
-			tensor:   ArangeVec(0, 6, 1).Reshape(1, 6, 1),
+			tensor:   Arange(0, 6, 1).Reshape(1, 6, 1),
 			axes:     []int{0, 2},
-			expected: ArangeVec(0, 6, 1),
+			expected: Arange(0, 6, 1),
 		},
 		{
 			name:     "3d 6",
@@ -255,9 +255,9 @@ func TestSqueeze(t *testing.T) {
 		},
 		{
 			name:     "offset non-0",
-			tensor:   ArangeVec(0, 6, 1).Reshape(1, 6, 1).Index(All(), FromTo(2, 5), All()),
+			tensor:   Arange(0, 6, 1).Reshape(1, 6, 1).Index(All(), FromTo(2, 5), All()),
 			axes:     []int{},
-			expected: ArangeVec(2, 5, 1),
+			expected: Arange(2, 5, 1),
 		},
 	}
 
@@ -306,31 +306,31 @@ func TestBroadcastTo(t *testing.T) {
 		},
 		{
 			name:     "2d 1",
-			tensor:   ArangeVec(1, 7, 1).Reshape(2, 3),
+			tensor:   Arange(1, 7, 1).Reshape(2, 3),
 			shape:    []int{2, 2, 3},
 			expected: Vector([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 3),
 		},
 		{
 			name:      "2d err1",
-			tensor:    ArangeVec(1, 7, 1).Reshape(2, 3),
+			tensor:    Arange(1, 7, 1).Reshape(2, 3),
 			shape:     []int{2, 4, 3},
 			expectErr: true,
 		},
 		{
 			name:     "2d 2",
-			tensor:   ArangeVec(1, 7, 1).Reshape(1, 6),
+			tensor:   Arange(1, 7, 1).Reshape(1, 6),
 			shape:    []int{2, 2, 6},
 			expected: Vector([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 6),
 		},
 		{
 			name:      "2d err",
-			tensor:    ArangeVec(1, 7, 1).Reshape(1, 6),
+			tensor:    Arange(1, 7, 1).Reshape(1, 6),
 			shape:     []int{2, 2, 12},
 			expectErr: true,
 		},
 		{
 			name:   "indexed",
-			tensor: ArangeVec(0, 24, 1).Reshape(2, 1, 12).Index(At(1)),
+			tensor: Arange(0, 24, 1).Reshape(2, 1, 12).Index(At(1)),
 			shape:  []int{2, 2, 12},
 			expected: New([][][]float64{
 				{

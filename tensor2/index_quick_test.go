@@ -77,7 +77,7 @@ func generateRandomIndexArg(rand *rand.Rand, size int) *randomIndexArg {
 	}
 
 	// Third, create random tensor by detemined shape.
-	t := Arange(0, float64(product(shape)), 1, shape...)
+	t := Arange(0, float64(product(shape)), 1).Reshape(shape...)
 	for i, d := range t.data {
 		// Round the number to 3 decimal places
 		t.data[i] = math.Floor(d*1000) / 1000

@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	t := tensor.Arange(0, 200, 1, 1, 5, 4, 2, 5)
+	t := tensor.Arange(0, 200, 1).Reshape(1, 5, 4, 2, 5)
 	t2 := t.Index(tensor.At(0), tensor.At(1))
 
 	fmt.Println(t2)

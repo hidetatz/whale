@@ -37,8 +37,8 @@ func main() {
 	// test date with even intervals.
 	// x-axis-size = (xmax - xmin) / 0.05
 	// y-axis-size = (xmax - xmin) / 0.05
-	xs := tensor.ArangeVec(xmin, xmax, 0.05)
-	ys := tensor.ArangeVec(ymin, ymax, 0.05)
+	xs := tensor.Arange(xmin, xmax, 0.05)
+	ys := tensor.Arange(ymin, ymax, 0.05)
 
 	// X, Y's shape: (x-axis-size, y-axis-size)
 	X, Y := tensor.MeshGrid(xs, ys)

@@ -13,7 +13,7 @@ func TestAt_ADD(t *testing.T) {
 	}{
 		{
 			name:     "error empty",
-			x:        ArangeVec(3, 6, 1),
+			x:        Arange(3, 6, 1),
 			indices:  []*IndexArg{At(0)},
 			target:   Scalar(1),
 			expected: Vector([]float64{4, 4, 5}),
@@ -74,7 +74,7 @@ func TestAt_ADD(t *testing.T) {
 		},
 		{
 			name: "2d",
-			x:    Arange(1, 7, 1, 2, 3),
+			x:    Arange(1, 7, 1).Reshape(2, 3),
 			indices: []*IndexArg{
 				List(Vector([]float64{0, 0, 1})),
 			},
@@ -83,7 +83,7 @@ func TestAt_ADD(t *testing.T) {
 		},
 		{
 			name: "2d 2",
-			x:    Arange(1, 7, 1, 2, 3),
+			x:    Arange(1, 7, 1).Reshape(2, 3),
 			indices: []*IndexArg{
 				List(Vector([]float64{0, 1})),
 				List(Vector([]float64{1, 2})),
@@ -93,7 +93,7 @@ func TestAt_ADD(t *testing.T) {
 		},
 		{
 			name: "2d 3",
-			x:    Arange(1, 7, 1, 2, 3),
+			x:    Arange(1, 7, 1).Reshape(2, 3),
 			indices: []*IndexArg{
 				List(Vector([]float64{0, 1})),
 				List(Vector([]float64{1, 2})),
@@ -103,7 +103,7 @@ func TestAt_ADD(t *testing.T) {
 		},
 		{
 			name: "2d err",
-			x:    Arange(1, 7, 1, 2, 3),
+			x:    Arange(1, 7, 1).Reshape(2, 3),
 			indices: []*IndexArg{
 				List(Vector([]float64{0, 1})),
 				List(Vector([]float64{1, 2})),
@@ -111,22 +111,22 @@ func TestAt_ADD(t *testing.T) {
 			},
 			target:    Scalar(1),
 			expectErr: true,
-			expected:  Arange(1, 7, 1, 2, 3),
+			expected:  Arange(1, 7, 1).Reshape(2, 3),
 		},
 		{
 			name: "2d err 2",
-			x:    Arange(1, 7, 1, 2, 3),
+			x:    Arange(1, 7, 1).Reshape(2, 3),
 			indices: []*IndexArg{
 				List(Vector([]float64{0, 1})),
 				List(Vector([]float64{1, 2})),
 			},
 			target:    Vector([]float64{1, 2, 3}),
 			expectErr: true,
-			expected:  Arange(1, 7, 1, 2, 3),
+			expected:  Arange(1, 7, 1).Reshape(2, 3),
 		},
 		{
 			name: "3d",
-			x:    Arange(1, 13, 1, 2, 3, 2),
+			x:    Arange(1, 13, 1).Reshape(2, 3, 2),
 			indices: []*IndexArg{
 				List(Vector([]float64{0, 1})),
 				List(Vector([]float64{1, 2})),
