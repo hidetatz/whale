@@ -1,5 +1,7 @@
 package tensor2
 
+import "slices"
+
 // returns x[0] * x[1] * x[2] * ...
 func product(x []int) int {
 	p := 1
@@ -99,7 +101,34 @@ func cartesiansIdx(a [][]int) [][]*IndexArg {
 	return args
 }
 
+type cartesianResult struct {
+	a      []int
+	result [][]int
+}
+
+type cartesianResults []*cartesianResult
+
+var cartesianCache cartesianResults = []*cartesianResult{}
+
+func (c cartesianResults) Put(a []int, result [][]int) {
+	c = append(c, &cartesianResult{a: a, result: result})
+}
+
+func (c cartesianResults) Get(a []int) ([][]int, bool) {
+	for i := range c {
+		if slices.Equal(a, c[i].a) {
+			return c[i].result, true
+		}
+	}
+
+	return nil, false
+}
+
 func cartesian(a []int) [][]int {
+	if result, ok := cartesianCache.Get(a); ok {
+		return result
+	}
+
 	n := len(a)
 
 	strides := make([]int, n)
@@ -129,6 +158,8 @@ func cartesian(a []int) [][]int {
 	for i := 0; i < total; i++ {
 		slices[i] = result[i*n : (i+1)*n]
 	}
+
+	cartesianCache.Put(a, slices)
 
 	return slices
 }
