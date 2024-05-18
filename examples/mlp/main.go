@@ -17,7 +17,7 @@ func Predict(m whale.Model, x *whale.Variable) *whale.Variable {
 }
 
 func Train(m whale.Model, x, y *whale.Variable) {
-	lossCalc := m.Loss()
+	lossCalc := m.LossFn()
 	optim := m.Optimizer()
 
 	for i := range 10000 {

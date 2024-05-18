@@ -1,31 +1,23 @@
 package tensor2
 
-import "fmt"
+import (
+	"fmt"
+)
 
-func (t *Tensor) matrixRow(row int) ([]float64, error) {
-	if t.Ndim() != 2 {
-		return nil, fmt.Errorf("row is not defined on non-matrix")
-	}
-
+func (t *Tensor) matrixRow(row int) []float64 {
 	result := make([]float64, t.Shape[1])
 	for i := range result {
 		result[i] = t.data[t.offset+row*t.Strides[0]+i*t.Strides[1]]
 	}
-
-	return result, nil
+	return result
 }
 
-func (t *Tensor) matrixCol(col int) ([]float64, error) {
-	if t.Ndim() != 2 {
-		return nil, fmt.Errorf("col is not defined on non-matrix")
-	}
-
+func (t *Tensor) matrixCol(col int) []float64 {
 	result := make([]float64, t.Shape[0])
 	for i := range result {
 		result[i] = t.data[t.offset+col*t.Strides[1]+i*t.Strides[0]]
 	}
-
-	return result, nil
+	return result
 }
 
 func (er *tensorErrResponser) Dot(t2 *Tensor) (*Tensor, error) {
@@ -42,25 +34,44 @@ func (er *tensorErrResponser) Dot(t2 *Tensor) (*Tensor, error) {
 	newshape := []int{rownum, colnum}
 
 	data := make([]float64, rownum*colnum)
-	i := 0
+
+	rows := make([][]float64, rownum)
 	for r := range rownum {
-		row, err := er.t.matrixRow(r)
-		if err != nil {
-			return nil, err
-		}
+		rows[r] = er.t.matrixRow(r)
+	}
 
-		for c := range colnum {
-			col, err := t2.matrixCol(c)
-			if err != nil {
-				return nil, err
-			}
+	cols := make([][]float64, colnum)
+	for c := range colnum {
+		cols[c] = t2.matrixCol(c)
+	}
 
-			var result float64
-			for j := range row {
-				result += row[j] * col[j]
+	calcsize := len(rows[0])
+
+	type calcresult struct {
+		row  int
+		vals []float64
+	}
+
+	ch := make(chan calcresult, rownum)
+	for r := range rows {
+		go func(rn int) {
+			results := make([]float64, colnum)
+			for c := range cols {
+				var result float64
+				for j := range calcsize {
+					result += rows[rn][j] * cols[c][j]
+				}
+				results[c] = result
+
 			}
-			data[i] = result
-			i++
+			ch <- calcresult{row: rn, vals: results}
+		}(r)
+	}
+
+	for _ = range len(rows) {
+		result := <-ch
+		for i := range result.vals {
+			data[result.row*colnum+i] = result.vals[i]
 		}
 	}
 

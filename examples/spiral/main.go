@@ -137,7 +137,7 @@ func main() {
 }
 
 func Train(m whale.Model, x, t *whale.Variable) {
-	lossCalc := m.Loss()
+	lossCalc := m.LossFn()
 	optim := m.Optimizer()
 
 	batch := 30

@@ -4,12 +4,24 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"runtime/pprof"
+	"slices"
 
 	"github.com/hidetatz/whale"
 	ts "github.com/hidetatz/whale/tensor2"
 )
 
 func main() {
+	f, err := os.Create("cpu.prof")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	if err := pprof.StartCPUProfile(f); err != nil {
+		panic(err)
+	}
+	defer pprof.StopCPUProfile()
+
 	xi, ti, err := readMnistImages()
 	if err != nil {
 		panic(err)
@@ -19,7 +31,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 
 	// visualize read image
 	// for i := range xi.pixels {
@@ -34,43 +45,42 @@ func main() {
 	// 	fmt.Printf("\n\n")
 	// }
 
-	train(xi, ti, xl, tl)
-}
-
-func preprocess(x []byte) *whale.Variable {
-	xf := make([]float64, len(x))
-	for i, b := range x {
-		xf[i] = float64(int(b)) / 255.0
-	}
-	return whale.NewVar(ts.NdShape(xf, 1, 784))
-}
-
-func train(xi, ti *MnistImage, xl, tl *MnistLabel) {
-	layer := [][]int{{784, 100}, {100, 10}}
+	layer := [][]int{{784, 1000}, {1000, 10}}
 	mlp := whale.NewMLP(layer, true, whale.NewSigmoid(), whale.NewSoftmaxCrossEntropy(), whale.NewSGD(0.01))
+	train(mlp, xi, xl)
 
-	lossCalc := mlp.Loss()
-	optim := mlp.Optimizer()
+	mlp.SaveGobFile("./mnist_mlp.gob")
+}
+
+func train(model whale.Model, xi *MnistImage, xl *MnistLabel) {
+	lossCalc := model.LossFn()
+	optim := model.Optimizer()
+
+	batch := 100
 
 	for epoch := 0; epoch < 5; epoch++ {
 		sumloss := 0.0
-		for i := range xi.count {
-			x := xi.pixels[i]
-			t := xl.labels[i]
 
-			xv := preprocess(x)
-			y, err := mlp.Train(xv)
+		for i := range xi.count / batch {
+			imgs := xi.pixels[i*batch : (i+1)*batch]
+			lbls := xl.labels[i*batch : (i+1)*batch]
+
+			x := slices.Concat(imgs...)
+			xv := whale.NewVar(ts.NdShape(x, batch, 28*28))
+
+			y, err := model.Train(xv)
 			if err != nil {
 				panic(err)
 			}
 
-			tv := whale.NewVar(ts.Vector([]float64{float64(t)}))
+			tv := whale.NewVar(ts.Vector(lbls))
+
 			loss, err := lossCalc.Calculate(y, tv)
 			if err != nil {
 				panic(err)
 			}
 
-			params := mlp.Params()
+			params := model.Params()
 			for _, p := range params {
 				p.ClearGrad()
 			}
@@ -86,18 +96,18 @@ func train(xi, ti *MnistImage, xl, tl *MnistLabel) {
 			}
 		}
 
-		fmt.Println("epoch: ", epoch+1, ", train loss: ", sumloss/float64(ti.count))
+		fmt.Println("epoch: ", epoch+1, ", train loss: ", sumloss/float64(xi.count), sumloss, xi.count)
 	}
 }
 
 type MnistImage struct {
 	count  int
-	pixels [][]byte
+	pixels [][]float64
 }
 
 type MnistLabel struct {
 	count  int
-	labels []int
+	labels []float64
 }
 
 func digits(i int) int {
@@ -139,7 +149,7 @@ func readMnistImages() (x, t *MnistImage, err error) {
 		}
 
 		mi.count = int(binary.BigEndian.Uint32(num))
-		mi.pixels = make([][]byte, mi.count)
+		mi.pixels = make([][]float64, mi.count)
 
 		// read rows and cols
 		rows := make([]byte, 4)
@@ -163,7 +173,12 @@ func readMnistImages() (x, t *MnistImage, err error) {
 				return nil, err
 			}
 
-			mi.pixels[i] = pixel
+			fs := make([]float64, len(pixel))
+			for j, b := range pixel {
+				fs[j] = float64(int(b)) / 255.0
+			}
+
+			mi.pixels[i] = fs
 		}
 
 		return mi, nil
@@ -209,7 +224,7 @@ func readMnistLabels() (x, t *MnistLabel, err error) {
 		}
 
 		ml.count = int(binary.BigEndian.Uint32(num))
-		ml.labels = make([]int, ml.count)
+		ml.labels = make([]float64, ml.count)
 
 		// read actual label
 		for i := range ml.count {
@@ -218,7 +233,7 @@ func readMnistLabels() (x, t *MnistLabel, err error) {
 				return nil, err
 			}
 
-			ml.labels[i] = int(lbl)
+			ml.labels[i] = float64(int(lbl))
 		}
 
 		return ml, nil
