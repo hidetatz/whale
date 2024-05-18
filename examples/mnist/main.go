@@ -32,24 +32,45 @@ func main() {
 		panic(err)
 	}
 
-	// visualize read image
-	// for i := range xi.pixels {
-	// 	lbl := xl.labels[i]
-	// 	fmt.Printf("%v: ", lbl)
-	// 	for i, pix := range xi.pixels[i] {
-	// 		if i % 28 == 0 {
-	// 			fmt.Printf("\n")
-	// 		}
-	// 		fmt.Printf("%v%s", pix, strings.Repeat(" ", 3 - digits(int(pix))))
-	// 	}
-	// 	fmt.Printf("\n\n")
-	// }
-
 	layer := [][]int{{784, 1000}, {1000, 10}}
 	mlp := whale.NewMLP(layer, true, whale.NewSigmoid(), whale.NewSoftmaxCrossEntropy(), whale.NewSGD(0.01))
 	train(mlp, xi, xl)
 
-	mlp.SaveGobFile("./mnist_mlp.gob")
+	// mlp.SaveGobFile("./mnist_mlp.gob")
+
+	test := 1000
+	correct := 0
+	for i := range test {
+		img := ti.pixels[i]
+		lbl := int(tl.labels[i])
+
+		y, err := mlp.Train(whale.NewVar(ts.Vector(img).Reshape(1, 28*28)))
+		if err != nil {
+			panic(err)
+		}
+
+		infer := int(y.GetData().Argmax(false, -1).AsScalar())
+		fmt.Printf("[%v] infer: %d, actual: %d\n", i, infer, lbl)
+
+		if infer != lbl {
+			// visualize read image
+			for i, pix := range img {
+				if i%28 == 0 {
+					fmt.Printf("\n")
+				}
+				if pix == 0 {
+					fmt.Printf(" ")
+				} else {
+					fmt.Printf("X")
+				}
+			}
+			fmt.Printf("\n\n")
+		} else {
+			correct++
+		}
+	}
+
+	fmt.Printf("overall correctness: %v / %v\n", correct, test)
 }
 
 func train(model whale.Model, xi *MnistImage, xl *MnistLabel) {
