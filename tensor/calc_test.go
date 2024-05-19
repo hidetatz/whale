@@ -602,3 +602,56 @@ func TestArgmax_Argmin(t *testing.T) {
 		})
 	}
 }
+
+func TestTensor_Clip(t *testing.T) {
+	tests := []struct {
+		name     string
+		tensor   *Tensor
+		min, max float64
+		expected *Tensor
+	}{
+		{
+			name:     "scalar",
+			tensor:   Scalar(3),
+			min:      4,
+			max:      5,
+			expected: Scalar(4),
+		},
+		{
+			name:     "scalar 2",
+			tensor:   Scalar(3),
+			min:      1,
+			max:      2,
+			expected: Scalar(2),
+		},
+		{
+			name:     "vector",
+			tensor:   Vector([]float64{1, 2, 3, 4, 5}),
+			min:      2,
+			max:      4,
+			expected: Vector([]float64{2, 2, 3, 4, 4}),
+		},
+		{
+			name: "2d",
+			tensor: New([][]float64{
+				{1, 2, 3},
+				{4, 5, 6},
+			}),
+			min: 2,
+			max: 4,
+			expected: New([][]float64{
+				{2, 2, 3},
+				{4, 4, 4},
+			}),
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := tc.tensor.Clip(tc.min, tc.max)
+			mustEq(t, tc.expected, got)
+		})
+	}
+}
