@@ -14,7 +14,7 @@ func (_ *plainErrResponser) MeshGrid(t1, t2 *Tensor) (*Tensor, *Tensor, error) {
 	newshape := []int{t2.Size(), t1.Size()}
 	v1, v2 := t1.Flatten(), t2.Flatten()
 
-	var d1 []float64
+	var d1 []float32
 	for _ = range t2.Size() {
 		d1 = append(d1, v1...)
 	}
@@ -24,7 +24,7 @@ func (_ *plainErrResponser) MeshGrid(t1, t2 *Tensor) (*Tensor, *Tensor, error) {
 		return nil, nil, err
 	}
 
-	var d2 []float64
+	var d2 []float32
 	for i := range v2 {
 		d2 = append(d2, all(v2[i], t1.Size())...)
 	}

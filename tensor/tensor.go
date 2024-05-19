@@ -10,7 +10,7 @@ import (
 // A scalar, vector, matrix, and tensor which has more than 3-dimension can be
 // represented using Tensor.
 type Tensor struct {
-	data   []float64
+	data   []float32
 	offset int
 
 	// Shape is a shape of the tensor.
@@ -59,7 +59,7 @@ func (t *Tensor) IsScalar() bool {
 // AsScalar returns a concrete type scalar value of the tensor.
 // Note that AsScalar internally does not check if t is a scalar,
 // it is caller's responsibility.
-func (t *Tensor) AsScalar() float64 {
+func (t *Tensor) AsScalar() float32 {
 	return t.data[t.offset]
 }
 
@@ -71,9 +71,9 @@ func (t *Tensor) IsVector() bool {
 // AsScalar returns a concrete type vector slice of the tensor.
 // Note that AsVector internally does not check if t is a vector,
 // it is caller's responsibility.
-func (t *Tensor) AsVector() []float64 {
+func (t *Tensor) AsVector() []float32 {
 	indices := cartesianIdx(t.Shape)
-	result := make([]float64, t.Shape[0])
+	result := make([]float32, t.Shape[0])
 	for i, index := range indices {
 		f := t.Index(index...)
 		result[i] = f.AsScalar()
@@ -83,7 +83,7 @@ func (t *Tensor) AsVector() []float64 {
 
 // Copy returns a copy of t.
 func (t *Tensor) Copy() *Tensor {
-	ndata := make([]float64, len(t.data))
+	ndata := make([]float32, len(t.data))
 	copy(ndata, t.data)
 
 	nshape := make([]int, len(t.Shape))
@@ -96,9 +96,9 @@ func (t *Tensor) Copy() *Tensor {
 }
 
 // Flatten returns flattend 1-D array.
-func (t *Tensor) Flatten() []float64 {
+func (t *Tensor) Flatten() []float32 {
 	if t.IsScalar() {
-		return []float64{t.AsScalar()}
+		return []float32{t.AsScalar()}
 	}
 
 	// fast path: no need to calculate cartesian from strides
@@ -107,7 +107,7 @@ func (t *Tensor) Flatten() []float64 {
 	}
 
 	indices := cartesian(t.Shape)
-	result := make([]float64, len(indices))
+	result := make([]float32, len(indices))
 	for i, index := range indices {
 		rawIdx := t.offset
 		for j, idx := range index {
@@ -150,7 +150,7 @@ func (t *Tensor) tostring(linebreak bool) string {
 		return fmt.Sprintf("%v", strings.Join(strings.Fields(fmt.Sprint(t.AsVector())), ", "))
 	}
 
-	tostr := func(fs []float64) []string {
+	tostr := func(fs []float32) []string {
 		ss := make([]string, len(fs))
 		for i, f := range fs {
 			ss[i] = fmt.Sprintf("%v", f)

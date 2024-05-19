@@ -1,7 +1,7 @@
 package tensor
 
-func (t *Tensor) Bool(f func(f float64) bool) *Tensor {
-	d := make([]float64, t.Size())
+func (t *Tensor) Bool(f func(f float32) bool) *Tensor {
+	d := make([]float32, t.Size())
 
 	iter := t.Iterator()
 	for iter.HasNext() {

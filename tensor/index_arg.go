@@ -113,7 +113,7 @@ func FromToBy(start, end, step int) *IndexArg {
 // All creates a tensor slicing accessor like "x[:]".
 func All() *IndexArg { return &IndexArg{s: &slice{start: -1, end: -1, step: -1}, typ: _slice} }
 
-// List creates a tensor accessor like "x[[[1, 0], [2, 3]]]" on a tensor "New([][]float64{{1, 0}, {2, 3}})"
+// List creates a tensor accessor like "x[[[1, 0], [2, 3]]]" on a tensor "New([][]float32{{1, 0}, {2, 3}})"
 func List(t *Tensor) *IndexArg { return &IndexArg{t: t, typ: _tensor} }
 
 func (a *IndexArg) String() string {

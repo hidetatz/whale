@@ -19,7 +19,7 @@ func (er *tensorErrResponser) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 
 	if len(axes) == 0 {
 		// when axes is empty, sum all.
-		var result float64
+		var result float32
 		iter := er.t.Iterator()
 		for iter.HasNext() {
 			_, v := iter.Next()
@@ -27,7 +27,7 @@ func (er *tensorErrResponser) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 		}
 
 		if keepdims {
-			return RespErr.NdShape([]float64{result}, all(1, len(er.t.Shape))...)
+			return RespErr.NdShape([]float32{result}, all(1, len(er.t.Shape))...)
 		}
 
 		return Scalar(result), nil
@@ -75,7 +75,7 @@ func (er *tensorErrResponser) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	gen(0, template)
 
 	// extract each slice and sum them
-	data := make([]float64, er.t.Size()/len(ss))
+	data := make([]float32, er.t.Size()/len(ss))
 	for _, s := range ss {
 		t2 := er.t.Index(s...)
 		flat := t2.Flatten()
@@ -163,10 +163,10 @@ func (t *Tensor) argFunc(keepdims bool, axis int, fn string) (*Tensor, error) {
 		arg := t.argFuncFlat(fn)
 
 		if !keepdims {
-			return Scalar(float64(arg)), nil
+			return Scalar(float32(arg)), nil
 		}
 
-		return RespErr.NdShape([]float64{float64(arg)}, all(1, t.Ndim())...)
+		return RespErr.NdShape([]float32{float32(arg)}, all(1, t.Ndim())...)
 	}
 
 	newshape := copySlice(t.Shape)
@@ -176,7 +176,7 @@ func (t *Tensor) argFunc(keepdims bool, axis int, fn string) (*Tensor, error) {
 		newshape = append(newshape[:axis], newshape[axis+1:]...)
 	}
 
-	data := make([]float64, product(newshape))
+	data := make([]float32, product(newshape))
 	shp := copySlice(t.Shape)
 	shp[axis] = 1
 
@@ -185,14 +185,14 @@ func (t *Tensor) argFunc(keepdims bool, axis int, fn string) (*Tensor, error) {
 		indexArg[axis] = All()
 		t2 := t.Index(indexArg...)
 		arg := t2.argFuncFlat(fn)
-		data[i] = float64(arg)
+		data[i] = float32(arg)
 	}
 
 	return RespErr.NdShape(data, newshape...)
 }
 
 func (t *Tensor) argFuncFlat(fn string) int {
-	var cur float64 // actual value
+	var cur float32 // actual value
 	var arg int     // index to be returned
 	iter := t.Iterator()
 	for iter.HasNext() {
@@ -219,8 +219,8 @@ func (t *Tensor) argFuncFlat(fn string) int {
 	return arg
 }
 
-func (t *Tensor) Clip(min, max float64) *Tensor {
-	data := make([]float64, t.Size())
+func (t *Tensor) Clip(min, max float32) *Tensor {
+	data := make([]float32, t.Size())
 
 	iter := t.Iterator()
 	for iter.HasNext() {

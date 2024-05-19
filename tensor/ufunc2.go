@@ -6,15 +6,15 @@ import (
 )
 
 var (
-	ADD = &universalfunc2{fn: func(f1, f2 float64) float64 { return f1 + f2 }}
-	SUB = &universalfunc2{fn: func(f1, f2 float64) float64 { return f1 - f2 }}
-	MUL = &universalfunc2{fn: func(f1, f2 float64) float64 { return f1 * f2 }}
-	DIV = &universalfunc2{fn: func(f1, f2 float64) float64 { return f1 / f2 }}
-	POW = &universalfunc2{fn: func(f1, f2 float64) float64 { return math.Pow(f1, f2) }}
+	ADD = &universalfunc2{fn: func(f1, f2 float32) float32 { return f1 + f2 }}
+	SUB = &universalfunc2{fn: func(f1, f2 float32) float32 { return f1 - f2 }}
+	MUL = &universalfunc2{fn: func(f1, f2 float32) float32 { return f1 * f2 }}
+	DIV = &universalfunc2{fn: func(f1, f2 float32) float32 { return f1 / f2 }}
+	POW = &universalfunc2{fn: func(f1, f2 float32) float32 { return float32(math.Pow(float64(f1), float64(f2))) }}
 )
 
 type universalfunc2 struct {
-	fn func(f1, f2 float64) float64
+	fn func(f1, f2 float32) float32
 }
 
 func (u *universalfunc2) Do(t, t2 *Tensor) (*Tensor, error) {
@@ -23,7 +23,7 @@ func (u *universalfunc2) Do(t, t2 *Tensor) (*Tensor, error) {
 		return nil, err
 	}
 
-	d := make([]float64, nt.Size())
+	d := make([]float32, nt.Size())
 
 	t1iter := nt.Iterator()
 	t2iter := nt2.Iterator()

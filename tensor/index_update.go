@@ -10,7 +10,7 @@ func (t *Tensor) IndexSet(args []*IndexArg, target *Tensor) {
 }
 
 func (er *tensorErrResponser) IndexSet(args []*IndexArg, target *Tensor) error {
-	return er.t.indexPut(args, func(_, arg float64) float64 { return arg }, target)
+	return er.t.indexPut(args, func(_, arg float32) float32 { return arg }, target)
 }
 
 // IndexAdd does t[args] += target.
@@ -19,7 +19,7 @@ func (t *Tensor) IndexAdd(args []*IndexArg, target *Tensor) {
 }
 
 func (er *tensorErrResponser) IndexAdd(args []*IndexArg, target *Tensor) error {
-	return er.t.indexPut(args, func(orig, arg float64) float64 { return orig + arg }, target)
+	return er.t.indexPut(args, func(orig, arg float32) float32 { return orig + arg }, target)
 }
 
 // IndexSub does t[args] -= target.
@@ -28,7 +28,7 @@ func (t *Tensor) IndexSub(args []*IndexArg, target *Tensor) {
 }
 
 func (er *tensorErrResponser) IndexSub(args []*IndexArg, target *Tensor) error {
-	return er.t.indexPut(args, func(orig, arg float64) float64 { return orig - arg }, target)
+	return er.t.indexPut(args, func(orig, arg float32) float32 { return orig - arg }, target)
 }
 
 // IndexMul does t[args] *= target.
@@ -37,7 +37,7 @@ func (t *Tensor) IndexMul(args []*IndexArg, target *Tensor) {
 }
 
 func (er *tensorErrResponser) IndexMul(args []*IndexArg, target *Tensor) error {
-	return er.t.indexPut(args, func(orig, arg float64) float64 { return orig * arg }, target)
+	return er.t.indexPut(args, func(orig, arg float32) float32 { return orig * arg }, target)
 }
 
 // IndexDiv does t[args] /= target.
@@ -46,10 +46,10 @@ func (t *Tensor) IndexDiv(args []*IndexArg, target *Tensor) {
 }
 
 func (er *tensorErrResponser) IndexDiv(args []*IndexArg, target *Tensor) error {
-	return er.t.indexPut(args, func(orig, arg float64) float64 { return orig / arg }, target)
+	return er.t.indexPut(args, func(orig, arg float32) float32 { return orig / arg }, target)
 }
 
-func (t *Tensor) indexPut(args []*IndexArg, fn func(orig, arg float64) float64, target *Tensor) error {
+func (t *Tensor) indexPut(args []*IndexArg, fn func(orig, arg float32) float32, target *Tensor) error {
 	if t.IsScalar() {
 		return fmt.Errorf("index is not defined on scalar %v", t)
 	}

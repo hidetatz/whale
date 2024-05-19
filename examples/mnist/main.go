@@ -56,7 +56,7 @@ func main() {
 }
 
 func infer(model whale.Model, data []*MnistImage) *whale.Variable {
-	imgs := []float64{}
+	imgs := []float32{}
 	for j := range data {
 		imgs = append(imgs, data[j].pixels...)
 	}
@@ -77,15 +77,15 @@ func train(model whale.Model, data []*MnistImage) {
 	batch := 100
 
 	for epoch := 0; epoch < 5; epoch++ {
-		sumloss := 0.0
+		var sumloss float32 = 0.0
 
 		for i := range len(data) / batch {
 			batchdata := data[i*batch : (i+1)*batch]
 			y := infer(model, batchdata)
 
-			lbls := []float64{}
+			lbls := []float32{}
 			for j := range batchdata {
-				lbls = append(lbls, float64(batchdata[j].label))
+				lbls = append(lbls, float32(batchdata[j].label))
 			}
 
 			t := whale.NewVar(ts.Vector(lbls))
@@ -105,19 +105,19 @@ func train(model whale.Model, data []*MnistImage) {
 				optim.Optimize(p)
 			}
 
-			sumloss += loss.GetData().AsScalar() * float64(t.Size())
+			sumloss += loss.GetData().AsScalar() * float32(t.Size())
 			if i%100 == 0 {
 				fmt.Println(epoch, ": ", i)
 			}
 		}
 
-		fmt.Println("epoch: ", epoch+1, ", train loss: ", sumloss/float64(len(data)))
+		fmt.Println("epoch: ", epoch+1, ", train loss: ", sumloss/float32(len(data)))
 	}
 }
 
 type MnistImage struct {
 	label  int
-	pixels []float64
+	pixels []float32
 }
 
 func (i *MnistImage) Print() {
@@ -204,9 +204,9 @@ func readMnist() (*Mnist, error) {
 				return err
 			}
 
-			floats := make([]float64, len(pixels))
+			floats := make([]float32, len(pixels))
 			for j, pixel := range pixels {
-				floats[j] = float64(int(pixel)) / 255.0
+				floats[j] = float32(int(pixel)) / 255.0
 			}
 
 			images[i].pixels = floats

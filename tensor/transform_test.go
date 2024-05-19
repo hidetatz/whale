@@ -16,13 +16,13 @@ func TestReshape(t *testing.T) {
 			name:     "scalar",
 			tensor:   Scalar(1),
 			shape:    []int{1, 1},
-			expected: NdShape([]float64{1}, 1, 1),
+			expected: NdShape([]float32{1}, 1, 1),
 		},
 		{
 			name:     "scalar 2",
 			tensor:   Scalar(1),
 			shape:    []int{1, 1, 1},
-			expected: NdShape([]float64{1}, 1, 1, 1),
+			expected: NdShape([]float32{1}, 1, 1, 1),
 		},
 		{
 			name:      "invalid shape",
@@ -32,21 +32,21 @@ func TestReshape(t *testing.T) {
 		},
 		{
 			name:     "vector",
-			tensor:   Vector([]float64{1, 2, 3, 4}),
+			tensor:   Vector([]float32{1, 2, 3, 4}),
 			shape:    []int{1, 4, 1},
-			expected: NdShape([]float64{1, 2, 3, 4}, 1, 4, 1),
+			expected: NdShape([]float32{1, 2, 3, 4}, 1, 4, 1),
 		},
 		{
 			name:     "vector 2",
-			tensor:   Vector([]float64{1, 2, 3, 4}),
+			tensor:   Vector([]float32{1, 2, 3, 4}),
 			shape:    []int{2, 2},
-			expected: NdShape([]float64{1, 2, 3, 4}, 2, 2),
+			expected: NdShape([]float32{1, 2, 3, 4}, 2, 2),
 		},
 		{
 			name:     "vector after indexed",
-			tensor:   NdShape([]float64{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(At(0)),
+			tensor:   NdShape([]float32{1, 2, 3, 4, 5, 6, 7, 8}, 4, 2).Index(At(0)),
 			shape:    []int{2, 1},
-			expected: NdShape([]float64{1, 2}, 2, 1),
+			expected: NdShape([]float32{1, 2}, 2, 1),
 		},
 	}
 
@@ -109,7 +109,7 @@ func TestTranspose(t *testing.T) {
 			name:   "3d",
 			tensor: Arange(1, 25, 1).Reshape(2, 3, 4),
 			axes:   []int{},
-			expected: New([][][]float64{
+			expected: New([][][]float32{
 				{
 					{1, 13},
 					{5, 17},
@@ -136,7 +136,7 @@ func TestTranspose(t *testing.T) {
 			name:   "3d 2",
 			tensor: Arange(1, 25, 1).Reshape(2, 3, 4),
 			axes:   []int{2, 1, 0},
-			expected: New([][][]float64{
+			expected: New([][][]float32{
 				{
 					{1, 13},
 					{5, 17},
@@ -163,7 +163,7 @@ func TestTranspose(t *testing.T) {
 			name:   "3d 3",
 			tensor: Arange(1, 25, 1).Reshape(2, 3, 4),
 			axes:   []int{0, 2, 1},
-			expected: New([][][]float64{
+			expected: New([][][]float32{
 				{
 					{1, 5, 9},
 					{2, 6, 10},
@@ -245,7 +245,7 @@ func TestSqueeze(t *testing.T) {
 			name:     "3d 6",
 			tensor:   Scalar(3).Reshape(1, 1, 1),
 			axes:     []int{0, 2},
-			expected: Vector([]float64{3}),
+			expected: Vector([]float32{3}),
 		},
 		{
 			name:     "3d 6",
@@ -284,7 +284,7 @@ func TestBroadcastTo(t *testing.T) {
 			name:     "scalar",
 			tensor:   Scalar(3),
 			shape:    []int{3},
-			expected: Vector([]float64{3, 3, 3}),
+			expected: Vector([]float32{3, 3, 3}),
 		},
 		{
 			name:     "scalar 2",
@@ -294,21 +294,21 @@ func TestBroadcastTo(t *testing.T) {
 		},
 		{
 			name:      "vector 1",
-			tensor:    Vector([]float64{1, 2, 3}),
+			tensor:    Vector([]float32{1, 2, 3}),
 			shape:     []int{4},
 			expectErr: true,
 		},
 		{
 			name:     "vector 2",
-			tensor:   Vector([]float64{1, 2, 3}),
+			tensor:   Vector([]float32{1, 2, 3}),
 			shape:    []int{3, 3},
-			expected: Vector([]float64{1, 2, 3, 1, 2, 3, 1, 2, 3}).Reshape(3, 3),
+			expected: Vector([]float32{1, 2, 3, 1, 2, 3, 1, 2, 3}).Reshape(3, 3),
 		},
 		{
 			name:     "2d 1",
 			tensor:   Arange(1, 7, 1).Reshape(2, 3),
 			shape:    []int{2, 2, 3},
-			expected: Vector([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 3),
+			expected: Vector([]float32{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 3),
 		},
 		{
 			name:      "2d err1",
@@ -320,7 +320,7 @@ func TestBroadcastTo(t *testing.T) {
 			name:     "2d 2",
 			tensor:   Arange(1, 7, 1).Reshape(1, 6),
 			shape:    []int{2, 2, 6},
-			expected: Vector([]float64{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 6),
+			expected: Vector([]float32{1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6}).Reshape(2, 2, 6),
 		},
 		{
 			name:      "2d err",
@@ -332,7 +332,7 @@ func TestBroadcastTo(t *testing.T) {
 			name:   "indexed",
 			tensor: Arange(0, 24, 1).Reshape(2, 1, 12).Index(At(1)),
 			shape:  []int{2, 2, 12},
-			expected: New([][][]float64{
+			expected: New([][][]float32{
 				{
 					{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
 					{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},

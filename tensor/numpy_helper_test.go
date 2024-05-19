@@ -11,7 +11,7 @@ import (
 
 // the program must output target ndarray data and shape.
 // e.g. "print(y.flatten(), y.shape)"
-func runAsNumpyDataAndShape(t *testing.T, prog []string, tempdir string) ([]float64, []int) {
+func runAsNumpyDataAndShape(t *testing.T, prog []string, tempdir string) ([]float32, []int) {
 	t.Helper()
 	out := execNumpy(t, prog, tempdir)
 	return parseNumpyDataAndShape(t, out)
@@ -48,7 +48,7 @@ func execNumpy(t *testing.T, prog []string, tempdir string) string {
 
 // The output should look like:
 // [0 1 2 3 4 5] (2, 3)
-func parseNumpyDataAndShape(t *testing.T, output string) ([]float64, []int) {
+func parseNumpyDataAndShape(t *testing.T, output string) ([]float32, []int) {
 	t.Helper()
 
 	split := strings.Split(output, "] (")
@@ -59,18 +59,18 @@ func parseNumpyDataAndShape(t *testing.T, output string) ([]float64, []int) {
 	npdata, npshape := split[0], split[1]
 
 	npdata = strings.TrimSpace(strings.TrimLeft(npdata, "["))
-	data := []float64{}
+	data := []float32{}
 	for _, d := range strings.Split(npdata, " ") {
 		trim := strings.TrimSpace(d)
 		if trim == "" {
 			continue
 		}
 
-		f, err := strconv.ParseFloat(trim, 64)
+		f, err := strconv.ParseFloat(trim, 32)
 		if err != nil {
-			t.Fatalf("parse data as float64: err: '%v', d: '%v', data: '%v', output: '%v'", err, d, npdata, output)
+			t.Fatalf("parse data as float32: err: '%v', d: '%v', data: '%v', output: '%v'", err, d, npdata, output)
 		}
-		data = append(data, f)
+		data = append(data, float32(f))
 	}
 
 	npshape = strings.TrimSpace(strings.TrimRight(npshape, "),"))

@@ -17,44 +17,44 @@ func TestMatmul(t *testing.T) {
 		},
 		{
 			name:      "invalid shape 2",
-			t1:        NdShape([]float64{0, 1, 2, 3}, 2, 2),
-			t2:        NdShape([]float64{0, 1, 2, 3}, 2, 1, 2),
+			t1:        NdShape([]float32{0, 1, 2, 3}, 2, 2),
+			t2:        NdShape([]float32{0, 1, 2, 3}, 2, 1, 2),
 			expectErr: true,
 		},
 		{
 			name:      "invalid shape 3",
-			t1:        NdShape([]float64{0, 1, 2, 3, 4, 5}, 3, 2),
-			t2:        NdShape([]float64{0, 1, 2, 3, 4, 5}, 3, 2),
+			t1:        NdShape([]float32{0, 1, 2, 3, 4, 5}, 3, 2),
+			t2:        NdShape([]float32{0, 1, 2, 3, 4, 5}, 3, 2),
 			expectErr: true,
 		},
 		{
 			name: "valid 1",
-			t1: New([][]float64{
+			t1: New([][]float32{
 				{0, 1},
 				{2, 3},
 			}),
-			t2: New([][]float64{
+			t2: New([][]float32{
 				{0, 1},
 				{2, 3},
 			}),
-			expected: New([][]float64{
+			expected: New([][]float32{
 				{2, 3},
 				{6, 11},
 			}),
 		},
 		{
 			name: "valid 2",
-			t1: New([][]float64{
+			t1: New([][]float32{
 				{8, 4, 2},
 				{1, 3, -6},
 				{-7, 0, 5},
 			}),
-			t2: New([][]float64{
+			t2: New([][]float32{
 				{5, 2},
 				{3, 1},
 				{4, -1},
 			}),
-			expected: New([][]float64{
+			expected: New([][]float32{
 				{60, 18},
 				{-10, 11},
 				{-15, -19},

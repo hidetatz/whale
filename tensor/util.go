@@ -11,13 +11,13 @@ func product(x []int) int {
 	return p
 }
 
-func copySlice[T int | float64](s []T) []T {
+func copySlice[T int | float32](s []T) []T {
 	c := make([]T, len(s))
 	copy(c, s)
 	return c
 }
 
-func all[T int | float64](v T, length int) []T {
+func all[T int | float32](v T, length int) []T {
 	r := make([]T, length)
 	for i := range length {
 		r[i] = v
@@ -25,7 +25,7 @@ func all[T int | float64](v T, length int) []T {
 	return r
 }
 
-func toint(fs []float64) []int {
+func toint(fs []float32) []int {
 	r := make([]int, len(fs))
 	for i := range fs {
 		r[i] = int(fs[i])
@@ -33,7 +33,7 @@ func toint(fs []float64) []int {
 	return r
 }
 
-func seq[T int | float64](from, to T) []T {
+func seq[T int | float32](from, to T) []T {
 	r := make([]T, int(to-from))
 	for i := from; i < to; i += 1 {
 		r[int(i-from)] = i

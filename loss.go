@@ -28,7 +28,7 @@ func (m *MSE) Calculate(pred, actual *Variable) (*Variable, error) {
 		return nil, err
 	}
 
-	return Div(sm, NewVar(tensor.Scalar(float64(diff.Size()))))
+	return Div(sm, NewVar(tensor.Scalar(float32(diff.Size()))))
 }
 
 type SoftmaxCrossEntropy struct{}
@@ -54,7 +54,7 @@ func (s *SoftmaxCrossEntropy) Calculate(x, t *Variable) (*Variable, error) {
 		return nil, err
 	}
 
-	ar := tensor.Arange(0, float64(n), 1).Reshape(n)
+	ar := tensor.Arange(0, float32(n), 1).Reshape(n)
 
 	tlogp, err := Index(logp, NewVar(ar), t)
 	if err != nil {
@@ -71,7 +71,7 @@ func (s *SoftmaxCrossEntropy) Calculate(x, t *Variable) (*Variable, error) {
 		return nil, err
 	}
 
-	d, err := Div(m, NewVar(tensor.Scalar(float64(n))))
+	d, err := Div(m, NewVar(tensor.Scalar(float32(n))))
 	if err != nil {
 		return nil, err
 	}

@@ -175,7 +175,7 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 	for i, arg := range args {
 		te := arg.t
 		if arg.typ == _int {
-			te = Scalar(float64(arg.i))
+			te = Scalar(float32(arg.i))
 		}
 
 		b := te.BroadcastTo(broadcastedshape...)
@@ -194,7 +194,7 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 
 	// do Index and copy values
 	var origIndices []int
-	var r []float64
+	var r []float32
 	for _, idx := range indices {
 		t2, err := t.ErrResponser().Index(intsToIndices(idx)...)
 		if err != nil {
@@ -401,7 +401,7 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 	}
 	f(0, nil)
 
-	var r []float64
+	var r []float32
 	var origIndices []int
 	for _, idx := range indices {
 		t2, err := t.ErrResponser().Index(intsToIndices(idx)...)

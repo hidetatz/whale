@@ -10,7 +10,7 @@ type SGD struct {
 	learnRate *tensor.Tensor
 }
 
-func NewSGD(learnRate float64) *SGD {
+func NewSGD(learnRate float32) *SGD {
 	return &SGD{learnRate: tensor.Scalar(learnRate)}
 }
 
@@ -28,7 +28,7 @@ type MomentumSGD struct {
 	velocities map[*Variable]*tensor.Tensor
 }
 
-func NewMomentumSGD(learnRate, momentum float64) *MomentumSGD {
+func NewMomentumSGD(learnRate, momentum float32) *MomentumSGD {
 	return &MomentumSGD{
 		learnRate:  tensor.Scalar(learnRate),
 		momentum:   tensor.Scalar(momentum),

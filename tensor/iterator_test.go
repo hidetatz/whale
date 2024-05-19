@@ -10,32 +10,32 @@ func TestIterator(t *testing.T) {
 		name           string
 		tensor         *Tensor
 		expectedIndex  []int
-		expectedValues []float64
+		expectedValues []float32
 	}{
 		{
 			name:           "scalar",
 			tensor:         Scalar(3),
 			expectedIndex:  []int{0},
-			expectedValues: []float64{3},
+			expectedValues: []float32{3},
 		},
 		{
 			name:           "vector",
-			tensor:         Vector([]float64{5, 4, 3, 2, 1}),
+			tensor:         Vector([]float32{5, 4, 3, 2, 1}),
 			expectedIndex:  []int{0, 1, 2, 3, 4},
-			expectedValues: []float64{5, 4, 3, 2, 1},
+			expectedValues: []float32{5, 4, 3, 2, 1},
 		},
 		{
 			name: "2d",
-			tensor: New([][]float64{
+			tensor: New([][]float32{
 				{1, 2},
 				{3, 4},
 			}),
 			expectedIndex:  []int{0, 1, 2, 3},
-			expectedValues: []float64{1, 2, 3, 4},
+			expectedValues: []float32{1, 2, 3, 4},
 		},
 		{
 			name: "3d",
-			tensor: New([][][]float64{
+			tensor: New([][][]float32{
 				{
 					{1, 2},
 					{3, 4},
@@ -46,7 +46,7 @@ func TestIterator(t *testing.T) {
 				},
 			}),
 			expectedIndex:  []int{0, 1, 2, 3, 4, 5, 6, 7},
-			expectedValues: []float64{1, 2, 3, 4, 5, 6, 7, 8},
+			expectedValues: []float32{1, 2, 3, 4, 5, 6, 7, 8},
 		},
 	}
 
@@ -56,7 +56,7 @@ func TestIterator(t *testing.T) {
 			t.Parallel()
 			iter := tc.tensor.Iterator()
 			indices := []int{}
-			values := []float64{}
+			values := []float32{}
 			for iter.HasNext() {
 				i, v := iter.Next()
 				indices = append(indices, i)

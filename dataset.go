@@ -16,21 +16,21 @@ func RandSin(shape ...int) (*tensor.Tensor, *tensor.Tensor) {
 }
 
 func RandSpiral() (*tensor.Tensor, *tensor.Tensor) {
-	x := [][]float64{}
-	t := []float64{}
+	x := [][]float32{}
+	t := []float32{}
 	for j := 0; j < 3; j++ {
 		for i := range 100 {
-			var rate float64 = float64(i) / 100.0
-			var radius float64 = 1.0 * rate
-			theta := float64(j)*4 + 4*rate + rand.NormFloat64()*0.2
-			x = append(x, []float64{radius * math.Sin(theta), radius * math.Cos(theta)})
-			t = append(t, float64(j))
+			var rate float32 = float32(i) / 100.0
+			var radius float32 = 1.0 * rate
+			theta := float32(j)*4 + 4*rate + float32(rand.NormFloat64())*0.2
+			x = append(x, []float32{radius * float32(math.Sin(float64(theta))), radius * float32(math.Cos(float64(theta)))})
+			t = append(t, float32(j))
 		}
 	}
 
 	//todo: shuffle x and t
 
-	flat := []float64{}
+	flat := []float32{}
 	for i := range x {
 		flat = append(flat, x[i]...)
 	}

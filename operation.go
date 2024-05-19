@@ -714,7 +714,7 @@ func (m *matmul) String() string {
 	return "matmul"
 }
 
-func Clip(x *Variable, min, max float64) (*Variable, error) {
+func Clip(x *Variable, min, max float32) (*Variable, error) {
 	f := NewFunction(&clip{x: x, min: min, max: max})
 	y, err := f.forward(x)
 	if err != nil {
@@ -726,7 +726,7 @@ func Clip(x *Variable, min, max float64) (*Variable, error) {
 
 type clip struct {
 	x        *Variable
-	min, max float64
+	min, max float32
 }
 
 func (c *clip) Forward(inputs ...*Variable) ([]*Variable, error) {
@@ -734,11 +734,11 @@ func (c *clip) Forward(inputs ...*Variable) ([]*Variable, error) {
 }
 
 func (c *clip) Backward(gy ...*Variable) ([]*Variable, error) {
-	minMask := c.x.data.Bool(func(f float64) bool {
+	minMask := c.x.data.Bool(func(f float32) bool {
 		return f >= c.min
 	})
 
-	maxMask := c.x.data.Bool(func(f float64) bool {
+	maxMask := c.x.data.Bool(func(f float32) bool {
 		return f <= c.max
 	})
 

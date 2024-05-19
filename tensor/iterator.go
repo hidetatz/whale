@@ -1,14 +1,14 @@
 package tensor
 
 type Iterator struct {
-	data     []float64
+	data     []float32
 	offset   int
 	isscalar bool
 }
 
 func (t *Tensor) Iterator() *Iterator {
 	if t.IsScalar() {
-		return &Iterator{data: []float64{t.AsScalar()}, offset: 0, isscalar: t.IsScalar()}
+		return &Iterator{data: []float32{t.AsScalar()}, offset: 0, isscalar: t.IsScalar()}
 	}
 
 	return &Iterator{data: t.Flatten(), offset: 0, isscalar: t.IsScalar()}
@@ -22,7 +22,7 @@ func (i *Iterator) HasNext() bool {
 	return i.offset < len(i.data)
 }
 
-func (i *Iterator) Next() (int, float64) {
+func (i *Iterator) Next() (int, float32) {
 	curoffset := i.offset
 	if i.isscalar {
 		i.offset++

@@ -20,15 +20,15 @@ func TestTensor(t *testing.T) {
 	assert(t, 0, sc.Ndim())
 	assert(t, 1, sc.Size())
 	assert(t, true, sc.IsScalar())
-	assert(t, 3.0, sc.AsScalar())
+	assert(t, float32(3.0), sc.AsScalar())
 	assert(t, false, sc.IsVector())
 
-	vc := Vector([]float64{1, 2, 3})
+	vc := Vector([]float32{1, 2, 3})
 	assert(t, 1, vc.Ndim())
 	assert(t, 3, vc.Size())
 	assert(t, false, vc.IsScalar())
 	assert(t, true, vc.IsVector())
-	assert(t, []float64{1, 2, 3}, vc.AsVector())
+	assert(t, []float32{1, 2, 3}, vc.AsVector())
 
 	t1 := Arange(0, 20, 1).Reshape(4, 5)
 	assert(t, 2, t1.Ndim())
@@ -45,8 +45,8 @@ func TestEquals(t *testing.T) {
 		}
 	}
 
-	t1 := Vector([]float64{0, 1, 2, 1, 0})
-	t2 := New([][]float64{
+	t1 := Vector([]float32{0, 1, 2, 1, 0})
+	t2 := New([][]float32{
 		{0, 1, 2, 1, 0},
 		{1, 1, 1, 1, 1},
 		{2, 2, 2, 2, 2},
@@ -54,7 +54,7 @@ func TestEquals(t *testing.T) {
 		{0, 1, 2, 1, 0},
 	})
 
-	assert(t, t1.Equals(New([]float64{0, 1, 2, 1, 0})))
+	assert(t, t1.Equals(New([]float32{0, 1, 2, 1, 0})))
 	assert(t, t1.Equals(t2.Index(At(0))))
 	assert(t, t1.Equals(t2.Index(At(4))))
 	assert(t, t1.Equals(t2.Index(All(), At(0))))
@@ -65,27 +65,27 @@ func TestFlatten(t *testing.T) {
 	tests := []struct {
 		name     string
 		tensor   *Tensor
-		expected []float64
+		expected []float32
 	}{
 		{
 			name:     "scalar",
 			tensor:   Scalar(3),
-			expected: []float64{3},
+			expected: []float32{3},
 		},
 		{
 			name:     "vector",
-			tensor:   Vector([]float64{0, 1, 2, 3}),
-			expected: []float64{0, 1, 2, 3},
+			tensor:   Vector([]float32{0, 1, 2, 3}),
+			expected: []float32{0, 1, 2, 3},
 		},
 		{
 			name:     "2d",
 			tensor:   Arange(0, 4, 1).Reshape(2, 2),
-			expected: []float64{0, 1, 2, 3},
+			expected: []float32{0, 1, 2, 3},
 		},
 		{
 			name:     "2d indexed",
 			tensor:   Arange(0, 4, 1).Reshape(2, 2).Index(At(1)),
-			expected: []float64{2, 3},
+			expected: []float32{2, 3},
 		},
 	}
 
@@ -109,7 +109,7 @@ func TestString(t *testing.T) {
 		}
 	}
 
-	tensor := Vector([]float64{1, 2, 3, 4})
+	tensor := Vector([]float32{1, 2, 3, 4})
 	got := fmt.Sprintf("%v", tensor)
 	musteq(t, got, `[1, 2, 3, 4]`)
 

@@ -13,7 +13,7 @@ import (
 var _ quick.Generator = &randomIndexArg{}
 
 type randomIndexArg struct {
-	inArr   []float64
+	inArr   []float32
 	inShape []int
 	arg     []*IndexArg
 }
@@ -77,10 +77,10 @@ func generateRandomIndexArg(rand *rand.Rand, size int) *randomIndexArg {
 	}
 
 	// Third, create random tensor by detemined shape.
-	t := Arange(0, float64(product(shape)), 1).Reshape(shape...)
+	t := Arange(0, float32(product(shape)), 1).Reshape(shape...)
 	for i, d := range t.data {
 		// Round the number to 3 decimal places
-		t.data[i] = math.Floor(d*1000) / 1000
+		t.data[i] = float32(math.Floor(float64(d*1000))) / 1000
 	}
 
 	// At last, determine the index randomly.
@@ -140,9 +140,9 @@ func generateRandomIndexArg(rand *rand.Rand, size int) *randomIndexArg {
 				shp = []int{4, 3, 2, 3}
 			}
 			size := product(shp)
-			data := make([]float64, size)
+			data := make([]float32, size)
 			for i := range len(data) {
-				data[i] = float64(rand.Intn(dim))
+				data[i] = float32(rand.Intn(dim))
 			}
 			args[i] = List(NdShape(data, shp...))
 		}
@@ -152,7 +152,7 @@ func generateRandomIndexArg(rand *rand.Rand, size int) *randomIndexArg {
 }
 
 type Result struct {
-	Data  []float64
+	Data  []float32
 	Shape []int
 }
 

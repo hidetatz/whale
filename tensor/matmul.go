@@ -4,16 +4,16 @@ import (
 	"fmt"
 )
 
-func (t *Tensor) matrixRow(row int) []float64 {
-	result := make([]float64, t.Shape[1])
+func (t *Tensor) matrixRow(row int) []float32 {
+	result := make([]float32, t.Shape[1])
 	for i := range result {
 		result[i] = t.data[t.offset+row*t.Strides[0]+i*t.Strides[1]]
 	}
 	return result
 }
 
-func (t *Tensor) matrixCol(col int) []float64 {
-	result := make([]float64, t.Shape[0])
+func (t *Tensor) matrixCol(col int) []float32 {
+	result := make([]float32, t.Shape[0])
 	for i := range result {
 		result[i] = t.data[t.offset+col*t.Strides[1]+i*t.Strides[0]]
 	}
@@ -33,14 +33,14 @@ func (er *tensorErrResponser) Matmul(t2 *Tensor) (*Tensor, error) {
 
 	newshape := []int{rownum, colnum}
 
-	data := make([]float64, rownum*colnum)
+	data := make([]float32, rownum*colnum)
 
-	rows := make([][]float64, rownum)
+	rows := make([][]float32, rownum)
 	for r := range rownum {
 		rows[r] = er.t.matrixRow(r)
 	}
 
-	cols := make([][]float64, colnum)
+	cols := make([][]float32, colnum)
 	for c := range colnum {
 		cols[c] = t2.matrixCol(c)
 	}
@@ -49,15 +49,15 @@ func (er *tensorErrResponser) Matmul(t2 *Tensor) (*Tensor, error) {
 
 	type calcresult struct {
 		row  int
-		vals []float64
+		vals []float32
 	}
 
 	ch := make(chan calcresult, rownum)
 	for r := range rows {
 		go func(rn int) {
-			results := make([]float64, colnum)
+			results := make([]float32, colnum)
 			for c := range cols {
-				var result float64
+				var result float32
 				for j := range calcsize {
 					result += rows[rn][j] * cols[c][j]
 				}

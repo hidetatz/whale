@@ -12,8 +12,8 @@ type Plot struct {
 	cmds  []string
 	plots []string
 	data  []struct {
-		x []float64
-		y []float64
+		x []float32
+		y []float32
 	}
 }
 
@@ -23,23 +23,23 @@ func NewPlot() *Plot {
 	}
 }
 
-func (p *Plot) addData(x, y []float64) {
-	var xs, ys []float64
+func (p *Plot) addData(x, y []float32) {
+	var xs, ys []float32
 	for i := range x {
 		xs = append(xs, x[i])
 		ys = append(ys, y[i])
 	}
 
 	p.data = append(p.data, struct {
-		x []float64
-		y []float64
+		x []float32
+		y []float32
 	}{
 		x: xs,
 		y: ys,
 	})
 }
 
-func (p *Plot) Scatter(x, y []float64, color string) error {
+func (p *Plot) Scatter(x, y []float32, color string) error {
 	if len(x) != len(y) {
 		return fmt.Errorf("scatter: x and y must be the same size")
 	}
@@ -49,7 +49,7 @@ func (p *Plot) Scatter(x, y []float64, color string) error {
 	return nil
 }
 
-func (p *Plot) Line(x, y []float64, color string) error {
+func (p *Plot) Line(x, y []float32, color string) error {
 	if len(x) != len(y) {
 		return fmt.Errorf("line: x and y must be the same size")
 	}

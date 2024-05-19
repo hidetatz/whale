@@ -12,14 +12,14 @@ func TestMeshGrid(t *testing.T) {
 		{
 			name:      "invalid shape",
 			t1:        Scalar(3),
-			t2:        Vector([]float64{1, 2, 3, 4}),
+			t2:        Vector([]float32{1, 2, 3, 4}),
 			expectErr: true,
 		},
 		{
 			name: "valid",
-			t1:   Vector([]float64{0, 1, 2, 3}),
-			t2:   Vector([]float64{10, 20, 30, 40, 50, 60}),
-			ex1: New([][]float64{
+			t1:   Vector([]float32{0, 1, 2, 3}),
+			t2:   Vector([]float32{10, 20, 30, 40, 50, 60}),
+			ex1: New([][]float32{
 				{0, 1, 2, 3},
 				{0, 1, 2, 3},
 				{0, 1, 2, 3},
@@ -27,7 +27,7 @@ func TestMeshGrid(t *testing.T) {
 				{0, 1, 2, 3},
 				{0, 1, 2, 3},
 			}),
-			ex2: New([][]float64{
+			ex2: New([][]float32{
 				{10, 10, 10, 10},
 				{20, 20, 20, 20},
 				{30, 30, 30, 30},

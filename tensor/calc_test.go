@@ -34,42 +34,42 @@ func TestSum(t *testing.T) {
 		},
 		{
 			name:     "1d 1",
-			tensor:   Vector([]float64{1, 2, 3}),
+			tensor:   Vector([]float32{1, 2, 3}),
 			keepdims: false,
 			axes:     []int{},
 			expected: Scalar(6),
 		},
 		{
 			name:     "1d 2",
-			tensor:   Vector([]float64{1, 2, 3}),
+			tensor:   Vector([]float32{1, 2, 3}),
 			keepdims: true,
 			axes:     []int{},
-			expected: Vector([]float64{6}),
+			expected: Vector([]float32{6}),
 		},
 		{
 			name:     "1d 3",
-			tensor:   Vector([]float64{1, 2, 3}),
+			tensor:   Vector([]float32{1, 2, 3}),
 			keepdims: false,
 			axes:     []int{0},
 			expected: Scalar(6),
 		},
 		{
 			name:     "1d 4",
-			tensor:   Vector([]float64{1, 2, 3}),
+			tensor:   Vector([]float32{1, 2, 3}),
 			keepdims: true,
 			axes:     []int{0},
-			expected: Vector([]float64{6}),
+			expected: Vector([]float32{6}),
 		},
 		{
 			name:      "1d 5",
-			tensor:    Vector([]float64{1, 2, 3}),
+			tensor:    Vector([]float32{1, 2, 3}),
 			keepdims:  true,
 			axes:      []int{1},
 			expectErr: true,
 		},
 		{
 			name:      "1d 6",
-			tensor:    Vector([]float64{1, 2, 3}),
+			tensor:    Vector([]float32{1, 2, 3}),
 			keepdims:  true,
 			axes:      []int{0, 0},
 			expectErr: true,
@@ -86,35 +86,35 @@ func TestSum(t *testing.T) {
 			tensor:   Arange(1, 5, 1).Reshape(2, 2),
 			keepdims: true,
 			axes:     []int{},
-			expected: Vector([]float64{10}).Reshape(1, 1),
+			expected: Vector([]float32{10}).Reshape(1, 1),
 		},
 		{
 			name:     "2d 3",
 			tensor:   Arange(1, 5, 1).Reshape(2, 2),
 			keepdims: false,
 			axes:     []int{0},
-			expected: Vector([]float64{4, 6}),
+			expected: Vector([]float32{4, 6}),
 		},
 		{
 			name:     "2d 4",
 			tensor:   Arange(1, 5, 1).Reshape(2, 2),
 			keepdims: true,
 			axes:     []int{0},
-			expected: Vector([]float64{4, 6}).Reshape(1, 2),
+			expected: Vector([]float32{4, 6}).Reshape(1, 2),
 		},
 		{
 			name:     "2d 5",
 			tensor:   Arange(1, 5, 1).Reshape(2, 2),
 			keepdims: false,
 			axes:     []int{1},
-			expected: Vector([]float64{3, 7}),
+			expected: Vector([]float32{3, 7}),
 		},
 		{
 			name:     "2d 6",
 			tensor:   Arange(1, 5, 1).Reshape(2, 2),
 			keepdims: true,
 			axes:     []int{1},
-			expected: Vector([]float64{3, 7}).Reshape(2, 1),
+			expected: Vector([]float32{3, 7}).Reshape(2, 1),
 		},
 		{
 			name:     "2d 7",
@@ -135,7 +135,7 @@ func TestSum(t *testing.T) {
 			tensor:   Arange(1, 5, 1).Reshape(2, 2),
 			keepdims: true,
 			axes:     []int{1, 0},
-			expected: Vector([]float64{10}).Reshape(1, 1),
+			expected: Vector([]float32{10}).Reshape(1, 1),
 		},
 		{
 			name:      "2d 9",
@@ -163,140 +163,140 @@ func TestSum(t *testing.T) {
 			tensor:   Arange(1, 9, 1).Reshape(2, 2, 2),
 			keepdims: true,
 			axes:     []int{},
-			expected: Vector([]float64{36}).Reshape(1, 1, 1),
+			expected: Vector([]float32{36}).Reshape(1, 1, 1),
 		},
 		{
 			name:     "3d 3",
 			tensor:   Arange(1, 9, 1).Reshape(2, 2, 2),
 			keepdims: false,
 			axes:     []int{0},
-			expected: Vector([]float64{6, 8, 10, 12}).Reshape(2, 2),
+			expected: Vector([]float32{6, 8, 10, 12}).Reshape(2, 2),
 		},
 		{
 			name:     "4d 1",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{0},
-			expected: Vector([]float64{14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36}).Reshape(3, 2, 2),
+			expected: Vector([]float32{14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36}).Reshape(3, 2, 2),
 		},
 		{
 			name:     "4d 2",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: true,
 			axes:     []int{0},
-			expected: Vector([]float64{14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36}).Reshape(1, 3, 2, 2),
+			expected: Vector([]float32{14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36}).Reshape(1, 3, 2, 2),
 		},
 		{
 			name:     "4d 3",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{1},
-			expected: Vector([]float64{15, 18, 21, 24, 51, 54, 57, 60}).Reshape(2, 2, 2),
+			expected: Vector([]float32{15, 18, 21, 24, 51, 54, 57, 60}).Reshape(2, 2, 2),
 		},
 		{
 			name:     "4d 4",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{2},
-			expected: Vector([]float64{4, 6, 12, 14, 20, 22, 28, 30, 36, 38, 44, 46}).Reshape(2, 3, 2),
+			expected: Vector([]float32{4, 6, 12, 14, 20, 22, 28, 30, 36, 38, 44, 46}).Reshape(2, 3, 2),
 		},
 		{
 			name:     "4d 5",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: true,
 			axes:     []int{2},
-			expected: Vector([]float64{4, 6, 12, 14, 20, 22, 28, 30, 36, 38, 44, 46}).Reshape(2, 3, 1, 2),
+			expected: Vector([]float32{4, 6, 12, 14, 20, 22, 28, 30, 36, 38, 44, 46}).Reshape(2, 3, 1, 2),
 		},
 		{
 			name:     "4d 6",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{3},
-			expected: Vector([]float64{3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47}).Reshape(2, 3, 2),
+			expected: Vector([]float32{3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47}).Reshape(2, 3, 2),
 		},
 		{
 			name:     "4d 7",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: true,
 			axes:     []int{3},
-			expected: Vector([]float64{3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47}).Reshape(2, 3, 2, 1),
+			expected: Vector([]float32{3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47}).Reshape(2, 3, 2, 1),
 		},
 		{
 			name:     "4d 8",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{0, 1},
-			expected: Vector([]float64{66, 72, 78, 84}).Reshape(2, 2),
+			expected: Vector([]float32{66, 72, 78, 84}).Reshape(2, 2),
 		},
 		{
 			name:     "4d 9",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: true,
 			axes:     []int{0, 1},
-			expected: Vector([]float64{66, 72, 78, 84}).Reshape(1, 1, 2, 2),
+			expected: Vector([]float32{66, 72, 78, 84}).Reshape(1, 1, 2, 2),
 		},
 		{
 			name:     "4d 10",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{0, 2},
-			expected: Vector([]float64{32, 36, 48, 52, 64, 68}).Reshape(3, 2),
+			expected: Vector([]float32{32, 36, 48, 52, 64, 68}).Reshape(3, 2),
 		},
 		{
 			name:     "4d 11",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: true,
 			axes:     []int{0, 2},
-			expected: Vector([]float64{32, 36, 48, 52, 64, 68}).Reshape(1, 3, 1, 2),
+			expected: Vector([]float32{32, 36, 48, 52, 64, 68}).Reshape(1, 3, 1, 2),
 		},
 		{
 			name:     "4d 12",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{0, 3},
-			expected: Vector([]float64{30, 38, 46, 54, 62, 70}).Reshape(3, 2),
+			expected: Vector([]float32{30, 38, 46, 54, 62, 70}).Reshape(3, 2),
 		},
 		{
 			name:     "4d 13",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: true,
 			axes:     []int{0, 3},
-			expected: Vector([]float64{30, 38, 46, 54, 62, 70}).Reshape(1, 3, 2, 1),
+			expected: Vector([]float32{30, 38, 46, 54, 62, 70}).Reshape(1, 3, 2, 1),
 		},
 		{
 			name:     "4d 14",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{0, 1, 2},
-			expected: Vector([]float64{144, 156}),
+			expected: Vector([]float32{144, 156}),
 		},
 		{
 			name:     "4d 15",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{0, 1, 3},
-			expected: Vector([]float64{138, 162}),
+			expected: Vector([]float32{138, 162}),
 		},
 		{
 			name:     "4d 15",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{1, 2, 3},
-			expected: Vector([]float64{78, 222}),
+			expected: Vector([]float32{78, 222}),
 		},
 		{
 			name:     "4d 16",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: true,
 			axes:     []int{1, 2, 3},
-			expected: Vector([]float64{78, 222}).Reshape(2, 1, 1, 1),
+			expected: Vector([]float32{78, 222}).Reshape(2, 1, 1, 1),
 		},
 		{
 			name:     "4d 17",
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: false,
 			axes:     []int{2, 1, 3},
-			expected: Vector([]float64{78, 222}),
+			expected: Vector([]float32{78, 222}),
 		},
 		{
 			name:     "4d 18",
@@ -310,7 +310,7 @@ func TestSum(t *testing.T) {
 			tensor:   Arange(1, 25, 1).Reshape(2, 3, 2, 2),
 			keepdims: true,
 			axes:     []int{2, 1, 0, 3},
-			expected: Vector([]float64{300}).Reshape(1, 1, 1, 1),
+			expected: Vector([]float32{300}).Reshape(1, 1, 1, 1),
 		},
 	}
 
@@ -337,25 +337,25 @@ func TestSumTo(t *testing.T) {
 			name:     "2d 1",
 			tensor:   Arange(0, 6, 1).Reshape(2, 3),
 			shape:    []int{1, 3},
-			expected: NdShape([]float64{3, 5, 7}, 1, 3),
+			expected: NdShape([]float32{3, 5, 7}, 1, 3),
 		},
 		{
 			name:     "2d 2",
 			tensor:   Arange(0, 6, 1).Reshape(2, 3),
 			shape:    []int{2, 1},
-			expected: NdShape([]float64{3, 12}, 2, 1),
+			expected: NdShape([]float32{3, 12}, 2, 1),
 		},
 		{
 			name:     "2d 3",
 			tensor:   Arange(0, 6, 1).Reshape(2, 3),
 			shape:    []int{1, 1},
-			expected: NdShape([]float64{15}, 1, 1),
+			expected: NdShape([]float32{15}, 1, 1),
 		},
 		{
 			name:     "3d 1",
 			tensor:   Arange(0, 24, 1).Reshape(2, 3, 4),
 			shape:    []int{2, 1, 1},
-			expected: NdShape([]float64{66, 210}, 2, 1, 1),
+			expected: NdShape([]float32{66, 210}, 2, 1, 1),
 		},
 	}
 
@@ -405,7 +405,7 @@ func TestArgmax_Argmin(t *testing.T) {
 		},
 		{
 			name:        "vector",
-			tensor:      Vector([]float64{0, 1, 5, 3, 2, 4}),
+			tensor:      Vector([]float32{0, 1, 5, 3, 2, 4}),
 			keepdims:    false,
 			axis:        -1,
 			expectedMax: Scalar(2),
@@ -413,7 +413,7 @@ func TestArgmax_Argmin(t *testing.T) {
 		},
 		{
 			name:        "vector 2",
-			tensor:      Vector([]float64{0, 1, 5, 3, 2, 4}),
+			tensor:      Vector([]float32{0, 1, 5, 3, 2, 4}),
 			keepdims:    false,
 			axis:        0,
 			expectedMax: Scalar(2),
@@ -421,22 +421,22 @@ func TestArgmax_Argmin(t *testing.T) {
 		},
 		{
 			name:        "vector 3",
-			tensor:      Vector([]float64{0, 1, 5, 3, 2, 4}),
+			tensor:      Vector([]float32{0, 1, 5, 3, 2, 4}),
 			keepdims:    true,
 			axis:        0,
-			expectedMax: Vector([]float64{2}),
-			expectedMin: Vector([]float64{0}),
+			expectedMax: Vector([]float32{2}),
+			expectedMin: Vector([]float32{0}),
 		},
 		{
 			name:      "vector err",
-			tensor:    Vector([]float64{0, 1, 5, 3, 2, 4}),
+			tensor:    Vector([]float32{0, 1, 5, 3, 2, 4}),
 			keepdims:  true,
 			axis:      1,
 			expectErr: true,
 		},
 		{
 			name: "3d",
-			tensor: New([][][]float64{
+			tensor: New([][][]float32{
 				{
 					{1, 3},
 					{2, 7},
@@ -455,7 +455,7 @@ func TestArgmax_Argmin(t *testing.T) {
 		},
 		{
 			name: "3d 2",
-			tensor: New([][][]float64{
+			tensor: New([][][]float32{
 				{
 					{1, 3},
 					{2, 7},
@@ -469,12 +469,12 @@ func TestArgmax_Argmin(t *testing.T) {
 			}),
 			keepdims:    true,
 			axis:        -1,
-			expectedMax: NdShape([]float64{6}, 1, 1, 1),
-			expectedMin: NdShape([]float64{7}, 1, 1, 1),
+			expectedMax: NdShape([]float32{6}, 1, 1, 1),
+			expectedMin: NdShape([]float32{7}, 1, 1, 1),
 		},
 		{
 			name: "3d 3",
-			tensor: New([][][]float64{
+			tensor: New([][][]float32{
 				{
 					{1, 3},
 					{2, 7},
@@ -488,12 +488,12 @@ func TestArgmax_Argmin(t *testing.T) {
 			}),
 			keepdims:    false,
 			axis:        0,
-			expectedMax: NdShape([]float64{1, 0, 1, 1, 0, 0}, 3, 2),
-			expectedMin: NdShape([]float64{0, 1, 0, 0, 1, 1}, 3, 2),
+			expectedMax: NdShape([]float32{1, 0, 1, 1, 0, 0}, 3, 2),
+			expectedMin: NdShape([]float32{0, 1, 0, 0, 1, 1}, 3, 2),
 		},
 		{
 			name: "3d 4",
-			tensor: New([][][]float64{
+			tensor: New([][][]float32{
 				{
 					{1, 3},
 					{2, 7},
@@ -507,12 +507,12 @@ func TestArgmax_Argmin(t *testing.T) {
 			}),
 			keepdims:    true,
 			axis:        0,
-			expectedMax: NdShape([]float64{1, 0, 1, 1, 0, 0}, 1, 3, 2),
-			expectedMin: NdShape([]float64{0, 1, 0, 0, 1, 1}, 1, 3, 2),
+			expectedMax: NdShape([]float32{1, 0, 1, 1, 0, 0}, 1, 3, 2),
+			expectedMin: NdShape([]float32{0, 1, 0, 0, 1, 1}, 1, 3, 2),
 		},
 		{
 			name: "3d 5",
-			tensor: New([][][]float64{
+			tensor: New([][][]float32{
 				{
 					{1, 3},
 					{2, 7},
@@ -526,12 +526,12 @@ func TestArgmax_Argmin(t *testing.T) {
 			}),
 			keepdims:    false,
 			axis:        1,
-			expectedMax: NdShape([]float64{2, 2, 0, 1}, 2, 2),
-			expectedMin: NdShape([]float64{0, 0, 2, 0}, 2, 2),
+			expectedMax: NdShape([]float32{2, 2, 0, 1}, 2, 2),
+			expectedMin: NdShape([]float32{0, 0, 2, 0}, 2, 2),
 		},
 		{
 			name: "3d 6",
-			tensor: New([][][]float64{
+			tensor: New([][][]float32{
 				{
 					{1, 3},
 					{2, 7},
@@ -545,12 +545,12 @@ func TestArgmax_Argmin(t *testing.T) {
 			}),
 			keepdims:    true,
 			axis:        1,
-			expectedMax: NdShape([]float64{2, 2, 0, 1}, 2, 1, 2),
-			expectedMin: NdShape([]float64{0, 0, 2, 0}, 2, 1, 2),
+			expectedMax: NdShape([]float32{2, 2, 0, 1}, 2, 1, 2),
+			expectedMin: NdShape([]float32{0, 0, 2, 0}, 2, 1, 2),
 		},
 		{
 			name: "3d 7",
-			tensor: New([][][]float64{
+			tensor: New([][][]float32{
 				{
 					{1, 3},
 					{2, 7},
@@ -564,12 +564,12 @@ func TestArgmax_Argmin(t *testing.T) {
 			}),
 			keepdims:    false,
 			axis:        2,
-			expectedMax: NdShape([]float64{1, 1, 1, 0, 0, 1}, 2, 3),
-			expectedMin: NdShape([]float64{0, 0, 0, 1, 1, 0}, 2, 3),
+			expectedMax: NdShape([]float32{1, 1, 1, 0, 0, 1}, 2, 3),
+			expectedMin: NdShape([]float32{0, 0, 0, 1, 1, 0}, 2, 3),
 		},
 		{
 			name: "3d 8",
-			tensor: New([][][]float64{
+			tensor: New([][][]float32{
 				{
 					{1, 3},
 					{2, 7},
@@ -583,8 +583,8 @@ func TestArgmax_Argmin(t *testing.T) {
 			}),
 			keepdims:    true,
 			axis:        2,
-			expectedMax: NdShape([]float64{1, 1, 1, 0, 0, 1}, 2, 3, 1),
-			expectedMin: NdShape([]float64{0, 0, 0, 1, 1, 0}, 2, 3, 1),
+			expectedMax: NdShape([]float32{1, 1, 1, 0, 0, 1}, 2, 3, 1),
+			expectedMin: NdShape([]float32{0, 0, 0, 1, 1, 0}, 2, 3, 1),
 		},
 	}
 
@@ -607,7 +607,7 @@ func TestTensor_Clip(t *testing.T) {
 	tests := []struct {
 		name     string
 		tensor   *Tensor
-		min, max float64
+		min, max float32
 		expected *Tensor
 	}{
 		{
@@ -626,20 +626,20 @@ func TestTensor_Clip(t *testing.T) {
 		},
 		{
 			name:     "vector",
-			tensor:   Vector([]float64{1, 2, 3, 4, 5}),
+			tensor:   Vector([]float32{1, 2, 3, 4, 5}),
 			min:      2,
 			max:      4,
-			expected: Vector([]float64{2, 2, 3, 4, 4}),
+			expected: Vector([]float32{2, 2, 3, 4, 4}),
 		},
 		{
 			name: "2d",
-			tensor: New([][]float64{
+			tensor: New([][]float32{
 				{1, 2, 3},
 				{4, 5, 6},
 			}),
 			min: 2,
 			max: 4,
-			expected: New([][]float64{
+			expected: New([][]float32{
 				{2, 2, 3},
 				{4, 4, 4},
 			}),

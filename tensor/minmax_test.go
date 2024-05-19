@@ -17,13 +17,13 @@ func TestMinMax(t *testing.T) {
 		},
 		{
 			name:        "vector",
-			tensor:      Vector([]float64{0, 1, 2, 3, 4}),
+			tensor:      Vector([]float32{0, 1, 2, 3, 4}),
 			expectedMin: Scalar(0),
 			expectedMax: Scalar(4),
 		},
 		{
 			name:        "2d",
-			tensor:      NdShape([]float64{0, 1, 2, 3}, 2, 2),
+			tensor:      NdShape([]float32{0, 1, 2, 3}, 2, 2),
 			expectedMin: Scalar(0),
 			expectedMax: Scalar(3),
 		},

@@ -52,7 +52,7 @@ func main() {
 	//   [x_x-axis-size*y-axis-size, y_x-axis-size*y-axis-size],
 	// ]
 	// total size is (x-axis-size * y-axis-size * 2).
-	testdata := []float64{}
+	testdata := []float32{}
 	xf := X.Flatten()
 	yf := Y.Flatten()
 	for i := range xf {
@@ -91,14 +91,14 @@ func main() {
 	// ]
 	prediceCls := score.GetData().Argmax(false, 1)
 
-	xs0 := []float64{}
-	ys0 := []float64{}
+	xs0 := []float32{}
+	ys0 := []float32{}
 
-	xs1 := []float64{}
-	ys1 := []float64{}
+	xs1 := []float32{}
+	ys1 := []float32{}
 
-	xs2 := []float64{}
-	ys2 := []float64{}
+	xs2 := []float32{}
+	ys2 := []float32{}
 
 	pi := prediceCls.Iterator()
 	for pi.HasNext() {
@@ -144,7 +144,7 @@ func Train(m whale.Model, x, t *whale.Variable) {
 
 	for epoch := 0; epoch < 300; epoch++ {
 		index := tensor.RandomPermutation(300)
-		sumloss := 0.0
+		var sumloss float32 = 0.0
 
 		for i := range 10 {
 			batchIdx := index.Index(tensor.FromTo(i*batch, (i+1)*batch))
@@ -180,7 +180,7 @@ func Train(m whale.Model, x, t *whale.Variable) {
 				optim.Optimize(p)
 			}
 
-			sumloss += loss.GetData().AsScalar() * float64(batchT.Size())
+			sumloss += loss.GetData().AsScalar() * float32(batchT.Size())
 		}
 
 		fmt.Println("epoch: ", epoch+1, ", loss: ", sumloss/300)
@@ -188,14 +188,14 @@ func Train(m whale.Model, x, t *whale.Variable) {
 }
 
 func plot(x, t *tensor.Tensor) {
-	xs0 := []float64{}
-	ys0 := []float64{}
+	xs0 := []float32{}
+	ys0 := []float32{}
 
-	xs1 := []float64{}
-	ys1 := []float64{}
+	xs1 := []float32{}
+	ys1 := []float32{}
 
-	xs2 := []float64{}
-	ys2 := []float64{}
+	xs2 := []float32{}
+	ys2 := []float32{}
 
 	for i := range t.Size() {
 		// 0 / 1 / 2
