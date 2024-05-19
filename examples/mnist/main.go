@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"runtime/pprof"
-	"slices"
 
 	"github.com/hidetatz/whale"
 	ts "github.com/hidetatz/whale/tensor2"
@@ -22,49 +22,31 @@ func main() {
 	}
 	defer pprof.StopCPUProfile()
 
-	xi, ti, err := readMnistImages()
-	if err != nil {
-		panic(err)
-	}
-
-	xl, tl, err := readMnistLabels()
+	mnist, err := readMnist()
 	if err != nil {
 		panic(err)
 	}
 
 	layer := [][]int{{784, 1000}, {1000, 10}}
 	mlp := whale.NewMLP(layer, true, whale.NewSigmoid(), whale.NewSoftmaxCrossEntropy(), whale.NewSGD(0.01))
-	train(mlp, xi, xl)
+	train(mlp, mnist.Train)
 
 	// mlp.SaveGobFile("./mnist_mlp.gob")
 
 	test := 1000
 	correct := 0
 	for i := range test {
-		img := ti.pixels[i]
-		lbl := int(tl.labels[i])
+		testdata := mnist.Test[i]
+		lbl := testdata.label
 
-		y, err := mlp.Train(whale.NewVar(ts.Vector(img).Reshape(1, 28*28)))
-		if err != nil {
-			panic(err)
-		}
+		y := infer(mlp, []*MnistImage{testdata})
+		inferResult := int(y.GetData().Argmax(false, -1).AsScalar())
 
-		infer := int(y.GetData().Argmax(false, -1).AsScalar())
-		fmt.Printf("[%v] infer: %d, actual: %d\n", i, infer, lbl)
+		fmt.Printf("[%v] infer: %d, actual: %d\n", i, inferResult, lbl)
 
-		if infer != lbl {
+		if inferResult != lbl {
 			// visualize read image
-			for i, pix := range img {
-				if i%28 == 0 {
-					fmt.Printf("\n")
-				}
-				if pix == 0 {
-					fmt.Printf(" ")
-				} else {
-					fmt.Printf("X")
-				}
-			}
-			fmt.Printf("\n\n")
+			testdata.Print()
 		} else {
 			correct++
 		}
@@ -73,7 +55,22 @@ func main() {
 	fmt.Printf("overall correctness: %v / %v\n", correct, test)
 }
 
-func train(model whale.Model, xi *MnistImage, xl *MnistLabel) {
+func infer(model whale.Model, data []*MnistImage) *whale.Variable {
+	imgs := []float64{}
+	for j := range data {
+		imgs = append(imgs, data[j].pixels...)
+	}
+
+	x := whale.NewVar(ts.NdShape(imgs, len(data), len(data[0].pixels)))
+	y, err := model.Train(x)
+	if err != nil {
+		panic(err)
+	}
+
+	return y
+}
+
+func train(model whale.Model, data []*MnistImage) {
 	lossCalc := model.LossFn()
 	optim := model.Optimizer()
 
@@ -82,21 +79,18 @@ func train(model whale.Model, xi *MnistImage, xl *MnistLabel) {
 	for epoch := 0; epoch < 5; epoch++ {
 		sumloss := 0.0
 
-		for i := range xi.count / batch {
-			imgs := xi.pixels[i*batch : (i+1)*batch]
-			lbls := xl.labels[i*batch : (i+1)*batch]
+		for i := range len(data) / batch {
+			batchdata := data[i*batch : (i+1)*batch]
+			y := infer(model, batchdata)
 
-			x := slices.Concat(imgs...)
-			xv := whale.NewVar(ts.NdShape(x, batch, 28*28))
-
-			y, err := model.Train(xv)
-			if err != nil {
-				panic(err)
+			lbls := []float64{}
+			for j := range batchdata {
+				lbls = append(lbls, float64(batchdata[j].label))
 			}
 
-			tv := whale.NewVar(ts.Vector(lbls))
+			t := whale.NewVar(ts.Vector(lbls))
 
-			loss, err := lossCalc.Calculate(y, tv)
+			loss, err := lossCalc.Calculate(y, t)
 			if err != nil {
 				panic(err)
 			}
@@ -111,164 +105,136 @@ func train(model whale.Model, xi *MnistImage, xl *MnistLabel) {
 				optim.Optimize(p)
 			}
 
-			sumloss += loss.GetData().AsScalar() * float64(tv.Size())
+			sumloss += loss.GetData().AsScalar() * float64(t.Size())
 			if i%100 == 0 {
 				fmt.Println(epoch, ": ", i)
 			}
 		}
 
-		fmt.Println("epoch: ", epoch+1, ", train loss: ", sumloss/float64(xi.count), sumloss, xi.count)
+		fmt.Println("epoch: ", epoch+1, ", train loss: ", sumloss/float64(len(data)))
 	}
 }
 
 type MnistImage struct {
-	count  int
-	pixels [][]float64
+	label  int
+	pixels []float64
 }
 
-type MnistLabel struct {
-	count  int
-	labels []float64
-}
-
-func digits(i int) int {
-	if i == 0 {
-		return 1
+func (i *MnistImage) Print() {
+	for i, pix := range i.pixels {
+		if i%28 == 0 {
+			fmt.Printf("\n")
+		}
+		if pix == 0 {
+			fmt.Printf("  ")
+		} else {
+			fmt.Printf("XX")
+		}
 	}
-	count := 0
-	for i != 0 {
-		i /= 10
-		count++
-	}
-	return count
+	fmt.Printf("\n")
 }
 
-func readMnistImages() (x, t *MnistImage, err error) {
-	fn := func(filename string) (*MnistImage, error) {
-		f, err := os.Open(fmt.Sprintf("./examples/mnist/%s", filename))
+type Mnist struct {
+	Train []*MnistImage
+	Test  []*MnistImage
+}
+
+func readMnist() (*Mnist, error) {
+	fn := func(imgfilename, labelfilename string, mnist *Mnist, train bool) error {
+		readint32 := func(r io.Reader) int {
+			b := make([]byte, 4)
+			binary.Read(r, binary.BigEndian, &b)
+			return int(binary.BigEndian.Uint32(b))
+		}
+
+		/*
+		 * read image file
+		 */
+
+		imgf, err := os.Open(imgfilename)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		defer f.Close()
+		defer imgf.Close()
 
-		// read magic number
-		magic := make([]byte, 4)
-		if err = binary.Read(f, binary.BigEndian, &magic); err != nil {
-			return nil, err
-		}
-
-		if int(binary.BigEndian.Uint32(magic)) != 0x00000803 {
-			return nil, fmt.Errorf("unexpected magic")
+		magic := readint32(imgf)
+		if magic != 0x00000803 {
+			return fmt.Errorf("unexpected magic in image file")
 		}
 
-		mi := &MnistImage{}
+		imgcnt := readint32(imgf)
+		row := readint32(imgf)
+		col := readint32(imgf)
 
-		// read data count
-		num := make([]byte, 4)
-		if err = binary.Read(f, binary.BigEndian, &num); err != nil {
-			return nil, err
-		}
+		/*
+		 * read label file
+		 */
 
-		mi.count = int(binary.BigEndian.Uint32(num))
-		mi.pixels = make([][]float64, mi.count)
-
-		// read rows and cols
-		rows := make([]byte, 4)
-		if err = binary.Read(f, binary.BigEndian, &rows); err != nil {
-			return nil, err
-		}
-
-		r := int(binary.BigEndian.Uint32(rows))
-
-		cols := make([]byte, 4)
-		if err = binary.Read(f, binary.BigEndian, &cols); err != nil {
-			return nil, err
-		}
-
-		c := int(binary.BigEndian.Uint32(cols))
-
-		// read actual data
-		for i := range mi.count {
-			pixel := make([]byte, r*c)
-			if err = binary.Read(f, binary.BigEndian, &pixel); err != nil {
-				return nil, err
-			}
-
-			fs := make([]float64, len(pixel))
-			for j, b := range pixel {
-				fs[j] = float64(int(b)) / 255.0
-			}
-
-			mi.pixels[i] = fs
-		}
-
-		return mi, nil
-	}
-
-	x, err = fn("train-images-idx3-ubyte")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	t, err = fn("t10k-images-idx3-ubyte")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return x, t, nil
-}
-
-func readMnistLabels() (x, t *MnistLabel, err error) {
-	fn := func(filename string) (*MnistLabel, error) {
-		f, err := os.Open(fmt.Sprintf("./examples/mnist/%s", filename))
+		lblf, err := os.Open(labelfilename)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		defer f.Close()
+		defer lblf.Close()
 
-		// read magic number
-		magic := make([]byte, 4)
-		if err = binary.Read(f, binary.BigEndian, &magic); err != nil {
-			return nil, err
-		}
-
-		if int(binary.BigEndian.Uint32(magic)) != 0x00000801 {
-			return nil, fmt.Errorf("unexpected magic")
+		magic = readint32(lblf)
+		if magic != 0x00000801 {
+			return fmt.Errorf("unexpected magic in label file")
 		}
 
-		ml := &MnistLabel{}
+		lblcnt := readint32(lblf)
 
-		// read data count
-		num := make([]byte, 4)
-		if err = binary.Read(f, binary.BigEndian, &num); err != nil {
-			return nil, err
+		if imgcnt != lblcnt {
+			return fmt.Errorf("differenc image count (%v) and label count (%v)", imgcnt, lblcnt)
 		}
 
-		ml.count = int(binary.BigEndian.Uint32(num))
-		ml.labels = make([]float64, ml.count)
+		images := make([]*MnistImage, imgcnt)
 
-		// read actual label
-		for i := range ml.count {
+		for i := range imgcnt {
+			images[i] = &MnistImage{}
+
 			var lbl byte
-			if err = binary.Read(f, binary.BigEndian, &lbl); err != nil {
-				return nil, err
+			if err := binary.Read(lblf, binary.BigEndian, &lbl); err != nil {
+				return err
 			}
 
-			ml.labels[i] = float64(int(lbl))
+			images[i].label = int(lbl)
+
+			pixels := make([]byte, row*col)
+			if err = binary.Read(imgf, binary.BigEndian, &pixels); err != nil {
+				return err
+			}
+
+			floats := make([]float64, len(pixels))
+			for j, pixel := range pixels {
+				floats[j] = float64(int(pixel)) / 255.0
+			}
+
+			images[i].pixels = floats
 		}
 
-		return ml, nil
+		if train {
+			mnist.Train = images
+		} else {
+			mnist.Test = images
+		}
+
+		return nil
 	}
 
-	x, err = fn("train-labels-idx1-ubyte")
+	mnist := &Mnist{}
+
+	d := func(fname string) string {
+		return fmt.Sprintf("./examples/mnist/%s", fname)
+	}
+	err := fn(d("train-images-idx3-ubyte"), d("train-labels-idx1-ubyte"), mnist, true)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	t, err = fn("t10k-labels-idx1-ubyte")
+	err = fn(d("t10k-images-idx3-ubyte"), d("t10k-labels-idx1-ubyte"), mnist, false)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return x, t, nil
+	return mnist, nil
 }
