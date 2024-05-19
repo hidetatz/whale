@@ -27,17 +27,25 @@ func (er *tensorErrResponser) Index(args ...*IndexArg) (*Tensor, error) {
 	return r.t, nil
 }
 
+func indexargcheck(x *Tensor, indices []*IndexArg) error {
+	if x.IsScalar() {
+		return fmt.Errorf("index is not defined on scalar %v", x)
+	}
+
+	if len(indices) == 0 {
+		return fmt.Errorf("index accessor must not be empty")
+	}
+
+	if x.Ndim() < len(indices) {
+		return fmt.Errorf("too many index accessors specified: %v", indices)
+	}
+
+	return nil
+}
+
 func (t *Tensor) index(args ...*IndexArg) (*indexResult, error) {
-	if t.IsScalar() {
-		return nil, fmt.Errorf("index is not defined on scalar %v", t)
-	}
-
-	if len(args) == 0 {
-		return nil, fmt.Errorf("index accessor must not be empty")
-	}
-
-	if t.Ndim() < len(args) {
-		return nil, fmt.Errorf("too many index accessors specified: %v", args)
+	if err := indexargcheck(t, args); err != nil {
+		return nil, err
 	}
 
 	// if argument contains at least 1 tensor, advanced indexing will be applied.

@@ -1,54 +1,54 @@
 package tensor
 
-import "fmt"
-
-var (
-	ADD *add
+import (
+	"math"
 )
 
 var (
-	_ universalfunc = &add{}
+	EXP  = &universalfunc1{fn: func(f float64) float64 { return math.Exp(f) }}
+	NEG  = &universalfunc1{fn: func(f float64) float64 { return -f }}
+	SIN  = &universalfunc1{fn: func(f float64) float64 { return math.Sin(f) }}
+	COS  = &universalfunc1{fn: func(f float64) float64 { return math.Cos(f) }}
+	TANH = &universalfunc1{fn: func(f float64) float64 { return math.Tanh(f) }}
+	LOG  = &universalfunc1{fn: func(f float64) float64 { return math.Log(f) }}
 )
 
-type universalfunc interface {
-	At(x *Tensor, indices []*IndexArg, target *Tensor) error
+func (t *Tensor) Exp() *Tensor {
+	return EXP.Do(t)
 }
 
-type add struct{}
-
-func (a *add) At(x *Tensor, indices []*IndexArg, target *Tensor) error {
-	return ufuncAt(x, indices, func(orig, arg float64) float64 { return orig + arg }, target)
+func (t *Tensor) Neg() *Tensor {
+	return NEG.Do(t)
 }
 
-func ufuncAt(x *Tensor, indices []*IndexArg, fn func(orig, arg float64) float64, target *Tensor) error {
-	if x.IsScalar() {
-		return fmt.Errorf("index is not defined on scalar %v", x)
+func (t *Tensor) Sin() *Tensor {
+	return SIN.Do(t)
+}
+
+func (t *Tensor) Cos() *Tensor {
+	return COS.Do(t)
+}
+
+func (t *Tensor) Tanh() *Tensor {
+	return TANH.Do(t)
+}
+
+func (t *Tensor) Log() *Tensor {
+	return LOG.Do(t)
+}
+
+type universalfunc1 struct {
+	fn func(f float64) float64
+}
+
+func (u *universalfunc1) Do(t *Tensor) *Tensor {
+	d := make([]float64, t.Size())
+
+	iter := t.Iterator()
+	for iter.HasNext() {
+		i, v := iter.Next()
+		d[i] = u.fn(v)
 	}
 
-	if len(indices) == 0 {
-		return fmt.Errorf("index accessor must not be empty")
-	}
-
-	if x.Ndim() < len(indices) {
-		return fmt.Errorf("too many index accessors specified: %v", indices)
-	}
-
-	r, err := x.index(indices...)
-	if err != nil {
-		return err
-	}
-
-	tgt, err := target.ErrResponser().BroadcastTo(r.t.Shape...)
-	if err != nil {
-		return fmt.Errorf("operands could not broadcast together with shapes %v, %v", target.Shape, r.t.Shape)
-	}
-
-	it := tgt.Iterator()
-	for it.HasNext() {
-		i, tg := it.Next()
-		idx := r.origIndices[i]
-		x.data[idx] = fn(x.data[idx], tg)
-	}
-
-	return nil
+	return NdShape(d, copySlice(t.Shape)...)
 }
