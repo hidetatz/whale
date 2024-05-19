@@ -208,7 +208,7 @@ func (t *Tensor) advancedIndex(args ...*IndexArg) (*indexResult, error) {
 		}
 		if len(idx) < t.Ndim() {
 			for i := len(idx); i < t.Ndim(); i++ {
-				combi = append(combi, until(t.Shape[i]))
+				combi = append(combi, seq(0, t.Shape[i]))
 			}
 		}
 
@@ -422,7 +422,7 @@ func (t *Tensor) advancedAndBasicCombinedIndex(args ...*IndexArg) (*indexResult,
 		}
 		if len(idx) < t.Ndim() {
 			for i := len(idx); i < t.Ndim(); i++ {
-				combi = append(combi, until(t.Shape[i]))
+				combi = append(combi, seq(0, t.Shape[i]))
 			}
 		}
 

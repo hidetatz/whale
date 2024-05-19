@@ -17,22 +17,6 @@ func copySlice[T int | float64](s []T) []T {
 	return c
 }
 
-func copyArgs(a []*IndexArg) []*IndexArg {
-	c := make([]*IndexArg, len(a))
-	for i := range a {
-		c[i] = a[i].Copy()
-	}
-	return c
-}
-
-func until(v int) []int {
-	r := make([]int, v)
-	for i := range v {
-		r[i] = i
-	}
-	return r
-}
-
 func all[T int | float64](v T, length int) []T {
 	r := make([]T, length)
 	for i := range length {
