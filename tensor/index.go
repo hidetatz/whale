@@ -19,47 +19,25 @@ func (t *Tensor) Index(args ...*IndexArg) *Tensor {
 }
 
 func (er *tensorErrResponser) Index(args ...*IndexArg) (*Tensor, error) {
-	return er.t.indexForRead(args...)
+	r, err := er.t.index(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.t, nil
 }
 
-func (t *Tensor) checkIndexArgs(args ...*IndexArg) error {
+func (t *Tensor) index(args ...*IndexArg) (*indexResult, error) {
 	if t.IsScalar() {
-		return fmt.Errorf("index is not defined on scalar %v", t)
+		return nil, fmt.Errorf("index is not defined on scalar %v", t)
 	}
 
 	if len(args) == 0 {
-		return fmt.Errorf("index accessor must not be empty")
+		return nil, fmt.Errorf("index accessor must not be empty")
 	}
 
 	if t.Ndim() < len(args) {
-		return fmt.Errorf("too many index accessors specified: %v", args)
-	}
-
-	return nil
-}
-
-func (t *Tensor) indexForRead(args ...*IndexArg) (*Tensor, error) {
-	if err := t.checkIndexArgs(args...); err != nil {
-		return nil, err
-	}
-
-	// if argument contains at least 1 tensor, advanced indexing will be applied.
-	advanced := slices.ContainsFunc(args, func(arg *IndexArg) bool { return arg.typ == _tensor })
-	if advanced {
-		r, err := t.advancedIndex(args...)
-		if err != nil {
-			return nil, err
-		}
-
-		return r.t, nil
-	}
-
-	return t.basicIndexForRead(args...)
-}
-
-func (t *Tensor) indexForWrite(args ...*IndexArg) (*indexResult, error) {
-	if err := t.checkIndexArgs(args...); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("too many index accessors specified: %v", args)
 	}
 
 	// if argument contains at least 1 tensor, advanced indexing will be applied.
@@ -68,16 +46,15 @@ func (t *Tensor) indexForWrite(args ...*IndexArg) (*indexResult, error) {
 		return t.advancedIndex(args...)
 	}
 
-	return t.basicIndexForWrite(args...)
+	return t.basicIndex(args...)
 }
 
-// basicIndexForRead is a indexing method to work the same as numpy's basic indexing.
+// basicIndex is a indexing method to work the same as numpy's basic indexing.
 // https://numpy.org/doc/stable/user/basics.indexing.html#basic-indexing
 // Basic indexing happens when index arguments are only consists of integer and slice.
 // In basic indexing, the returned tensor might be a view of the original tensor t (might be sharing internal data with t).
 // This means only reading returned tensor is safe, but modifying it can break original t.
-func (t *Tensor) basicIndexForRead(args ...*IndexArg) (*Tensor, error) {
-	// fill args to be the same length as ndim
+func (t *Tensor) basicIndex(args ...*IndexArg) (*indexResult, error) {
 	if len(args) < t.Ndim() {
 		for _ = range t.Ndim() - len(args) {
 			args = append(args, All())
@@ -122,14 +99,7 @@ func (t *Tensor) basicIndexForRead(args ...*IndexArg) (*Tensor, error) {
 	newshape = slices.DeleteFunc(newshape, deldummy)
 	newstrides = slices.DeleteFunc(newstrides, deldummy)
 
-	return t.view(offset, newshape, newstrides), nil
-}
-
-func (t *Tensor) basicIndexForWrite(args ...*IndexArg) (*indexResult, error) {
-	newtensor, err := t.basicIndexForRead(args...)
-	if err != nil {
-		return nil, err
-	}
+	newtensor := t.view(offset, newshape, newstrides)
 
 	var origIndices []int
 	if newtensor.IsScalar() {

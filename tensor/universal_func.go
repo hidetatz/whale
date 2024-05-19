@@ -33,7 +33,7 @@ func ufuncAt(x *Tensor, indices []*IndexArg, fn func(orig, arg float64) float64,
 		return fmt.Errorf("too many index accessors specified: %v", indices)
 	}
 
-	r, err := x.indexForWrite(indices...)
+	r, err := x.index(indices...)
 	if err != nil {
 		return err
 	}

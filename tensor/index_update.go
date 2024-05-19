@@ -62,7 +62,7 @@ func (t *Tensor) indexPut(args []*IndexArg, fn func(orig, arg float64) float64, 
 		return fmt.Errorf("too many index accessors specified: %v", args)
 	}
 
-	r, err := t.indexForWrite(args...)
+	r, err := t.index(args...)
 	if err != nil {
 		return err
 	}
