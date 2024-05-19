@@ -92,7 +92,7 @@ func (t *Tensor) Copy() *Tensor {
 	nstrides := make([]int, len(t.Strides))
 	copy(nstrides, t.Strides)
 
-	return &Tensor{data: ndata, offset: t.offset, Shape: nshape, Strides: nstrides}
+	return &Tensor{data: ndata, offset: t.offset, Shape: nshape, Strides: nstrides, isview: t.isview}
 }
 
 // Flatten returns flattend 1-D array.
@@ -181,7 +181,7 @@ func (t *Tensor) tostring(linebreak bool) string {
 		if linebreak {
 			return fmt.Sprintf("%s[\n", indent) + strings.Join(outer, "\n") + fmt.Sprintf("\n%s]", indent)
 		} else {
-			return "[" + strings.Join(outer, ", ") + "]"
+			return "[" + strings.Join(outer, " ") + "]"
 		}
 	}
 
