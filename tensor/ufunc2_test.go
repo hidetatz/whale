@@ -2,7 +2,50 @@ package tensor
 
 import "testing"
 
-func TestAt_ADD(t *testing.T) {
+func TestUniversalfunc2_Do(t *testing.T) {
+	tests := []struct {
+		name      string
+		x         *Tensor
+		target    *Tensor
+		ufunc     *universalfunc2
+		expected  *Tensor
+		expectErr bool
+	}{
+		{
+			name:     "scalar",
+			x:        Scalar(3),
+			target:   Scalar(1),
+			ufunc:    ADD,
+			expected: Scalar(4),
+		},
+		{
+			name:     "vector",
+			x:        Vector([]float64{1, 2, 3, 4, 5}),
+			target:   Scalar(1),
+			ufunc:    ADD,
+			expected: Vector([]float64{2, 3, 4, 5, 6}),
+		},
+		{
+			name:     "2d",
+			x:        Vector([]float64{1, 2, 3, 4, 5, 6}).Reshape(2, 3),
+			target:   Vector([]float64{1, 2, 3}),
+			ufunc:    MUL,
+			expected: Vector([]float64{1, 4, 9, 4, 10, 18}).Reshape(2, 3),
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := tc.ufunc.Do(tc.x, tc.target)
+			checkErr(t, tc.expectErr, err)
+			mustEq(t, tc.expected, got)
+		})
+	}
+}
+
+func TestUniversalfunc2_At(t *testing.T) {
 	tests := []struct {
 		name      string
 		x         *Tensor
