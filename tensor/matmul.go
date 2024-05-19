@@ -20,7 +20,7 @@ func (t *Tensor) matrixCol(col int) []float64 {
 	return result
 }
 
-func (er *tensorErrResponser) Dot(t2 *Tensor) (*Tensor, error) {
+func (er *tensorErrResponser) Matmul(t2 *Tensor) (*Tensor, error) {
 	if er.t.Ndim() != 2 || t2.Ndim() != 2 {
 		return nil, fmt.Errorf("Dot() requires matrix x matrix but got shape %v x %v", er.t.Shape, t2.Shape)
 	}
@@ -78,6 +78,6 @@ func (er *tensorErrResponser) Dot(t2 *Tensor) (*Tensor, error) {
 	return RespErr.NdShape(data, newshape...)
 }
 
-func (t *Tensor) Dot(t2 *Tensor) *Tensor {
-	return MustGet(t.ErrResponser().Dot(t2))
+func (t *Tensor) Matmul(t2 *Tensor) *Tensor {
+	return MustGet(t.ErrResponser().Matmul(t2))
 }

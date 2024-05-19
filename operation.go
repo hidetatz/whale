@@ -683,7 +683,7 @@ type matmul struct {
 }
 
 func (m *matmul) Forward(inputs ...*Variable) ([]*Variable, error) {
-	return asvars(m.x.data.Dot(m.w.data)), nil
+	return asvars(m.x.data.Matmul(m.w.data)), nil
 }
 
 func (m *matmul) Backward(gy ...*Variable) ([]*Variable, error) {

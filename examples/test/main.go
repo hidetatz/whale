@@ -40,7 +40,7 @@ func main() {
 	// t3 := tensor.Arange(0, 100*10, 1).Reshape(100, 10)
 
 	//for _ = range 600 {
-	fmt.Println(t1.Dot(t2))
+	fmt.Println(t1.Matmul(t2))
 	//		r2 := r.Dot(t3)
 	//		_, _ = r, r2
 	//	}
