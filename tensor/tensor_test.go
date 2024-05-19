@@ -156,6 +156,6 @@ func TestString(t *testing.T) {
 	musteq(t, got, `([], shape=[0 1 1])`)
 
 	tensor = Arange(1, 7, 1).Reshape(2, 3)
-	musteq(t, tensor.OnelineString(), `[[1, 2, 3] [4, 5, 6]]`)
+	musteq(t, tensor.OnelineString(), `[[1, 2, 3], [4, 5, 6]]`)
 	musteq(t, tensor.Raw(), "{data: [1 2 3 4 5 6], offset: 0, Shape: [2 3], Strides: [3 1], isview: true}")
 }

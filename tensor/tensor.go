@@ -181,7 +181,7 @@ func (t *Tensor) tostring(linebreak bool) string {
 		if linebreak {
 			return fmt.Sprintf("%s[\n", indent) + strings.Join(outer, "\n") + fmt.Sprintf("\n%s]", indent)
 		} else {
-			return "[" + strings.Join(outer, " ") + "]"
+			return "[" + strings.Join(outer, ", ") + "]"
 		}
 	}
 
