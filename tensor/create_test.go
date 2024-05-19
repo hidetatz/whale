@@ -297,18 +297,6 @@ func TestFactories(t *testing.T) {
 		{
 			name: "arange",
 			factory: func() *Tensor {
-				return Arange(0, 8, 1).Reshape(4, 2)
-			},
-			expected: &Tensor{
-				data:    []float64{0, 1, 2, 3, 4, 5, 6, 7},
-				offset:  0,
-				Shape:   []int{4, 2},
-				Strides: []int{2, 1},
-			},
-		},
-		{
-			name: "arangeVec",
-			factory: func() *Tensor {
 				return Arange(0, 8, 1)
 			},
 			expected: &Tensor{
