@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hidetatz/whale"
-	tensor "github.com/hidetatz/whale/tensor2"
+	"github.com/hidetatz/whale/tensor"
 )
 
 var p = whale.NewPlot()

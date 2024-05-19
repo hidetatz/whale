@@ -5,7 +5,7 @@ import (
 	"math"
 	"os"
 
-	tensor "github.com/hidetatz/whale/tensor2"
+	"github.com/hidetatz/whale/tensor"
 )
 
 type MLP struct {

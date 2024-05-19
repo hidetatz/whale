@@ -1,4 +1,4 @@
-package tensor2
+package tensor
 
 import (
 	"os"

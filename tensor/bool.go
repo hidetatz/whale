@@ -1,4 +1,4 @@
-package tensor2
+package tensor
 
 func (t *Tensor) Bool(f func(f float64) bool) *Tensor {
 	d := make([]float64, t.Size())

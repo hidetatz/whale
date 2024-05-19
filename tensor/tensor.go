@@ -2,178 +2,53 @@ package tensor
 
 import (
 	"fmt"
-	"math/rand"
 	"slices"
 	"strings"
 )
 
+// Tensor is a multi dimensional array.
+// A scalar, vector, matrix, and tensor which has more than 3-dimension can be
+// represented using Tensor.
 type Tensor struct {
-	Data  []float64
+	data   []float64
+	offset int
+
+	// Shape is a shape of the tensor.
+	// Empty shape means the tensor is actually a scalar.
+	// Writing Shape directly makese the tensor invalid state, so it should not be done
+	// on library client side.
 	Shape []int
+
+	// Strides is a interval between the value on an axis.
+	// The length of strides must be the same with Shape, and len(Shape) == len(Strides) == dimension number.
+	// Writing Strides directly makes the tensor invalid state, so it should not be done
+	// on library client side.
+	Strides []int
+
+	isview bool
 }
 
-// Empty returns empty tensor.
-func Empty() *Tensor {
-	return &Tensor{}
+// ErrResponser returns a special object error responser.
+// All the tensor methods called via the returned object from ErrResponser()
+// uses a method which has return type error.
+// Without using ErrResponser, most methods panics on error.
+func (t *Tensor) ErrResponser() *tensorErrResponser {
+	return &tensorErrResponser{t: t}
 }
 
-// Scalar returns tensor as scalar.
-func Scalar(s float64) *Tensor {
-	return &Tensor{Data: []float64{s}}
+// Equals returns if t and t2 are logically the same.
+func (t *Tensor) Equals(t2 *Tensor) bool {
+	return slices.Equal(t.Shape, t2.Shape) && slices.Equal(t.Flatten(), t2.Flatten())
 }
 
-// Vector returns tensor as vector.
-func Vector(v []float64) *Tensor {
-	return &Tensor{Data: v, Shape: []int{len(v)}}
-}
-
-// MustNd returns multi dimensional array but panics on error.
-func MustNd(data []float64, shape ...int) *Tensor {
-	t, err := Nd(data, shape...)
-	if err != nil {
-		panic(err)
-	}
-
-	return t
-}
-
-// Nd returns multi dimensional array.
-// If the shape is empty, the given data is treated as vector.
-func Nd(data []float64, shape ...int) (*Tensor, error) {
-	if len(shape) == 0 {
-		if len(data) == 1 {
-			return Scalar(data[0]), nil
-		}
-		return Vector(data), nil
-	}
-
-	t := total(shape)
-	if len(data) != t {
-		return nil, fmt.Errorf("invalid shape, mismatch with data length")
-	}
-
-	return &Tensor{Data: data, Shape: shape}, nil
-}
-
-// Rand creates a tensor by the given shape with randomized value [0.0, 1.0).
-func Rand(shape ...int) *Tensor {
-	data := make([]float64, total(shape))
-	for i := range data {
-		data[i] = rand.Float64()
-	}
-	t, _ := Nd(data, shape...) // error never happens
-	return t
-}
-
-// RandNorm creates a tensor by the given shape
-// with values with distribution (mean = 0, stddev = 1).
-func RandNorm(shape ...int) *Tensor {
-	data := make([]float64, total(shape))
-	for i := range data {
-		data[i] = rand.NormFloat64()
-	}
-	t, _ := Nd(data, shape...) // error never happens
-	return t
-}
-
-// Zeros creates a tensor by the given shape with all values 0.
-func Zeros(shape ...int) *Tensor {
-	data := make([]float64, total(shape)) // initialized by 0
-	t, _ := Nd(data, shape...)            // error never happens
-	return t
-}
-
-// ZerosLike creates a tensor by the given tensor's shape with all values 0.
-func ZerosLike(t *Tensor) *Tensor {
-	return Zeros(t.Shape...)
-}
-
-// Ones creates a tensor by the given shape with all values 1.
-func Ones(shape ...int) *Tensor {
-	data := make([]float64, total(shape))
-	for i := range data {
-		data[i] = 1
-	}
-	t, _ := Nd(data, shape...) // error never happens
-	return t
-}
-
-// OnesLike creates a tensor by the given tensor's shape with all values 1.
-func OnesLike(t *Tensor) *Tensor {
-	return Ones(t.Shape...)
-}
-
-// All creates a tensor by the given shape with given value.
-func All(v float64, shape ...int) *Tensor {
-	data := make([]float64, total(shape))
-	for i := range data {
-		data[i] = v
-	}
-	t, _ := Nd(data, shape...) // error never happens
-	return t
-}
-
-// Arange creates a tensor which has data between from and to by the given interval.
-// If shape is not given, it is treated as vector.
-// If from is bigger than to, the empty will be returned.
-func Arange(from, to, interval float64, shape ...int) (*Tensor, error) {
-	data := make([]float64, int((to-from)/interval))
-	for i := range data {
-		data[i] = from + interval*float64(i)
-	}
-
-	if len(shape) == 0 {
-		return Vector(data), nil
-	}
-
-	t, err := Nd(data, shape...)
-	if err != nil {
-		return nil, err
-	}
-
-	return t, nil
-}
-
-func ArangeVec(from, to, interval float64) *Tensor {
-	data := make([]float64, int((to-from)/interval))
-	for i := range data {
-		data[i] = from + interval*float64(i)
-	}
-
-	return Vector(data)
-}
-
-func RandomPermutation(x int) *Tensor {
-	perm := rand.Perm(x)
-	r := make([]float64, len(perm))
-	for i := range perm {
-		r[i] = float64(perm[i])
-	}
-
-	return Vector(r)
-}
-
-func MeshGrid(t1, t2 *Tensor) (*Tensor, *Tensor, error) {
-	if !t1.IsVector() || !t2.IsVector() {
-		return nil, nil, fmt.Errorf("argument must be vector")
-	}
-
-	t1len := len(t1.Data)
-	t2len := len(t2.Data)
-
-	shape := []int{t2len, t1len}
-	r1 := t1.Tile(t2len)
-	r1.Shape = shape
-
-	r2 := t2.Tile(t1len)
-	r2.Shape = shape
-
-	return r1, r2, nil
-}
-
-// Dim returns the dimension number.
-func (t *Tensor) Dim() int {
+// Ndim returns the dimension number.
+func (t *Tensor) Ndim() int {
 	return len(t.Shape)
+}
+
+// Size returns the tensor size.
+func (t *Tensor) Size() int {
+	return product(t.Shape)
 }
 
 // IsScalar returns true if the tensor is internally a scalar.
@@ -181,810 +56,138 @@ func (t *Tensor) IsScalar() bool {
 	return len(t.Shape) == 0
 }
 
+// AsScalar returns a concrete type scalar value of the tensor.
+// Note that AsScalar internally does not check if t is a scalar,
+// it is caller's responsibility.
+func (t *Tensor) AsScalar() float64 {
+	return t.data[t.offset]
+}
+
 // IsVector returns true if the tensor is internally a vector.
 func (t *Tensor) IsVector() bool {
 	return len(t.Shape) == 1
 }
 
-// Strides returns the stride of the tensor.
-// Stride is the intervel count between the next dimension.
-func (t *Tensor) Strides() []int {
-	return toStrides(t.Shape)
+// AsScalar returns a concrete type vector slice of the tensor.
+// Note that AsVector internally does not check if t is a vector,
+// it is caller's responsibility.
+func (t *Tensor) AsVector() []float64 {
+	indices := cartesianIdx(t.Shape)
+	result := make([]float64, t.Shape[0])
+	for i, index := range indices {
+		f := t.Index(index...)
+		result[i] = f.AsScalar()
+	}
+	return result
 }
 
-// String implements Stringer interface.
-func (t *Tensor) String() string {
-	if len(t.Data) == 0 {
-		return fmt.Sprintf("[]")
-	}
-
-	if t.IsScalar() {
-		return fmt.Sprintf("%v", t.Data[0])
-	}
-
-	if t.IsVector() {
-		return fmt.Sprintf("%v", t.Data)
-	}
-
-	var sb strings.Builder
-
-	var w func(index []int)
-	w = func(index []int) {
-		indent := strings.Repeat("  ", len(index))
-
-		if len(index) == len(t.Shape)-1 {
-			strides := t.Strides()
-			vars := []string{}
-			for i := 0; i < t.Shape[len(t.Shape)-1]; i++ {
-				idx := 0
-				for j := range index {
-					idx += index[j] * strides[j]
-				}
-				idx += i * strides[len(strides)-1]
-				vars = append(vars, fmt.Sprintf("%.2f", t.Data[idx]))
-			}
-			sb.WriteString(fmt.Sprintf("%s[%s]\n", indent, strings.Join(vars, ", ")))
-			return
-		}
-
-		sb.WriteString(fmt.Sprintf("%s[\n", indent))
-		for i := 0; i < t.Shape[len(index)]; i++ {
-			w(append(index, i))
-		}
-
-		sb.WriteString(fmt.Sprintf("%s]\n", indent))
-	}
-
-	w([]int{})
-	return sb.String()
-}
-
-// Equals retuens true is the 2 tensors are semantically the same.
-// Even if they are on the different memory, if their data and shape are the same,
-// it is treated as the same.
-func (t *Tensor) Equals(t2 *Tensor) bool {
-	return slices.Equal(t.Shape, t2.Shape) && slices.Equal(t.Data, t2.Data)
-}
-
-// Reshape returns an newly created tensor which has the same data, and the specified shape.
-func (t *Tensor) Reshape(shape ...int) (*Tensor, error) {
-	t2 := t.Copy()
-	return Nd(t2.Data, shape...)
-}
-
-// Copy creates a copy of the tensor.
+// Copy returns a copy of t.
 func (t *Tensor) Copy() *Tensor {
-	ndata := make([]float64, len(t.Data))
-	copy(ndata, t.Data)
+	ndata := make([]float64, len(t.data))
+	copy(ndata, t.data)
 
 	nshape := make([]int, len(t.Shape))
 	copy(nshape, t.Shape)
 
-	return &Tensor{Data: ndata, Shape: nshape}
+	nstrides := make([]int, len(t.Strides))
+	copy(nstrides, t.Strides)
+
+	return &Tensor{data: ndata, offset: t.offset, Shape: nshape, Strides: nstrides}
 }
 
-// Transpose transposes the tensor by the given axis.
-// If empty is given, all the axes are reversed.
-func (t *Tensor) Transpose(axes ...int) (*Tensor, error) {
+// Flatten returns flattend 1-D array.
+func (t *Tensor) Flatten() []float64 {
 	if t.IsScalar() {
-		return t.Copy(), nil
+		return []float64{t.AsScalar()}
 	}
 
-	if len(axes) == 0 {
-		// if empty, create [0, 1, 2...] slice and reverses it
-		axes = seqi(0, len(t.Shape))
-		slices.Reverse(axes)
+	// fast path: no need to calculate cartesian from strides
+	if !t.isview {
+		return copySlice(t.data)
 	}
 
-	// check axes validity.
-	// Let's say the dimension is 5,
-	// axes must be the arbitrarily sorted slice of [0, 1, 2, 3, 4].
-
-	// First check length
-	if len(axes) != len(t.Shape) {
-		return nil, fmt.Errorf("invalid axes length: must be the same as the length of shape")
-	}
-
-	// Second, check if all the values are between 0 to dim.
-	if slices.ContainsFunc(axes, func(n int) bool {
-		if n < 0 || t.Dim() <= n {
-			return true
+	indices := cartesian(t.Shape)
+	result := make([]float64, len(indices))
+	for i, index := range indices {
+		rawIdx := t.offset
+		for j, idx := range index {
+			rawIdx += t.Strides[j] * idx
 		}
-		return false
-	}) {
-		return nil, fmt.Errorf("invalid value in axes: must be in 0 to dim")
+		result[i] = t.data[rawIdx]
 	}
-
-	// Last, check if all the values are unique.
-	copied := make([]int, len(axes))
-	copy(copied, axes)
-	slices.Sort(copied)
-	copied = slices.Compact(copied)
-	if len(axes) != len(copied) {
-		return nil, fmt.Errorf("invalid value in axes: duplicate value contained")
-	}
-
-	// do transpose
-
-	newShape := make([]int, len(t.Shape))
-	for i := range axes {
-		newShape[i] = t.Shape[axes[i]]
-	}
-
-	newStrides := toStrides(newShape)
-
-	curIndices := t.ValueIndices()
-
-	newData := make([]float64, len(t.Data))
-	for _, curidx := range curIndices {
-		newIdx := make([]int, len(t.Shape))
-		for i, axis := range axes {
-			newIdx[i] += curidx.Idx[axis]
-		}
-
-		dataIdx := 0
-		for i := range newIdx {
-			dataIdx += newStrides[i] * newIdx[i]
-		}
-		newData[dataIdx] = curidx.Value
-	}
-
-	return &Tensor{Data: newData, Shape: newShape}, nil
-}
-
-// ValueIndex is a pair of value and index ([a, b, c...]) in a tensor.
-type ValueIndex struct {
-	Idx   []int
-	Value float64
-}
-
-func (i *ValueIndex) Copy() *ValueIndex {
-	return &ValueIndex{Value: i.Value, Idx: copySlice(i.Idx)}
-}
-
-func (i *ValueIndex) String() string {
-	return fmt.Sprintf("{%v: %v}", i.Idx, i.Value)
-}
-
-// ValueIndices returns every value's index in the tensor.
-func (t *Tensor) ValueIndices() []*ValueIndex {
-	strides := t.Strides()
-
-	indices := []*ValueIndex{}
-	var f func(idx []int)
-	f = func(idx []int) {
-		if len(idx) == len(t.Shape) {
-			c := copySlice(idx)
-			i := 0
-			for j := range c {
-				i += c[j] * strides[j]
-			}
-			indices = append(indices, &ValueIndex{Idx: c, Value: t.Data[i]})
-			return
-		}
-
-		for i := 0; i < t.Shape[len(idx)]; i++ {
-			f(append(idx, i))
-		}
-	}
-
-	f([]int{})
-
-	return indices
-}
-
-// SubTensor returns the part of the tensor based on the given index.
-// Returned tensor is newly created one and does not have connection to the origin.
-func (t *Tensor) SubTensor(index []int) (*Tensor, error) {
-	if len(index) > len(t.Shape) {
-		return nil, fmt.Errorf("too many index specified")
-	}
-
-	curStride := t.Strides()
-	newShape := t.CopyShape()[len(index):]
-	length := total(newShape)
-
-	newData := make([]float64, length)
-
-	start := 0
-	for i := range index {
-		if index[i] > t.Shape[i]-1 || index[i] < 0 {
-			return nil, fmt.Errorf("invalid index: %v", index)
-		}
-		start += curStride[i] * index[i]
-	}
-	for i := 0; i < length; i++ {
-		newData[i] = t.Data[start+i]
-	}
-	return Nd(newData, newShape...)
-}
-
-// Tile repeats the tensor by the given reps like tile.
-func (t *Tensor) Tile(reps ...int) *Tensor {
-	if slices.Contains(reps, 0) {
-		return Empty()
-	}
-
-	shape := t.CopyShape()
-
-	// unify the length of shape and reps
-	if len(shape) < len(reps) {
-		delta := len(reps) - len(shape)
-		shape = append(all(1, delta), shape...)
-	} else if len(reps) < len(shape) {
-		delta := len(shape) - len(reps)
-		reps = append(all(1, delta), reps...)
-	}
-
-	tmpt := t.Copy()
-	tmpt.Shape = shape
-
-	var r func(dim int, index []int) []float64
-	r = func(dim int, index []int) []float64 {
-		if len(index) == dim {
-			data := []float64{}
-			tmpd := []float64{}
-			for i := 0; i < tmpt.Shape[dim]; i++ {
-				sub, err := tmpt.SubTensor(append(index, i))
-				if err != nil {
-					panic(err)
-				}
-				tmpd = append(tmpd, sub.Data...)
-			}
-			data = append(data, repeat(tmpd, reps[dim])...)
-			return data
-		}
-
-		data := []float64{}
-		for i := 0; i < tmpt.Shape[dim]; i++ {
-			tmpd := r(dim, append(index, i))
-			data = append(data, tmpd...)
-		}
-
-		return data
-	}
-
-	for i := 0; i < len(shape); i++ {
-		indices := tmpt.indicesBy(i)
-		data := []float64{}
-		for _, index := range indices {
-			data = append(data, r(i, index)...)
-		}
-		shape[i] *= reps[i]
-
-		tt, err := Nd(data, shape...)
-		if err != nil {
-			panic(err)
-		}
-
-		tmpt = tt
-	}
-
-	return tmpt
-}
-
-func (t *Tensor) indicesBy(dim int) [][]int {
-	var indices [][]int
-	index := make([]int, dim)
-
-	var generate func(int)
-	generate = func(d int) {
-		if d == dim {
-			indices = append(indices, append([]int{}, index...))
-			return
-		}
-
-		for i := 0; i < t.Shape[d]; i++ {
-			index[d] = i
-			generate(d + 1)
-		}
-	}
-
-	generate(0)
-	return indices
-}
-
-// Sum returns the sum of array elements over a given axes.
-// If the empty axes is passed, calculates all values sum.
-func (t *Tensor) Sum(keepdims bool, axes ...int) (*Tensor, error) {
-	if len(axes) == 0 {
-		// when axes is empty, sum all.
-		var result float64
-		for i := range t.Data {
-			result += t.Data[i]
-		}
-
-		if keepdims {
-			return Nd([]float64{result}, all(1, len(t.Shape))...)
-		}
-
-		return Scalar(result), nil
-	}
-
-	// check axes
-	copied := copySlice(axes)
-	slices.Sort(copied)
-	copied = slices.Compact(copied)
-	if len(copied) != len(axes) {
-		return nil, fmt.Errorf("duplicate value in axes: %v", axes)
-	}
-
-	if slices.ContainsFunc(copied, func(axis int) bool {
-		return axis > len(t.Shape)-1 || axis < 0
-	}) {
-		return nil, fmt.Errorf("axis out of bounds: %v", axes)
-	}
-
-	slices.Sort(axes)
-
-	// else, sum by axis
-
-	sumAxis := func(t *Tensor, axis int) []float64 {
-		indexValues := t.ValueIndices()
-		civ := make([]*ValueIndex, len(indexValues))
-		for i := range indexValues {
-			civ[i] = indexValues[i].Copy()
-		}
-
-		find := func(idx ...int) float64 {
-			for _, index := range civ {
-				if slices.Equal(index.Idx, idx) {
-					return index.Value
-				}
-			}
-			panic("unexpected to come here")
-		}
-
-		indices := make([][]int, len(indexValues))
-		for i, iv := range indexValues {
-			indices[i] = iv.Idx
-		}
-		// unique
-		uindices := [][]int{}
-		for _, index := range indices {
-			ni := append(index[:axis], index[axis+1:]...)
-			found := false
-			for _, ui := range uindices {
-				if slices.Equal(ui, ni) {
-					found = true
-				}
-			}
-
-			if !found {
-				uindices = append(uindices, ni)
-			}
-		}
-
-		dim := t.Shape[axis]
-		result := []float64{}
-		for _, index := range uindices {
-			sum := 0.0
-			for i := 0; i < dim; i++ {
-				copied := make([]int, len(index))
-				copy(copied, index)
-				tmpi := append(copied[:axis], append([]int{i}, copied[axis:]...)...)
-				sum += find(tmpi...)
-			}
-			result = append(result, sum)
-		}
-
-		return result
-	}
-
-	nt := t.Copy()
-
-	for _, axis := range axes {
-		data := sumAxis(nt, axis)
-		nt.Shape[axis] = 1
-		nt.Data = data
-	}
-
-	if !keepdims {
-		return nt.Squeeze(axes...)
-	}
-
-	return nt, nil
-}
-
-// Squeeze removes dimension which is 1.
-func (t *Tensor) Squeeze(axes ...int) (*Tensor, error) {
-	curshape := t.CopyShape()
-	for _, axis := range axes {
-		if curshape[axis] != 1 {
-			return nil, fmt.Errorf("non-1 axis is specified")
-		}
-	}
-
-	newshape := []int{}
-	for i, dim := range curshape {
-		if dim != 1 {
-			newshape = append(newshape, dim)
-			continue
-		}
-
-		if len(axes) != 0 && !slices.Contains(axes, i) {
-			newshape = append(newshape, dim)
-		}
-	}
-
-	if len(newshape) == 0 {
-		return Scalar(t.Data[0]), nil
-	}
-
-	if len(newshape) == 1 {
-		return Vector(t.Data), nil
-	}
-
-	return Nd(t.Data, newshape...)
-}
-
-// SumTo tries to sum to be the given shape.
-func (t *Tensor) SumTo(shape ...int) (*Tensor, error) {
-	ndim := len(shape)
-	lead := t.Dim() - ndim
-	leadAxis := seqi(0, lead)
-
-	var axes []int
-	for i, dim := range shape {
-		if dim == 1 {
-			axes = append(axes, i+lead)
-		}
-	}
-
-	y, err := t.Sum(true, append(leadAxis, axes...)...)
-	if err != nil {
-		return nil, err
-	}
-
-	if lead > 0 {
-		y2, err := y.Squeeze(leadAxis...)
-		if err != nil {
-			return nil, err
-		}
-		y = y2
-	}
-
-	return y, nil
-}
-
-// BroadcastTo tries to broadcast the tensor.
-func (t *Tensor) BroadcastTo(shape ...int) (*Tensor, error) {
-	if len(t.Shape) > len(shape) {
-		return nil, fmt.Errorf("invalid desired shape")
-	}
-
-	newshape := t.CopyShape()
-	if len(t.Shape) != len(shape) {
-		delta := len(shape) - len(t.Shape)
-		newshape = append(all(1, delta), newshape...)
-	}
-
-	nt, err := t.Reshape(newshape...)
-	if err != nil {
-		return nil, err
-	}
-
-	tile := []int{}
-	for i := range shape {
-		if shape[i] == newshape[i] {
-			tile = append(tile, 1)
-			continue
-		}
-
-		if shape[i] != 1 && newshape[i] != 1 {
-			return nil, fmt.Errorf("cannot broadcast: either dim must be 1 (original: %v, target: %v)", shape[i], newshape[i])
-		}
-
-		tile = append(tile, shape[i])
-	}
-
-	return nt.Tile(tile...), nil
-}
-
-// ToBool creates a new tensor like t but values are only 0 or 1.
-func (t *Tensor) ToBool(fn func(f float64) bool) *Tensor {
-	c := t.Copy()
-	for i := range c.Data {
-		if fn(c.Data[i]) {
-			c.Data[i] = 1
-		} else {
-			c.Data[i] = 0
-		}
-	}
-
-	return c
-}
-
-// Slice slices the tensor by the given params.
-// Negative index works like Python, it is treated as (length + [neg index]).
-func (t *Tensor) Slice(start, end, step int) (*Tensor, error) {
-	if step == 0 {
-		return nil, fmt.Errorf("slice step must not be 0")
-	}
-
-	if t.IsScalar() {
-		return nil, fmt.Errorf("scalar cannot be sliced")
-	}
-
-	length := t.Shape[0]
-
-	// Python style negative index
-	handleNeg := func(i int) int {
-		if i < 0 {
-			return length + i
-		}
-		return i
-	}
-
-	start = handleNeg(start)
-	end = handleNeg(end)
-
-	if start < end && step < 0 {
-		return Empty(), nil
-	}
-
-	if end < start && 0 < step {
-		return Empty(), nil
-	}
-
-	d := 0
-	data := []float64{}
-	if start < end {
-		for i := start; i < end; i += step {
-			if i < 0 || length <= i {
-				continue
-			}
-			sb, err := t.SubTensor([]int{i})
-			if err != nil {
-				return nil, err
-			}
-			data = append(data, sb.Data...)
-			d++
-		}
-	} else {
-		for i := start; end < i; i += step {
-			if i < 0 || length <= i {
-				continue
-			}
-			sb, err := t.SubTensor([]int{i})
-			if err != nil {
-				return nil, err
-			}
-			data = append(data, sb.Data...)
-			d++
-		}
-	}
-
-	newshape := t.CopyShape()
-	newshape[0] = d
-
-	return Nd(data, newshape...)
-}
-
-// Indices returns a new tensor indexed from t.
-// All the given indices must be vector.
-func (t *Tensor) Indices(indices ...*Tensor) (*Tensor, error) {
-	if len(indices) == 0 {
-		return nil, fmt.Errorf("indices must not be empty")
-	}
-
-	if len(indices) > len(t.Shape) {
-		return nil, fmt.Errorf("too many indices given")
-	}
-
-	if t.IsScalar() {
-		return nil, fmt.Errorf("scalar cannot be indexed")
-	}
-
-	length := len(indices[0].Data)
-	for _, idx := range indices {
-		if !idx.IsVector() {
-			return nil, fmt.Errorf("currently idx must be vector but got %v", idx)
-		}
-
-		// todo: broadcast
-		if length != len(idx.Data) {
-			return nil, fmt.Errorf("all index must be the same length")
-		}
-	}
-
-	intIndices := [][]int{}
-	for i := 0; i < length; i++ {
-		ints := make([]int, len(indices))
-		for j, index := range indices {
-			ints[j] = int(index.Data[i])
-		}
-
-		intIndices = append(intIndices, ints)
-	}
-
-	newdata := []float64{}
-	for _, index := range intIndices {
-		sb, err := t.SubTensor(index)
-		if err != nil {
-			return nil, err
-		}
-		newdata = append(newdata, sb.Data...)
-	}
-
-	newshape := append(indices[0].CopyShape(), t.CopyShape()[len(indices):]...)
-	return Nd(newdata, newshape...)
-}
-
-func (t *Tensor) AddAt(indices []*Tensor, val *Tensor) (*Tensor, error) {
-	c := t.Copy()
-
-	is, err := c.Indices(indices...)
-	if err != nil {
-		return nil, err
-	}
-
-	broadcasted, err := val.Copy().BroadcastTo(is.CopyShape()...)
-	if err != nil {
-		return nil, err
-	}
-
-	intIndices := [][]int{}
-	for i := 0; i < len(indices[0].Data); i++ {
-		ints := make([]int, len(indices))
-		for j, index := range indices {
-			ints[j] = int(index.Data[i])
-		}
-
-		intIndices = append(intIndices, ints)
-	}
-
-	startswith := func(a, b []int) bool {
-		for i := range a {
-			if a[i] != b[i] {
-				return false
-			}
-		}
-		return true
-	}
-
-	vis := c.ValueIndices()
-	for i, ints := range intIndices {
-		for _, vi := range vis {
-			// todo: can be optimized?
-			if startswith(ints, vi.Idx) {
-				vi.Value += broadcasted.Data[i]
-			}
-		}
-	}
-
-	data := make([]float64, len(vis))
-	for i, vi := range vis {
-		data[i] = vi.Value
-	}
-
-	c.Data = data
-
-	return c, nil
-}
-
-// CopyShape returns the copy of the tensor shape.
-func (t *Tensor) CopyShape() []int {
-	return copySlice(t.Shape)
-}
-
-func (t *Tensor) Argmax(axis int) (*Tensor, error) {
-	if t.Dim()-1 < axis {
-		return nil, fmt.Errorf("too big axis")
-	}
-
-	max := func(s []float64) int {
-		maxarg := 0
-		maxv := s[0]
-		for i, f := range s {
-			if maxv < f {
-				maxarg = i
-			}
-		}
-		return maxarg
-	}
-
-	if axis < 0 {
-		return Scalar(float64(max(t.Data))), nil
-	}
-
-	length := total(t.Shape) / t.Shape[axis]
-	maxes := make([]float64, length)
-	args := make([][]float64, length)
-
-	cts := copySlice(t.Shape)
-	tmpIndices := combinations(append(cts[:axis], cts[axis+1:]...))
-	for i := 0; i < length; i++ {
-		arg := make([]float64, t.Shape[axis])
-		for j := 0; j < t.Shape[axis]; j++ {
-			ti := append(tmpIndices[i][:axis], append([]int{j}, tmpIndices[i][axis:]...)...)
-			t2, err := t.SubTensor(ti)
-			if err != nil {
-				return nil, err
-			}
-			arg[j] = t2.Data[0]
-		}
-		args[i] = arg
-	}
-
-	for i, arg := range args {
-		maxes[i] = float64(max(arg))
-	}
-
-	newShape := append(t.Shape[:axis], t.Shape[axis+1:]...)
-	return Nd(maxes, newShape...)
-}
-
-func combinations(a []int) [][]int {
-	var result [][]int
-	var current []int
-	var generate func(int)
-	generate = func(pos int) {
-		if pos == len(a) {
-			temp := make([]int, len(current))
-			copy(temp, current)
-			result = append(result, temp)
-			return
-		}
-		for i := 0; i < a[pos]; i++ {
-			current = append(current, i)
-			generate(pos + 1)
-			current = current[:len(current)-1]
-		}
-	}
-	generate(0)
 	return result
 }
 
-func copySlice(s []int) []int {
-	c := make([]int, len(s))
-	copy(c, s)
-	return c
+// Raw prints the tensor raw internal structure for debug purpose.
+func (t *Tensor) Raw() string {
+	return fmt.Sprintf("{data: %v, offset: %v, Shape: %v, Strides: %v, isview: %v}", t.data, t.offset, t.Shape, t.Strides, t.isview)
 }
 
-func seq(from, to float64) []float64 {
-	r := make([]float64, int(to-from))
-	for i := from; i < to; i++ {
-		r[int(i-from)] = float64(i)
-	}
-	return r
+// String implements fmt.Stringer interface.
+func (t *Tensor) String() string {
+	return t.tostring(true)
 }
 
-func seqi(from, to int) []int {
-	r := make([]int, to-from)
-	for i := from; i < to; i++ {
-		r[i-from] = i
-	}
-	return r
+// OnelineString prints the tensor in one line string.
+func (t *Tensor) OnelineString() string {
+	return t.tostring(false)
 }
 
-func total(shape []int) int {
-	total := 1
-	for _, dim := range shape {
-		total *= dim
+func (t *Tensor) tostring(linebreak bool) string {
+	if t.IsScalar() {
+		return fmt.Sprintf("%v", t.AsScalar())
 	}
-	return total
-}
-func all(n, cnt int) []int {
-	r := make([]int, cnt)
-	for i := 0; i < cnt; i++ {
-		r[i] = n
-	}
-	return r
-}
 
-func repeat(data []float64, cnt int) []float64 {
-	r := []float64{}
-	for i := 0; i < cnt; i++ {
-		r = append(r, data...)
+	if slices.Contains(t.Shape, 0) {
+		if linebreak {
+			return fmt.Sprintf("([], shape=%v)", t.Shape)
+		} else {
+			return "[]"
+		}
 	}
-	return r
-}
 
-func toStrides(shape []int) []int {
-	s := make([]int, len(shape))
-	for i := range s {
-		s[i] = total(shape[i+1:])
+	if t.IsVector() {
+		return fmt.Sprintf("%v", strings.Join(strings.Fields(fmt.Sprint(t.AsVector())), ", "))
 	}
-	return s
+
+	tostr := func(fs []float64) []string {
+		ss := make([]string, len(fs))
+		for i, f := range fs {
+			ss[i] = fmt.Sprintf("%v", f)
+		}
+		return ss
+	}
+
+	var w func(index []int) string
+	w = func(index []int) string {
+		indent := strings.Repeat("  ", len(index))
+
+		if len(index) == len(t.Shape)-1 {
+			data := t.Index(intsToIndices(index)...).Flatten()
+			vals := strings.Join(tostr(data), ", ")
+			if linebreak {
+				return fmt.Sprintf("%s[%v]", indent, vals)
+			} else {
+				return fmt.Sprintf("[%v]", vals)
+			}
+		}
+
+		outer := make([]string, t.Shape[len(index)])
+		for i := range t.Shape[len(index)] {
+			inner := w(append(index, i))
+			outer[i] = inner
+		}
+
+		if linebreak {
+			return fmt.Sprintf("%s[\n", indent) + strings.Join(outer, "\n") + fmt.Sprintf("\n%s]", indent)
+		} else {
+			return "[" + strings.Join(outer, ", ") + "]"
+		}
+	}
+
+	if linebreak {
+		return w([]int{}) + "\n"
+	} else {
+		return w([]int{})
+	}
 }

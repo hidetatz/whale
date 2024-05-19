@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/rand"
 
-	tensor "github.com/hidetatz/whale/tensor2"
+	"github.com/hidetatz/whale/tensor"
 )
 
 func RandSin(shape ...int) (*tensor.Tensor, *tensor.Tensor) {

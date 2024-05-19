@@ -8,7 +8,7 @@ import (
 	"runtime/pprof"
 
 	"github.com/hidetatz/whale"
-	ts "github.com/hidetatz/whale/tensor2"
+	ts "github.com/hidetatz/whale/tensor"
 )
 
 func main() {

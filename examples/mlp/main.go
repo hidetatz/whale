@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hidetatz/whale"
-	tensor "github.com/hidetatz/whale/tensor2"
+	"github.com/hidetatz/whale/tensor"
 )
 
 func Predict(m whale.Model, x *whale.Variable) *whale.Variable {

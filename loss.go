@@ -1,6 +1,6 @@
 package whale
 
-import tensor "github.com/hidetatz/whale/tensor2"
+import "github.com/hidetatz/whale/tensor"
 
 type LossCalculator interface {
 	Calculate(pred, actual *Variable) (*Variable, error)

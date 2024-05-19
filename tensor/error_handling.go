@@ -1,4 +1,4 @@
-package tensor2
+package tensor
 
 type tensorErrResponser struct {
 	t *Tensor

@@ -5,7 +5,7 @@ import (
 	"os"
 	"runtime/pprof"
 
-	tensor "github.com/hidetatz/whale/tensor2"
+	"github.com/hidetatz/whale/tensor"
 )
 
 func main() {

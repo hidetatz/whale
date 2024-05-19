@@ -1,6 +1,6 @@
 package whale
 
-import tensor "github.com/hidetatz/whale/tensor2"
+import "github.com/hidetatz/whale/tensor"
 
 type Activation interface {
 	Activate(x *Variable) (*Variable, error)

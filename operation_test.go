@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	tensor "github.com/hidetatz/whale/tensor2"
+	"github.com/hidetatz/whale/tensor"
 )
 
 // Tests each calculation function correctness.

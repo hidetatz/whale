@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	tensor "github.com/hidetatz/whale/tensor2"
+	"github.com/hidetatz/whale/tensor"
 )
 
 var EnableBackprop = true
