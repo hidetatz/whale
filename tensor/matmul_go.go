@@ -1,3 +1,5 @@
+//go:build !blas
+
 package tensor
 
 import (

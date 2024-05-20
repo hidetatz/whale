@@ -92,7 +92,7 @@ func (t *Tensor) Copy() *Tensor {
 	nstrides := make([]int, len(t.Strides))
 	copy(nstrides, t.Strides)
 
-	return &Tensor{data: ndata, offset: t.offset, Shape: nshape, Strides: nstrides, isview: t.isview}
+	return &Tensor{data: ndata, offset: t.offset, Shape: nshape, Strides: nstrides, isview: false}
 }
 
 // Flatten returns flattend 1-D array.
