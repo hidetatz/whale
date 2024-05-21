@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"unsafe"
 )
-import "github.com/hidetatz/whale/tensor"
+import (
+	"github.com/hidetatz/whale/tensor"
+)
 
 func main() {
 	t1 := tensor.New([][]float32{

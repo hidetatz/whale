@@ -102,9 +102,9 @@ func (t *Tensor) Flatten() []float32 {
 	}
 
 	// fast path: no need to calculate cartesian from strides
-	if !t.isview {
-		return copySlice(t.data)
-	}
+	// if !t.isview {
+	// 	return copySlice(t.data)
+	// }
 
 	indices := cartesian(t.Shape)
 	result := make([]float32, len(indices))

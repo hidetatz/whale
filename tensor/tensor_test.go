@@ -87,6 +87,11 @@ func TestFlatten(t *testing.T) {
 			tensor:   Arange(0, 4, 1).Reshape(2, 2).Index(At(1)),
 			expected: []float32{2, 3},
 		},
+		{
+			name:     "2d transposed",
+			tensor:   Arange(0, 4, 1).Reshape(2, 2).Transpose(),
+			expected: []float32{0, 2, 1, 3},
+		},
 	}
 
 	for _, tc := range tests {

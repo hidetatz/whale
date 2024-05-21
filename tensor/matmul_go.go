@@ -1,4 +1,4 @@
-//go:build !blas
+//go:build !blas && !gonum
 
 package tensor
 

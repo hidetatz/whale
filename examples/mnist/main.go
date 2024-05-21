@@ -75,8 +75,9 @@ func train(model whale.Model, data []*MnistImage) {
 	optim := model.Optimizer()
 
 	batch := 100
+	ep := 1
 
-	for epoch := 0; epoch < 5; epoch++ {
+	for epoch := 0; epoch < ep; epoch++ {
 		var sumloss float32 = 0.0
 
 		for i := range len(data) / batch {

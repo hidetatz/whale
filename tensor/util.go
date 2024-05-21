@@ -1,6 +1,8 @@
 package tensor
 
-import "slices"
+import (
+	"slices"
+)
 
 // returns x[0] * x[1] * x[2] * ...
 func product(x []int) int {
@@ -90,18 +92,16 @@ type cartesianResult struct {
 	result [][]int
 }
 
-type cartesianResults []*cartesianResult
+var cartesianCache = []*cartesianResult{}
 
-var cartesianCache cartesianResults = []*cartesianResult{}
-
-func (c cartesianResults) Put(a []int, result [][]int) {
-	c = append(c, &cartesianResult{a: a, result: result})
+func putCartesianCache(a []int, result [][]int) {
+	cartesianCache = append(cartesianCache, &cartesianResult{a: a, result: result})
 }
 
-func (c cartesianResults) Get(a []int) ([][]int, bool) {
-	for i := range c {
-		if slices.Equal(a, c[i].a) {
-			return c[i].result, true
+func getCartesianCache(a []int) ([][]int, bool) {
+	for i := range cartesianCache {
+		if slices.Equal(a, cartesianCache[i].a) {
+			return cartesianCache[i].result, true
 		}
 	}
 
@@ -109,7 +109,8 @@ func (c cartesianResults) Get(a []int) ([][]int, bool) {
 }
 
 func cartesian(a []int) [][]int {
-	if result, ok := cartesianCache.Get(a); ok {
+	if result, ok := getCartesianCache(a); ok {
+		// fmt.Println("cache hit!")
 		return result
 	}
 
@@ -143,7 +144,7 @@ func cartesian(a []int) [][]int {
 		slices[i] = result[i*n : (i+1)*n]
 	}
 
-	cartesianCache.Put(a, slices)
+	putCartesianCache(a, slices)
 
 	return slices
 }
