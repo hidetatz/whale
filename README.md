@@ -6,7 +6,7 @@ Current project status:
 * It can solve simple nonlinear regression (usually called "spiral dataset") using multi layer perceptron. [example](https://github.com/hidetatz/whale/blob/master/examples/spiral/main.go)
 * It can solve mnist, 90% accuracy on testdata after 5 epoch training. Training is very slow (2min/1 epoch). [example](https://github.com/hidetatz/whale/blob/master/examples/spiral/main.go)
 * CPU optimization is on-going.
-* GPU support is future work.
+* GPU support is a future work.
 
 ## Plotting
 
