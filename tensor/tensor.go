@@ -38,7 +38,7 @@ func (t *Tensor) ErrResponser() *tensorErrResponser {
 
 // Equals returns if t and t2 are logically the same.
 func (t *Tensor) Equals(t2 *Tensor) bool {
-	return slices.Equal(t.Shape, t2.Shape) && slices.Equal(t.Flatten(), t2.Flatten())
+	return slices.Equal(t.Shape, t2.Shape) && slices.Equal(t.Ravel(), t2.Ravel())
 }
 
 // Ndim returns the dimension number.
@@ -81,6 +81,11 @@ func (t *Tensor) AsVector() []float32 {
 	return result
 }
 
+// IsMatrix returns true if the tensor is internally a matrix.
+func (t *Tensor) IsMatrix() bool {
+	return len(t.Shape) == 2
+}
+
 // Copy returns a copy of t.
 func (t *Tensor) Copy() *Tensor {
 	ndata := make([]float32, len(t.data))
@@ -95,19 +100,43 @@ func (t *Tensor) Copy() *Tensor {
 	return &Tensor{data: ndata, offset: t.offset, Shape: nshape, Strides: nstrides, isview: false}
 }
 
-// Flatten returns flattend 1-D array.
+// Ravel returns a flattened slice. The returned slice might be sharing
+// the same memory with t. If you want to modify returned slice, you'd better
+// use Flatten instead.
+func (t *Tensor) Ravel() []float32 {
+	arr, _ := t.ravel()
+	return arr
+}
+
+// Flatten returns flattend, copied 1-D array.
 func (t *Tensor) Flatten() []float32 {
-	if t.IsScalar() {
-		return []float32{t.AsScalar()}
+	arr, view := t.ravel()
+	if view {
+		return copySlice(arr)
 	}
 
-	// fast path: no need to calculate cartesian from strides
-	// if !t.isview {
-	// 	return copySlice(t.data)
-	// }
+	return arr
+}
+
+func (t *Tensor) ravel() (result []float32, view bool) {
+	switch {
+	case t.IsScalar():
+		return []float32{t.AsScalar()}, false
+
+	case t.IsVector():
+		// fast path, lucky
+		if len(t.data) == t.Shape[0] {
+			return t.data, true
+		}
+	case t.IsMatrix():
+		// fast path, lucky
+		if len(t.data) == product(t.Shape) && t.Strides[0] == t.Shape[1] && t.Strides[1] == 1 {
+			return t.data, true
+		}
+	}
 
 	indices := cartesian(t.Shape)
-	result := make([]float32, len(indices))
+	result = make([]float32, len(indices))
 	for i, index := range indices {
 		rawIdx := t.offset
 		for j, idx := range index {
@@ -115,7 +144,8 @@ func (t *Tensor) Flatten() []float32 {
 		}
 		result[i] = t.data[rawIdx]
 	}
-	return result
+
+	return result, false
 }
 
 // Raw prints the tensor raw internal structure for debug purpose.
@@ -163,7 +193,7 @@ func (t *Tensor) tostring(linebreak bool) string {
 		indent := strings.Repeat("  ", len(index))
 
 		if len(index) == len(t.Shape)-1 {
-			data := t.Index(intsToIndices(index)...).Flatten()
+			data := t.Index(intsToIndices(index)...).Ravel()
 			vals := strings.Join(tostr(data), ", ")
 			if linebreak {
 				return fmt.Sprintf("%s[%v]", indent, vals)

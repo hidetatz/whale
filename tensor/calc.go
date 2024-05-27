@@ -78,7 +78,7 @@ func (er *tensorErrResponser) Sum(keepdims bool, axes ...int) (*Tensor, error) {
 	data := make([]float32, er.t.Size()/len(ss))
 	for _, s := range ss {
 		t2 := er.t.Index(s...)
-		flat := t2.Flatten()
+		flat := t2.Ravel()
 		for i := range len(data) {
 			data[i] += flat[i]
 		}

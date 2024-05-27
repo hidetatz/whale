@@ -53,8 +53,8 @@ func main() {
 	// ]
 	// total size is (x-axis-size * y-axis-size * 2).
 	testdata := []float32{}
-	xf := X.Flatten()
-	yf := Y.Flatten()
+	xf := X.Ravel()
+	yf := Y.Ravel()
 	for i := range xf {
 		testdata = append(testdata, xf[i])
 		testdata = append(testdata, yf[i])
@@ -203,7 +203,7 @@ func plot(x, t *tensor.Tensor) {
 
 		st := x.Index(tensor.At(i))
 
-		data := st.Flatten()
+		data := st.Ravel()
 		switch label {
 		case 0:
 			xs0 = append(xs0, data[0])
