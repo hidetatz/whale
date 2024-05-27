@@ -6,10 +6,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          mkdir -p $HOME/tmp && cd $HOME/tmp
-          git clone https://github.com/OpenMathLib/OpenBLAS.git && cd OpenBLAS
-          make && make install
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
       - uses: actions/setup-python@v5
