@@ -4,6 +4,7 @@ package tensor
 
 import (
 	"fmt"
+	"sync"
 )
 
 func (t *Tensor) matrixRow(row int) []float32 {
@@ -31,15 +32,94 @@ func (er *tensorErrResponser) Matmul(t2 *Tensor) (*Tensor, error) {
 		return nil, fmt.Errorf("Dot() requires shape1[1] is equal to shape2[0], but got shape %v x %v", er.t.Shape, t2.Shape)
 	}
 
-	rownum, colnum := er.t.Shape[0], t2.Shape[1]
+	// return Matmul_v1(er.t, t2), nil
+	// return Matmul_v2(er.t, t2), nil
+	return Matmul_v3(er.t, t2), nil
+}
 
+func (t *Tensor) Matmul(t2 *Tensor) *Tensor {
+	return MustGet(t.ErrResponser().Matmul(t2))
+}
+
+// parallelize by row and col, significantly slow
+func Matmul_v3(t1, t2 *Tensor) *Tensor {
+	rownum, colnum := t1.Shape[0], t2.Shape[1]
 	newshape := []int{rownum, colnum}
-
 	data := make([]float32, rownum*colnum)
-
 	rows := make([][]float32, rownum)
 	for r := range rownum {
-		rows[r] = er.t.matrixRow(r)
+		rows[r] = t1.matrixRow(r)
+	}
+
+	cols := make([][]float32, colnum)
+	for c := range colnum {
+		cols[c] = t2.matrixCol(c)
+	}
+
+	wg := sync.WaitGroup{}
+	for r := range rows {
+		for c := range cols {
+			wg.Add(1)
+			go func(r, c int) {
+				var result float32
+				for i := range t1.Shape[1] {
+					result += rows[r][i] * cols[c][i]
+				}
+				data[r*colnum+c] = result
+				wg.Done()
+			}(r, c)
+		}
+	}
+
+	wg.Wait()
+	return NdShape(data, newshape...)
+}
+
+// parallelize by row, no use channel but copy computation result directly into `data`
+func Matmul_v2(t1, t2 *Tensor) *Tensor {
+	rownum, colnum := t1.Shape[0], t2.Shape[1]
+	newshape := []int{rownum, colnum}
+	data := make([]float32, rownum*colnum)
+	rows := make([][]float32, rownum)
+	for r := range rownum {
+		rows[r] = t1.matrixRow(r)
+	}
+
+	cols := make([][]float32, colnum)
+	for c := range colnum {
+		cols[c] = t2.matrixCol(c)
+	}
+
+	wg := sync.WaitGroup{}
+	for r := range rows {
+		wg.Add(1)
+		go func(rn int) {
+			results := make([]float32, colnum)
+			for c := range cols {
+				var result float32
+				for j := range t1.Shape[1] {
+					result += rows[rn][j] * cols[c][j]
+				}
+				results[c] = result
+
+			}
+			copy(data[rn*colnum:rn*colnum+len(results)], results)
+			wg.Done()
+		}(r)
+	}
+
+	wg.Wait()
+	return NdShape(data, newshape...)
+}
+
+// parallelize by row
+func Matmul_v1(t1, t2 *Tensor) *Tensor {
+	rownum, colnum := t1.Shape[0], t2.Shape[1]
+	newshape := []int{rownum, colnum}
+	data := make([]float32, rownum*colnum)
+	rows := make([][]float32, rownum)
+	for r := range rownum {
+		rows[r] = t1.matrixRow(r)
 	}
 
 	cols := make([][]float32, colnum)
@@ -77,9 +157,5 @@ func (er *tensorErrResponser) Matmul(t2 *Tensor) (*Tensor, error) {
 		}
 	}
 
-	return RespErr.NdShape(data, newshape...)
-}
-
-func (t *Tensor) Matmul(t2 *Tensor) *Tensor {
-	return MustGet(t.ErrResponser().Matmul(t2))
+	return NdShape(data, newshape...)
 }

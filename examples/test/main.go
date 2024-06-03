@@ -21,19 +21,45 @@ func main() {
 	}
 	defer pprof.StopCPUProfile()
 
-	fmt.Println(time.Now())
-	ten()
-	fmt.Println(time.Now())
-	gonum()
-	fmt.Println(time.Now())
-}
-
-func ten() {
 	t1 := tensor.Arange(0, 100*784, 1).Reshape(100, 784).Copy()
 	t2 := tensor.Arange(0, 784*1000, 1).Reshape(784, 1000).Copy()
 
+	start := time.Now()
+	v1(t1, t2)
+	elapsed := time.Since(start)
+	fmt.Println("v1: ", elapsed)
+
+	start = time.Now()
+	v2(t1, t2)
+	elapsed = time.Since(start)
+	fmt.Println("v2: ", elapsed)
+
+	start = time.Now()
+	v3(t1, t2)
+	elapsed = time.Since(start)
+	fmt.Println("v3: ", elapsed)
+
+	start = time.Now()
+	gonum()
+	elapsed = time.Since(start)
+	fmt.Println("gonum: ", elapsed)
+}
+
+func v1(t1, t2 *tensor.Tensor) {
 	for range 600 {
-		_ = t1.Matmul(t2)
+		_ = tensor.Matmul_v1(t1, t2)
+	}
+}
+
+func v2(t1, t2 *tensor.Tensor) {
+	for range 600 {
+		_ = tensor.Matmul_v2(t1, t2)
+	}
+}
+
+func v3(t1, t2 *tensor.Tensor) {
+	for range 600 {
+		_ = tensor.Matmul_v3(t1, t2)
 	}
 }
 
