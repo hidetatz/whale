@@ -1,5 +1,3 @@
-//go:build !gonum
-
 package tensor
 
 import (
