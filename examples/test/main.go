@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/hidetatz/whale/tensor"
-	"gonum.org/v1/gonum/mat"
 )
 
 func main() {
@@ -38,11 +37,6 @@ func main() {
 	v3(t1, t2)
 	elapsed = time.Since(start)
 	fmt.Println("v3: ", elapsed)
-
-	start = time.Now()
-	gonum()
-	elapsed = time.Since(start)
-	fmt.Println("gonum: ", elapsed)
 }
 
 func v1(t1, t2 *tensor.Tensor) {
@@ -60,26 +54,5 @@ func v2(t1, t2 *tensor.Tensor) {
 func v3(t1, t2 *tensor.Tensor) {
 	for range 600 {
 		_ = tensor.Matmul_v3(t1, t2)
-	}
-}
-
-func gonum() {
-	d1 := make([]float64, 100*784)
-	for i := range 100 * 784 {
-		d1[i] = float64(i)
-	}
-
-	d2 := make([]float64, 784*1000)
-	for i := range 784 * 1000 {
-		d2[i] = float64(i)
-	}
-
-	A := mat.NewDense(100, 784, d1)
-	B := mat.NewDense(784, 1000, d2)
-
-	C := mat.NewDense(100, 1000, nil)
-
-	for range 600 {
-		C.Mul(A, B)
 	}
 }
