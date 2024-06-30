@@ -1,7 +1,11 @@
 package main
 
-import "github.com/hidetatz/whale/cpuid"
+import (
+	"fmt"
+
+	"github.com/hidetatz/whale/cpuid"
+)
 
 func main() {
-	cpuid.CPUID()
+	fmt.Printf("%+v\n", cpuid.CPUID())
 }
