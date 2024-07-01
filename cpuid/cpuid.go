@@ -30,6 +30,8 @@ type CPUInfo struct {
 
 	// only whale-related features exist here
 	Supported struct {
+		FMA bool
+
 		MMX     bool
 		MMX_ext bool
 		SSE     bool
@@ -156,6 +158,7 @@ func CPUID() *CPUInfo {
 	_, _, c, d = asmcpuid1(0x1)
 	info.Supported.SSE = bitbool(d, 25)
 	info.Supported.SSE2 = bitbool(d, 26)
+	info.Supported.FMA = bitbool(c, 12)
 	info.Supported.SSE3 = bitbool(c, 0)
 	info.Supported.SSSE3 = bitbool(c, 1)
 	info.Supported.SSE4_1 = bitbool(c, 19)
