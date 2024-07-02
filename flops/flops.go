@@ -9,9 +9,7 @@ type Flops struct {
 	MFlopsDoubleTurbo float64
 }
 
-func Calc() *Flops {
-	info := cpuid.CPUID()
-
+func Calc(info *cpuid.CPUInfo) *Flops {
 	basefreq := float64(info.ProcessorBaseFreqMHz)
 	turbofreq := float64(info.MaxTurboFreqMHz)
 

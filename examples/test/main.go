@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
-	fmt.Printf("%+v\n", cpuid.CPUID())
-	fmt.Printf("%+v\n", flops.Calc())
+	info := cpuid.CPUID()
+	fmt.Printf("%+v\n", info)
+	fmt.Printf("%+v\n", flops.Calc(info))
 }
