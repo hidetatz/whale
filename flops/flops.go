@@ -15,42 +15,45 @@ func Calc() *Flops {
 	basefreq := float64(info.ProcessorBaseFreqMHz)
 	turbofreq := float64(info.MaxTurboFreqMHz)
 
-	cores := float64(info.LogicalCores)
+	cores := float64(info.PhysicalCores)
 
-	// TODO: this might not be correct which is assuming each logical core has a fpu.
-	// How to detect number of fpu?
-	fpus := float64(info.LogicalCores)
+	// This implementation is not perfect;
+	// Usually the throughput of FMA on Intel's processor is 0.5, so defining it here as 0.5.
+	fmaReciprocalThroughput := 0.5
 
-	fpuops := float64(1)
+	instpercycle := float64(1)
+
 	if info.Supported.FMA {
-		fpuops = 2 // if FMA is supported, it can compute both ADD and MUL in 1 op.
+		instpercycle = 2 // if FMA is supported, it can compute both ADD and MUL in 1 op.
+
+		// consider FMA inst throughput.
+		// Because throughput is reciprocal, division is required.
+		instpercycle *= 1 / fmaReciprocalThroughput
 	}
 
-	vectorlen := float64(1)
+	instpervectorFloat := float64(1)
+	instpervectorDouble := float64(1)
 	switch {
-	// must be ordered vectorlen desc
+	case info.Supported.AVX2, info.Supported.AVX:
+		instpervectorFloat = 256 / 32
+		instpervectorDouble = 256 / 64
 
-	// ymm registers
-	case info.Supported.AVX2:
-		vectorlen = 256
-	case info.Supported.AVX:
-		vectorlen = 256
+	case info.Supported.SSE2, info.Supported.SSE:
+		instpervectorFloat = 128 / 32
+		instpervectorDouble = 128 / 64
 
-	// xmm registers
-	case info.Supported.SSE2:
-		vectorlen = 128
-	case info.Supported.SSE:
-		vectorlen = 128
-
-	// mm registers
 	case info.Supported.MMX:
-		vectorlen = 64
+		instpervectorFloat = 64 / 32
+		instpervectorDouble = 64 / 64
 	}
+
+	instpercycleFloat := instpercycle * instpervectorFloat
+	instpercycleDouble := instpercycle * instpervectorDouble
 
 	return &Flops{
-		MFlopsFloatBase:   cores * fpus * fpuops * (vectorlen / (8 * 32)) * basefreq,
-		MFlopsFloatTurbo:  cores * fpus * fpuops * (vectorlen / (8 * 32)) * turbofreq,
-		MFlopsDoubleBase:  cores * fpus * fpuops * (vectorlen / (8 * 64)) * basefreq,
-		MFlopsDoubleTurbo: cores * fpus * fpuops * (vectorlen / (8 * 64)) * turbofreq,
+		MFlopsFloatBase:   cores * instpercycleFloat * basefreq,
+		MFlopsFloatTurbo:  cores * instpercycleFloat * turbofreq,
+		MFlopsDoubleBase:  cores * instpercycleDouble * basefreq,
+		MFlopsDoubleTurbo: cores * instpercycleDouble * turbofreq,
 	}
 }
