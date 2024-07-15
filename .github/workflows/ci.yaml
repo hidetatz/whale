@@ -11,7 +11,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - uses: actions/cache@v3
+        with:
+          key: openblas
+          path: /opt/OpenBLAS
       - run: |
+          if [ -f /opt/OpenBLAS ]; then
+            exit 0
+          fi
+
           mkdir -p $HOME/tmp && cd $HOME/tmp
           git clone https://github.com/OpenMathLib/OpenBLAS.git && cd OpenBLAS
           make && make install
@@ -20,13 +28,9 @@ jobs:
           ls /opt/OpenBLAS/include
       - uses: actions/cache@v3
         with:
-          key: openblas
-          path: /opt/OpenBLAS
-      - run: python -m venv .env && source .env/bin/activate && pip install numpy
-      - uses: actions/cache@v3
-        with:
           key: numpy
           path: .env
+      - run: python -m venv .env && source .env/bin/activate && pip install numpy
       # For flakiness test, run test multiple times
       - run: source .env/bin/activate && go clean -testcache && make testall
       - run: source .env/bin/activate && go clean -testcache && make testall
