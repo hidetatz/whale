@@ -12,8 +12,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: restore openblas from cache
-        uses: actions/cache/restore@v4
+      - uses: actions/cache@v4
         id: restore-openblas-cache
         with:
           key: openblas
@@ -25,13 +24,6 @@ jobs:
           mkdir -p $HOME/tmp && cd $HOME/tmp
           git clone https://github.com/OpenMathLib/OpenBLAS.git && cd OpenBLAS
           make && make install
-
-      - name: save openblas cache if not restored
-        uses: actions/cache/save@v4
-        if: steps.restore-openblas-cache.outputs.cache-hit != 'true'
-        with:
-          key: openblas
-          path: /opt/OpenBLAS
 
       - run: python -m venv .env && source .env/bin/activate && pip install numpy
 
