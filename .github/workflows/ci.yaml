@@ -11,25 +11,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: actions/cache@v3
-        id: cache-openblas
+      - uses: actions/cache/restore@v4
+        id: restore-openblas-cache
         with:
-          key: openblas-cache-1
+          key: openblas-cache-2
           path: /opt/OpenBLAS
       - name: Install OpenBLAS
-        if: steps.cache-openblas.outputs.cache-hit != 'true'
+        if: steps.restore-openblas-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p $HOME/tmp && cd $HOME/tmp
           git clone https://github.com/OpenMathLib/OpenBLAS.git && cd OpenBLAS
           make && make install
-          ls /opt/OpenBLAS/lib
-          echo aaa
-          ls /opt/OpenBLAS/include
-      - name: Cache OpenBLAS
+      - uses: actions/cache/save@v4
         if: steps.cache-openblas.outputs.cache-hit != 'true'
-        uses: actions/cache@v3
         with:
-          key: openblas-cache-1
+          key: openblas-cache-2
           path: /opt/OpenBLAS
       - uses: actions/cache@v3
         with:
