@@ -53,9 +53,6 @@ type CPUInfo struct {
 	}
 }
 
-type features struct {
-}
-
 func bit(val uint32, pos int) uint32 {
 	return (val >> pos) & 1
 }
