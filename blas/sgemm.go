@@ -94,7 +94,7 @@ func sgemmmain(param *sgemmParam) {
 	}
 }
 
-func sgemmOpenBLAS(param *sgemmParam) {
+func sgemmOpenBLAS_cgo(param *sgemmParam) {
 	m := C.blasint(param.m)
 	n := C.blasint(param.n)
 	k := C.blasint(param.k)
