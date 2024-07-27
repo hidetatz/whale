@@ -9,6 +9,7 @@ type Flops struct {
 	MFlopsDoubleTurbo float64
 }
 
+// spoiler: https://www.intel.com/content/dam/support/us/en/documents/processors/APP-for-Intel-Core-Processors.pdf
 func Calc(info *cpuid.CPUInfo) *Flops {
 	basefreq := float64(info.ProcessorBaseFreqMHz)
 	turbofreq := float64(info.MaxTurboFreqMHz)
