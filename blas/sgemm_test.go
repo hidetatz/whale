@@ -98,6 +98,9 @@ func TestSgemm_perf(t *testing.T) {
 	cpuinfo := cpuid.CPUID()
 	flopsInfo := flops.Calc(cpuinfo)
 
+	peakBase := flopsInfo.MFlopsFloatBase
+	peakTurbo := flopsInfo.MFlopsFloatTurbo
+
 	t.Logf("Max  Peak MFlops per core: %v MFlops\n", peakBase)
 	t.Logf("Base Peak MFlops per core: %v MFlops\n", peakTurbo)
 	t.Logf("size	elapsed time[s]	MFlops	base ratio[%%]	max ratio[%%]\n")
@@ -148,6 +151,6 @@ func TestSgemm_perf(t *testing.T) {
 		theoriticalFlops := param.m * param.n * (2*param.k + 3)
 
 		mflops := float64(theoriticalFlops) / (float64(elapsed) * 1e-9) / 1000.0 / 1000.0 * 1
-		t.Logf("%v	%f	%f	%f	%f\n", size, float64(elapsed)*1e-9, mflops, mflops/flopsInfo.MFlopsFloatBase*100, mflops/flopsInfo.MFlopsFloatTurbo*100)
+		t.Logf("%v	%f	%f	%f	%f\n", size, float64(elapsed)*1e-9, mflops, mflops/peakBase*100, mflops/peakTurbo*100)
 	}
 }
