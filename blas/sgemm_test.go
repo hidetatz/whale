@@ -98,11 +98,9 @@ func TestSgemm_perf(t *testing.T) {
 	cpuinfo := cpuid.CPUID()
 	flopsInfo := flops.Calc(cpuinfo)
 
-	peakBase := flopsInfo.MFlopsDoubleTurbo / float64(cpuinfo.LogicalCores)
-	peakTurbo := flopsInfo.MFlopsDoubleBase / float64(cpuinfo.LogicalCores)
-
 	t.Logf("Max  Peak MFlops per core: %v MFlops\n", peakBase)
 	t.Logf("Base Peak MFlops per core: %v MFlops\n", peakTurbo)
+	t.Logf("size	elapsed time[s]	MFlops	base ratio[%%]	max ratio[%%]\n")
 	for size := 16; size <= 2048; size *= 2 {
 		param := &sgemmParam{
 			transA: NoTrans,
@@ -120,9 +118,11 @@ func TestSgemm_perf(t *testing.T) {
 			ldc:    size,
 		}
 
-		start := time.Now()
+		start := time.Now().UnixNano()
 		err := dosgemm(param, sgemmmain)
-		elapsed := time.Since(start)
+		// err := dosgemm(param, sgemmOpenBLAS_cgo)
+		finished := time.Now().UnixNano()
+		elapsed := finished - start
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -147,7 +147,7 @@ func TestSgemm_perf(t *testing.T) {
 		 */
 		theoriticalFlops := param.m * param.n * (2*param.k + 3)
 
-		mflops := theoriticalFlops / int(elapsed) / 1000 / 1000
-		t.Logf("%v	%v	%v	%v	%v\n", size, elapsed, mflops, mflops/int(peakBase)*100, mflops/int(peakTurbo)*100)
+		mflops := float64(theoriticalFlops) / (float64(elapsed) * 1e-9) / 1000.0 / 1000.0 * 1
+		t.Logf("%v	%f	%f	%f	%f\n", size, float64(elapsed)*1e-9, mflops, mflops/flopsInfo.MFlopsFloatBase*100, mflops/flopsInfo.MFlopsFloatTurbo*100)
 	}
 }
