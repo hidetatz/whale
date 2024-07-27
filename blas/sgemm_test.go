@@ -4,10 +4,6 @@ import (
 	"math"
 	"math/rand"
 	"testing"
-	"time"
-
-	"github.com/hidetatz/whale/cpuid"
-	"github.com/hidetatz/whale/flops"
 )
 
 func newmatrix(t *testing.T, length int, val float32) []float32 {
@@ -53,104 +49,43 @@ func TestSgemm(t *testing.T) {
 			a := randmatrix(t, size*size)
 			b := randmatrix(t, size*size)
 
-			openblasparam := &sgemmParam{
-				transA: transA,
-				transB: transB,
-				m:      size,
-				n:      size,
-				k:      size,
-				alpha:  1,
-				a:      a,
-				lda:    size,
-				b:      b,
-				ldb:    size,
-				beta:   1,
-				c:      newmatrix(t, size*size, 0),
-				ldc:    size,
+			openblasparam := &SgemmParam{
+				TransA: transA,
+				TransB: transB,
+				M:      size,
+				N:      size,
+				K:      size,
+				Alpha:  1,
+				A:      a,
+				LDA:    size,
+				B:      b,
+				LDB:    size,
+				Beta:   1,
+				C:      newmatrix(t, size*size, 0),
+				LDC:    size,
 			}
 
-			dosgemm(openblasparam, sgemmOpenBLAS_cgo)
+			DoSgemm(openblasparam, SgemmOpenBLAS_cgo)
 
-			param := &sgemmParam{
-				transA: transA,
-				transB: transB,
-				m:      size,
-				n:      size,
-				k:      size,
-				alpha:  1,
-				a:      a,
-				lda:    size,
-				b:      b,
-				ldb:    size,
-				beta:   1,
-				c:      newmatrix(t, size*size, 0),
-				ldc:    size,
+			param := &SgemmParam{
+				TransA: transA,
+				TransB: transB,
+				M:      size,
+				N:      size,
+				K:      size,
+				Alpha:  1,
+				A:      a,
+				LDA:    size,
+				B:      b,
+				LDB:    size,
+				Beta:   1,
+				C:      newmatrix(t, size*size, 0),
+				LDC:    size,
 			}
 
-			dosgemm(param, sgemmmain)
+			DoSgemm(param, Sgemmmain)
 
-			asserteq(t, openblasparam.c, param.c)
+			asserteq(t, openblasparam.C, param.C)
 		}
-	}
-}
-
-func TestSgemm_perf(t *testing.T) {
-	cpuinfo := cpuid.CPUID()
-	flopsInfo := flops.Calc(cpuinfo)
-
-	peakBase := flopsInfo.MFlopsFloatBase
-	peakTurbo := flopsInfo.MFlopsFloatTurbo
-
-	t.Logf("Max  Peak MFlops per core: %v MFlops\n", peakBase)
-	t.Logf("Base Peak MFlops per core: %v MFlops\n", peakTurbo)
-	t.Logf("size	elapsed time[s]	MFlops	base ratio[%%]	max ratio[%%]\n")
-	for size := 16; size <= 2048; size *= 2 {
-		param := &sgemmParam{
-			transA: NoTrans,
-			transB: NoTrans,
-			m:      size,
-			n:      size,
-			k:      size,
-			alpha:  1,
-			a:      newmatrix(t, size*size, 1),
-			lda:    size,
-			b:      newmatrix(t, size*size, 1),
-			ldb:    size,
-			beta:   1,
-			c:      newmatrix(t, size*size, 0),
-			ldc:    size,
-		}
-
-		start := time.Now().UnixNano()
-		err := dosgemm(param, sgemmmain)
-		// err := dosgemm(param, sgemmOpenBLAS_cgo)
-		finished := time.Now().UnixNano()
-		elapsed := finished - start
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		/*
-		 * Estimated float operation number per a sgemm.
-		 * Typical sgemm (C = alpha * A * B + beta * C) looks like this:
-		 *
-		 * for( j=0; j<N; j++){
-		 *     for( i=0; i<M; i++){
-		 *         ab = 0;
-		 *         for( k=0; k<K; k++){
-		 *             ab = ab + A[i][k]*B[k][j];
-		 *         }
-		 *         C[i][j] = alpha*ab + beta*C[i][j];
-		 *     }
-		 * }
-		 *
-		 * The most inside loop does 2 operations (1 MUL and 1 ADD). This happens for M*N*K times.
-		 * And the write to C does 3 operations (2 MUL and 1 ADD). This happens for M*N times.
-		 * Total operation count would be 2*M*N*K + 3*M*N = M*N*(2*K+3).
-		 */
-		theoriticalFlops := param.m * param.n * (2*param.k + 3)
-
-		mflops := float64(theoriticalFlops) / (float64(elapsed) * 1e-9) / 1000.0 / 1000.0 * 1
-		t.Logf("%v	%f	%f	%f	%f\n", size, float64(elapsed)*1e-9, mflops, mflops/peakBase*100, mflops/peakTurbo*100)
 	}
 }
