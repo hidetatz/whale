@@ -28,7 +28,7 @@ func randmatrix(t *testing.T, length int) []float32 {
 	return out
 }
 
-func asserteq(t *testing.T, ans, got []float32, k int) {
+func asserteq(t *testing.T, ans, got []float32) {
 	t.Helper()
 	if len(ans) != len(got) {
 		t.Fatalf("2 matrix has different length, %v, %v", len(ans), len(got))
@@ -89,7 +89,7 @@ func TestSgemm(t *testing.T) {
 
 			dosgemm(param, sgemmmain)
 
-			asserteq(t, openblasparam.c, param.c, param.k)
+			asserteq(t, openblasparam.c, param.c)
 		}
 	}
 }
