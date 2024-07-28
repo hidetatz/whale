@@ -71,9 +71,9 @@ func main() {
 		 * And the write to C does 3 operations (2 MUL and 1 ADD). This happens for M*N times.
 		 * Total operation count would be 2*M*N*K + 3*M*N = M*N*(2*K+3).
 		 */
-		theoriticalFlops := param.M * param.N * (2*param.K + 3)
+		theoreticalFlops := param.M * param.N * (2*param.K + 3)
 
-		mflops := float64(theoriticalFlops) / (float64(elapsed) * 1e-9) / 1000.0 / 1000.0 * 1
+		mflops := float64(theoreticalFlops) / (float64(elapsed) * 1e-9) / 1000.0 / 1000.0 * 1
 		fmt.Printf("%v	%f	%f	%f	%f\n", size, float64(elapsed)*1e-9, mflops, mflops/peakBase*100, mflops/peakTurbo*100)
 	}
 }
