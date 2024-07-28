@@ -30,6 +30,6 @@ jobs:
       - run: python -m venv .env && source .env/bin/activate && pip install numpy
 
       # For flakiness test, run test multiple times
-      - run: source .env/bin/activate && go clean -testcache && make testall
-      - run: source .env/bin/activate && go clean -testcache && make testall
-      - run: source .env/bin/activate && go clean -testcache && make testall
+      - run: source .env/bin/activate && go clean -testcache && LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/OpenBLAS/lib go test ./...
+      - run: source .env/bin/activate && go clean -testcache && LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/OpenBLAS/lib go test ./...
+      - run: source .env/bin/activate && go clean -testcache && LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/OpenBLAS/lib go test ./...
