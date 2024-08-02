@@ -79,17 +79,17 @@ var Sgemmmain = func(param *SgemmParam) {
 
 	case transA && !transB:
 		// trans x notrans.
-		// C = α * Aᵀ * B + β * C
+		// C = α * A^T * B + β * C
 		panic("unimplemented")
 
 	case !transA && transB:
 		// notrans x trans.
-		// C = α * A * Bᵀ + β * C
+		// C = α * A * B^T + β * C
 		panic("unimplemented")
 
 	default:
 		// trans x trans.
-		// C = α * Aᵀ * Bᵀ + β * C
+		// C = α * A^T * B^T + β * C
 		panic("unimplemented")
 	}
 }
