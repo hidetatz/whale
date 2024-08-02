@@ -51,6 +51,12 @@ var Sgemmmain = func(param *SgemmParam) {
 	transA := istrans(param.TransA)
 	transB := istrans(param.TransB)
 
+	// memo:
+	// L3 cache:   20MiB
+	// L2 cache:   256KiB
+	// L1 I cache: 32KiB
+	// L1 D cache: 32KiB
+
 	switch {
 	case !transA && !transB:
 		// notrans x notrans.
