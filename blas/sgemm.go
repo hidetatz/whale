@@ -51,36 +51,82 @@ var Sgemmmain = func(param *SgemmParam) {
 	transA := istrans(param.TransA)
 	transB := istrans(param.TransB)
 
+	M := param.M
+	N := param.N
+	K := param.K
+	Alpha := param.Alpha
+	LDA := param.LDA
+	LDB := param.LDB
+	Beta := param.Beta
+	LDC := param.LDC
+
 	// memo:
 	// L3 cache:   20MiB
 	// L2 cache:   256KiB
 	// L1 I cache: 32KiB
 	// L1 D cache: 32KiB
 
+	// todo: optimize
+	l3BlockSize := 1024
+	l2BlockSize := 128
+	l1BlockSize := 32
+
 	switch {
 	case !transA && !transB:
 		// notrans x notrans.
 		// C = α * A * B + β * C
 
-		ab := float32(0.0)
-		ai, bi, ci := 0, 0, 0
-		for j := 0; j < param.N; j++ {
-			for i := 0; i < param.M; i++ {
-				ab = float32(0.0)
-				for k := 0; k < param.K; k++ {
-					ab = ab + param.A[ai]*param.B[bi]
-					ai++
-					bi += param.LDB
-				}
+		var ai, bi, ci int
 
-				param.C[ci] = param.Alpha*ab + param.Beta*param.C[ci]
-				ai = ai - param.K
-				bi = bi - param.LDB*param.K + 1
-				ci++
+		/*
+		 * j-loop strip mining
+		 */
+
+		for j3 := 0; j3 < N; j3 += min(N-j3, l3BlockSize) {
+			for j2 := j3; j2 < min(j3+l3BlockSize, N); j2 += min(N-j2, l2BlockSize) {
+				for j1 := j2; j1 < min(j2+l2BlockSize, N); j1 += min(N-j1, l1BlockSize) {
+					for j := j1; j < min(j1+l1BlockSize, N); j++ {
+
+						/*
+						 * i-loop strip mining
+						 */
+
+						for i3 := 0; i3 < M; i3 += min(M-i3, l3BlockSize) {
+							for i2 := i3; i2 < min(i3+l3BlockSize, M); i2 += min(M-i2, l2BlockSize) {
+								for i1 := i2; i1 < min(i2+l2BlockSize, M); i1 += min(M-i1, l1BlockSize) {
+									for i := i1; i < min(i1+l1BlockSize, M); i++ {
+
+										/*
+										 * k-loop strip mining
+										 */
+
+										ab := float32(0.0)
+
+										for k3 := 0; k3 < K; k3 += min(K-k3, l3BlockSize) {
+											for k2 := k3; k2 < min(k3+l3BlockSize, K); k2 += min(K-k2, l2BlockSize) {
+												for k1 := k2; k1 < min(k2+l2BlockSize, K); k1 += min(K-k1, l1BlockSize) {
+													for k := k1; k < min(k1+l1BlockSize, K); k++ {
+														ab = ab + param.A[ai]*param.B[bi]
+														ai++
+														bi += LDB
+													}
+												}
+											}
+										}
+										param.C[ci] = Alpha*ab + Beta*param.C[ci]
+										ai = ai - param.K
+										bi = bi - param.LDB*param.K + 1
+										ci++
+									}
+								}
+							}
+						}
+						ai = ai + LDA
+						bi = bi - M
+						ci = ci - M + LDC
+					}
+				}
 			}
-			ai = ai + param.LDA
-			bi = bi - param.M
-			ci = ci - param.M + param.LDC
 		}
 
 	case transA && !transB:
