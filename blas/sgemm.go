@@ -78,6 +78,16 @@ var Sgemmmain = func(param *SgemmParam) {
 
 		var ai, bi, ci int
 
+		// scale C + beta outside the loop
+		for j := 0; j < N; j++ {
+			for i := 0; i < M; i++ {
+				param.C[ci] = Beta * param.C[ci]
+				ci++
+			}
+			ci = ci - M + LDC
+		}
+		ci = ci - LDC*N
+
 		/*
 		 * j-loop strip mining
 		 */
@@ -113,7 +123,7 @@ var Sgemmmain = func(param *SgemmParam) {
 												}
 											}
 										}
-										param.C[ci] = Alpha*ab + Beta*param.C[ci]
+										param.C[ci] = Alpha*ab + param.C[ci]
 										ai = ai - param.K
 										bi = bi - param.LDB*param.K + 1
 										ci++

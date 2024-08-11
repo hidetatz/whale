@@ -1,6 +1,6 @@
 #!/bin/bash
 
 echo ------------------------------------------------------------------------------ | tee -a ./sgemm_perf_result.txt
-echo tested at $(date +"%Y-%m-%dT%H:%M:%S%z") ("$@") | tee -a ./sgemm_perf_result.txt
+echo tested at $(date +"%Y-%m-%dT%H:%M:%S%z") \("$@"\) | tee -a ./sgemm_perf_result.txt
 OPENBLAS_NUM_THREADS=1 LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/OpenBLAS/lib go run ./blas/perf/main.go | tee -a ./sgemm_perf_result.txt
 echo "" | tee -a ./sgemm_perf_result.txt

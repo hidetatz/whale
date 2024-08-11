@@ -48,6 +48,9 @@ func TestSgemm(t *testing.T) {
 		for _, transB := range transpose {
 			a := randmatrix(t, size*size)
 			b := randmatrix(t, size*size)
+			c := randmatrix(t, size*size)
+			c2 := make([]float32, len(c))
+			copy(c2, c)
 
 			openblasparam := &SgemmParam{
 				TransA: transA,
@@ -61,7 +64,7 @@ func TestSgemm(t *testing.T) {
 				B:      b,
 				LDB:    size,
 				Beta:   1,
-				C:      newmatrix(t, size*size, 0),
+				C:      c,
 				LDC:    size,
 			}
 
@@ -79,7 +82,7 @@ func TestSgemm(t *testing.T) {
 				B:      b,
 				LDB:    size,
 				Beta:   1,
-				C:      newmatrix(t, size*size, 0),
+				C:      c2,
 				LDC:    size,
 			}
 
