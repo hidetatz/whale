@@ -124,8 +124,8 @@ var Sgemmmain = func(param *SgemmParam) {
 											}
 										}
 										param.C[ci] = Alpha*ab + param.C[ci]
-										ai = ai - param.K
-										bi = bi - param.LDB*param.K + 1
+										ai = ai - K
+										bi = bi - LDB*K + 1
 										ci++
 									}
 								}
