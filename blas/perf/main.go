@@ -28,25 +28,25 @@ func main() {
 	fmt.Printf("Base Peak MFlops per core: %v MFlops\n", peakTurbo)
 	fmt.Printf("size	elapsed time[s]	MFlops	base ratio[%%]	max ratio[%%]\n")
 	for size := 16; size <= 2048; size *= 2 {
-		param := &blas.SgemmParam{
-			TransA: blas.NoTrans,
-			TransB: blas.NoTrans,
-			M:      size,
-			N:      size,
-			K:      size,
-			Alpha:  1,
-			A:      newmatrix(size*size, 1),
-			LDA:    size,
-			B:      newmatrix(size*size, 1),
-			LDB:    size,
-			Beta:   1,
-			C:      newmatrix(size*size, 0),
-			LDC:    size,
-		}
+		// param := &blas.SgemmParam{
+		order := blas.RowMajor
+		transA := blas.NoTrans
+		transB := blas.NoTrans
+		m := size
+		n := size
+		k := size
+		alpha := float32(1.0)
+		a := newmatrix(size*size, 1)
+		lda := size
+		b := newmatrix(size*size, 1)
+		ldb := size
+		beta := float32(1.0)
+		c := newmatrix(size*size, 0)
+		ldc := size
+		// }
 
 		start := time.Now().UnixNano()
-		err := blas.DoSgemm(param, blas.Sgemmmain)
-		// err := dosgemm(param, sgemmOpenBLAS_cgo)
+		err := blas.Sgemm(order, transA, transB, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
 		finished := time.Now().UnixNano()
 		elapsed := finished - start
 		if err != nil {
@@ -71,7 +71,7 @@ func main() {
 		 * And the write to C does 3 operations (2 MUL and 1 ADD). This happens for M*N times.
 		 * Total operation count would be 2*M*N*K + 3*M*N = M*N*(2*K+3).
 		 */
-		theoreticalFlops := param.M * param.N * (2*param.K + 3)
+		theoreticalFlops := m * n * (2*k + 3)
 
 		mflops := float64(theoreticalFlops) / (float64(elapsed) * 1e-9) / 1000.0 / 1000.0 * 1
 		fmt.Printf("%v	%f	%f	%f	%f\n", size, float64(elapsed)*1e-9, mflops, mflops/peakBase*100, mflops/peakTurbo*100)
