@@ -37,9 +37,9 @@ func Sgemm(order, transA, transB int, m, n, k int, alpha float32, a []float32, l
 	// L1 D cache: 32KiB
 
 	// todo: optimize
-	// l3BlockSize := 1024
-	// l2BlockSize := 128
-	// l1BlockSize := 32
+	l3BlockSize := 1024
+	l2BlockSize := 128
+	l1BlockSize := 32
 
 	transposed := func(trans int) bool { return trans == Trans || trans == ConjTrans }
 
@@ -50,22 +50,61 @@ func Sgemm(order, transA, transB int, m, n, k int, alpha float32, a []float32, l
 
 		var ai, bi, ci int
 
-		for _j := 0; _j < n; _j++ {
-			for _i := 0; _i < m; _i++ {
-				ab := float32(0.0)
-				for _k := 0; _k < k; _k++ {
-					ab = ab + a[ai]*b[bi]
-					ai += lda
-					bi++
+		/*
+		 * j-loop strip mining
+		 */
+
+		for _j3 := 0; _j3 < n; _j3 += min(n-_j3, l3BlockSize) {
+			for _j2 := _j3; _j2 < min(_j3+l3BlockSize, n); _j2 += min(n-_j2, l2BlockSize) {
+				for _j1 := _j2; _j1 < min(_j2+l2BlockSize, n); _j1 += min(n-_j1, l1BlockSize) {
+					for _j := _j1; _j < min(_j1+l1BlockSize, n); _j++ {
+
+						/*
+						 * i-loop strip mining
+						 */
+
+						for _i3 := 0; _i3 < m; _i3 += min(m-_i3, l3BlockSize) {
+							for _i2 := _i3; _i2 < min(_i3+l3BlockSize, m); _i2 += min(m-_i2, l2BlockSize) {
+								for _i1 := _i2; _i1 < min(_i2+l2BlockSize, m); _i1 += min(m-_i1, l1BlockSize) {
+									for _i := _i1; _i < min(_i1+l1BlockSize, m); _i++ {
+
+										ab := float32(0.0)
+
+										/*
+										 * k-loop strip mining
+										 */
+
+										for _k3 := 0; _k3 < k; _k3 += min(k-_k3, l3BlockSize) {
+											for _k2 := _k3; _k2 < min(_k3+l3BlockSize, k); _k2 += min(k-_k2, l2BlockSize) {
+												for _k1 := _k2; _k1 < min(_k2+l2BlockSize, k); _k1 += min(k-_k1, l1BlockSize) {
+													for _k := _k1; _k < min(_k1+l1BlockSize, k); _k++ {
+
+														ab = ab + a[ai]*b[bi]
+														ai += lda
+														bi++
+
+													}
+												}
+											}
+										}
+
+										c[ci] = beta*c[ci] + alpha*ab
+										ai = ai - lda*k + 1
+										bi = bi - k
+										ci++
+
+									}
+								}
+							}
+						}
+
+						ai = ai - m
+						bi = bi + ldb
+						ci = ci - m + ldc
+
+					}
 				}
-				c[ci] = beta*c[ci] + alpha*ab
-				ai = ai - lda*k + 1
-				bi = bi - k
-				ci++
 			}
-			ai = ai - m
-			bi = bi + ldb
-			ci = ci - m + ldc
 		}
 
 		return nil
