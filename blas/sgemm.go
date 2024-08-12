@@ -50,6 +50,15 @@ func Sgemm(order, transA, transB int, m, n, k int, alpha float32, a []float32, l
 
 		var ai, bi, ci int
 
+		for j := 0; j < n; j++ {
+			for i := 0; i < m; i++ {
+				c[ci] = beta * c[ci]
+				ci++
+			}
+			ci = ci - m + ldc
+		}
+		ci = ci - ldc*n
+
 		/*
 		 * j-loop strip mining
 		 */
@@ -88,7 +97,7 @@ func Sgemm(order, transA, transB int, m, n, k int, alpha float32, a []float32, l
 											}
 										}
 
-										c[ci] = beta*c[ci] + alpha*ab
+										c[ci] = c[ci] + alpha*ab
 										ai = ai - lda*k + 1
 										bi = bi - k
 										ci++
