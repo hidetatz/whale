@@ -60,57 +60,66 @@ func Sgemm(order, transA, transB int, m, n, k int, alpha float32, a []float32, l
 		ci = ci - ldc*n
 
 		/*
-		 * j-loop strip mining
+		 * L3 cache
 		 */
+		for j3 := 0; j3 < n; j3 += min(n-j3, l3BlockSize) {
+			for i3 := 0; i3 < m; i3 += min(m-i3, l3BlockSize) {
+				for k3 := 0; k3 < k; k3 += min(k-k3, l3BlockSize) {
 
-		for _j3 := 0; _j3 < n; _j3 += min(n-_j3, l3BlockSize) {
-			for _j2 := _j3; _j2 < min(_j3+l3BlockSize, n); _j2 += min(n-_j2, l2BlockSize) {
-				for _j1 := _j2; _j1 < min(_j2+l2BlockSize, n); _j1 += min(n-_j1, l1BlockSize) {
-					for _j := _j1; _j < min(_j1+l1BlockSize, n); _j++ {
+					/*
+					 * L2 cache
+					 */
+					for j2 := j3; j2 < min(j3+l3BlockSize, n); j2 += min(n-j2, l2BlockSize) {
+						for i2 := i3; i2 < min(i3+l3BlockSize, m); i2 += min(m-i2, l2BlockSize) {
+							for k2 := k3; k2 < min(k3+l3BlockSize, k); k2 += min(k-k2, l2BlockSize) {
 
-						/*
-						 * i-loop strip mining
-						 */
+								/*
+								 * L1 cache
+								 */
+								for j1 := j2; j1 < min(j2+l2BlockSize, n); j1 += min(n-j1, l1BlockSize) {
+									for i1 := i2; i1 < min(i2+l2BlockSize, m); i1 += min(m-i1, l1BlockSize) {
+										for k1 := k2; k1 < min(k2+l2BlockSize, k); k1 += min(k-k1, l1BlockSize) {
 
-						for _i3 := 0; _i3 < m; _i3 += min(m-_i3, l3BlockSize) {
-							for _i2 := _i3; _i2 < min(_i3+l3BlockSize, m); _i2 += min(m-_i2, l2BlockSize) {
-								for _i1 := _i2; _i1 < min(_i2+l2BlockSize, m); _i1 += min(m-_i1, l1BlockSize) {
-									for _i := _i1; _i < min(_i1+l1BlockSize, m); _i++ {
+											ai = ai + lda*k1 + i1
+											bi = bi + ldb*j1 + k1
+											ci = ci + ldc*j1 + i1
 
-										ab := float32(0.0)
+											_m1 := min(l1BlockSize, m-i1)
+											_n1 := min(l1BlockSize, n-j1)
+											_k1 := min(l1BlockSize, k-k1)
 
-										/*
-										 * k-loop strip mining
-										 */
+											for j := j1; j < j1+_n1; j++ {
+												for i := i1; i < i1+_m1; i++ {
+													ab := float32(0.0)
 
-										for _k3 := 0; _k3 < k; _k3 += min(k-_k3, l3BlockSize) {
-											for _k2 := _k3; _k2 < min(_k3+l3BlockSize, k); _k2 += min(k-_k2, l2BlockSize) {
-												for _k1 := _k2; _k1 < min(_k2+l2BlockSize, k); _k1 += min(k-_k1, l1BlockSize) {
-													for _k := _k1; _k < min(_k1+l1BlockSize, k); _k++ {
-
+													for k := k1; k < k1+_k1; k++ {
 														ab = ab + a[ai]*b[bi]
 														ai += lda
 														bi++
-
 													}
+
+													c[ci] = c[ci] + alpha*ab
+													ai = ai - lda*_k1 + 1
+													bi = bi - _k1
+													ci++
 												}
+
+												ai = ai - _m1
+												bi = bi + ldb
+												ci = ci - _m1 + ldc
 											}
+
+											bi = bi - ldb*_n1
+											ci = ci - ldc*_n1
+
+											ai = ai - lda*k1 - i1
+											bi = bi - ldb*j1 - k1
+											ci = ci - ldc*j1 - i1
 										}
-
-										c[ci] = c[ci] + alpha*ab
-										ai = ai - lda*k + 1
-										bi = bi - k
-										ci++
-
 									}
 								}
 							}
 						}
-
-						ai = ai - m
-						bi = bi + ldb
-						ci = ci - m + ldc
-
 					}
 				}
 			}
