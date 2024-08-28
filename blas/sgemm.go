@@ -1,195 +1,290 @@
 package blas
 
+/*
+ * Sgemm implementation is mostly copied from gonum (https://www.gonum.org/),
+ * but some modifications are applied such as:
+ * - dynamic blocking size optimization
+ * - error handling
+ * - do some whale-style simplification
+ * - comments
+ * The original gonum license is below:
+ *
+ * Copyright ©2014 The Gonum Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ *
+ * Assembly source files are usually just copied from gonum,
+ * but some modifications are applied such as:
+ * - build tag change
+ * - file name
+ * The license should be referred to the .s files.
+ */
+
 import (
-	/*
-	   #cgo LDFLAGS: -L/opt/OpenBLAS/lib/ -lopenblas
-	   #cgo CFLAGS: -I /opt/OpenBLAS/include/
-	   #include <cblas.h>
-	*/
-	"C"
-	"unsafe"
+	"fmt"
+	"runtime"
+	"sync"
 )
+
+type Transpose int
 
 const (
-	NoTrans   = 0
-	Trans     = 1
-	ConjTrans = 2
-
-	ColMajor = 0
-	RowMajor = 1
+	NoTrans   Transpose = 0
+	Trans     Transpose = 1
+	ConjTrans Transpose = 2
 )
 
-func Sgemm(order, transA, transB int, m, n, k int, alpha float32, a []float32, lda int, b []float32, ldb int, beta float32, c []float32, ldc int) error {
-	if order == RowMajor {
-		// swap
-		transA, transB = transB, transA
-		m, n = n, m
-		a, b = b, a
-		lda, ldb = ldb, lda
-	}
-
-	// todo: validate params
-
-	// memo:
-	// L3 cache:   20MiB
-	// L2 cache:   256KiB
-	// L1 I cache: 32KiB
-	// L1 D cache: 32KiB
-
-	// todo: optimize
-	l3BlockSize := 1024
-	l2BlockSize := 128
-	l1BlockSize := 32
-
-	transposed := func(trans int) bool { return trans == Trans || trans == ConjTrans }
-
-	switch {
-	case !transposed(transA) && !transposed(transB):
-		// notrans x notrans.
-		// C = α * A * B + β * C
-
-		var ai, bi, ci int
-
-		for j := 0; j < n; j++ {
-			for i := 0; i < m; i++ {
-				c[ci] = beta * c[ci]
-				ci++
-			}
-			ci = ci - m + ldc
-		}
-		ci = ci - ldc*n
-
-		/*
-		 * L3 cache
-		 */
-		for j3 := 0; j3 < n; j3 += min(n-j3, l3BlockSize) {
-			for i3 := 0; i3 < m; i3 += min(m-i3, l3BlockSize) {
-				for k3 := 0; k3 < k; k3 += min(k-k3, l3BlockSize) {
-
-					/*
-					 * L2 cache
-					 */
-					for j2 := j3; j2 < min(j3+l3BlockSize, n); j2 += min(n-j2, l2BlockSize) {
-						for i2 := i3; i2 < min(i3+l3BlockSize, m); i2 += min(m-i2, l2BlockSize) {
-							for k2 := k3; k2 < min(k3+l3BlockSize, k); k2 += min(k-k2, l2BlockSize) {
-
-								/*
-								 * L1 cache
-								 */
-								for j1 := j2; j1 < min(j2+l2BlockSize, n); j1 += min(n-j1, l1BlockSize) {
-									for i1 := i2; i1 < min(i2+l2BlockSize, m); i1 += min(m-i1, l1BlockSize) {
-										for k1 := k2; k1 < min(k2+l2BlockSize, k); k1 += min(k-k1, l1BlockSize) {
-
-											ai = ai + lda*k1 + i1
-											bi = bi + ldb*j1 + k1
-											ci = ci + ldc*j1 + i1
-
-											_m1 := min(l1BlockSize, m-i1)
-											_n1 := min(l1BlockSize, n-j1)
-											_k1 := min(l1BlockSize, k-k1)
-
-											for j := j1; j < j1+_n1; j++ {
-												for i := i1; i < i1+_m1; i++ {
-													ab := float32(0.0)
-
-													for k := k1; k < k1+_k1; k++ {
-														ab = ab + a[ai]*b[bi]
-														ai += lda
-														bi++
-													}
-
-													c[ci] = c[ci] + alpha*ab
-													ai = ai - lda*_k1 + 1
-													bi = bi - _k1
-													ci++
-												}
-
-												ai = ai - _m1
-												bi = bi + ldb
-												ci = ci - _m1 + ldc
-											}
-
-											bi = bi - ldb*_n1
-											ci = ci - ldc*_n1
-
-											ai = ai - lda*k1 - i1
-											bi = bi - ldb*j1 - k1
-											ci = ci - ldc*j1 - i1
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		return nil
-
-	case transposed(transA) && !transposed(transB):
-		// trans x notrans.
-		// C = α * A^T * B + β * C
-		panic("unimplemented")
-
-	case !transposed(transA) && transposed(transB):
-		// notrans x trans.
-		// C = α * A * B^T + β * C
-		panic("unimplemented")
-
+func (t Transpose) String() string {
+	switch t {
+	case 0:
+		return "NoTrans"
+	case 1:
+		return "Trans"
+	case 2:
+		return "ConjTrans"
 	default:
-		// trans x trans.
-		// C = α * A^T * B^T + β * C
-		panic("unimplemented")
+		panic("transpose.String(): unreachable")
 	}
 }
 
-func SgemmOpenBLAS_cgo(_order, _transA, _transB int, _m, _n, _k int, _alpha float32, _a []float32, _lda int, _b []float32, _ldb int, _beta float32, _c []float32, _ldc int) error {
-	var order uint32 = C.CblasColMajor
-	if _order == RowMajor {
-		order = C.CblasRowMajor
+// implemented in .s
+func SaxpyUnitary(alpha float32, x, y []float32)
+func SaxpyInc(alpha float32, x, y []float32, n, incX, incY, ix, iy uintptr)
+func DotUnitary(x, y []float32) (sum float32)
+
+const (
+	blockSize   = 512
+	minParBlock = 4
+)
+
+// Sgemm is a blas sgemm implementation. See blas reference for each argument meaning.
+// In this Sgemm, order is assumed to be row-major because this blas lib is made for whale
+// which always considers tensors as row-major.
+func Sgemm(
+	transA, transB Transpose, m, n, k int,
+	alpha float32, a []float32, lda int, b []float32, ldb int,
+	beta float32, c []float32, ldc int) error {
+
+	/*
+	 * validation
+	 */
+
+	if transA != NoTrans && transA != Trans && transA != ConjTrans {
+		return fmt.Errorf("invalid transpose %v for A", transA)
 	}
-	var transA uint32 = C.CblasNoTrans
-	if _transA == Trans || _transA == ConjTrans {
-		transA = C.CblasTrans
+
+	if transB != NoTrans && transB != Trans && transB != ConjTrans {
+		return fmt.Errorf("invalid transpose %v for B", transB)
 	}
 
-	var transB uint32 = C.CblasNoTrans
-	if _transB == Trans || _transB == ConjTrans {
-		transB = C.CblasTrans
+	isATrans := transA == Trans || transA == ConjTrans
+	isBTrans := transB == Trans || transB == ConjTrans
+
+	if m < 0 {
+		return fmt.Errorf("m < 0")
 	}
 
-	m := C.blasint(_m)
-	n := C.blasint(_n)
-	k := C.blasint(_k)
+	if n < 0 {
+		return fmt.Errorf("n < 0")
+	}
 
-	alpha := C.float(_alpha)
-	beta := C.float(_beta)
+	if k < 0 {
+		return fmt.Errorf("k < 0")
+	}
 
-	lda := C.blasint(_lda)
-	ldb := C.blasint(_ldb)
-	ldc := C.blasint(_ldc)
+	if isATrans {
+		if lda < max(1, m) {
+			return fmt.Errorf("invalid lda")
+		}
+	} else {
+		if lda < max(1, k) {
+			return fmt.Errorf("invalid lda")
+		}
+	}
 
-	a := (*C.float)(unsafe.Pointer(&_a[0]))
-	b := (*C.float)(unsafe.Pointer(&_b[0]))
-	c := (*C.float)(unsafe.Pointer(&_c[0]))
+	if isBTrans {
+		if ldb < max(1, k) {
+			return fmt.Errorf("invalid ldb")
+		}
+	} else {
+		if ldb < max(1, n) {
+			return fmt.Errorf("invalid ldb")
+		}
+	}
 
-	C.cblas_sgemm(
-		order,
-		transA,
-		transB,
-		m,
-		n,
-		k,
-		alpha,
-		a,
-		lda,
-		b,
-		ldb,
-		beta,
-		c,
-		ldc,
-	)
+	if ldc < max(1, n) {
+		return fmt.Errorf("invalid ldc")
+	}
+
+	// lucky, fast path
+
+	if m == 0 || n == 0 {
+		return nil
+	}
+
+	if alpha == 0 && beta == 1 {
+		return nil
+	}
+
+	// c *= beta
+	if beta != 1 {
+		for i := 0; i < m; i++ {
+			tmp := c[i*ldc : i*ldc+n] // tmp is a view, not a copy
+			for j := range tmp {
+				tmp[j] *= beta
+			}
+		}
+	}
+
+	/*
+	 * Actual sgemm computation.
+	 * The basic performance tuning ideas are:
+	 * - blocking
+	 * - parallelization
+	 * - SIMD
+	 * - loop unrolling
+	 */
+
+	// sgemmParallel computes a parallel matrix multiplication bys partitioning
+	// a and b into sub-blocks, and updating c with the multiplication of the sub-block
+	// In all cases,
+	// A = [ 	A_11	A_12 ... 	A_1j
+	//			A_21	A_22 ...	A_2j
+	//				...
+	//			A_i1	A_i2 ...	A_ij]
+	//
+	// and same for B. All of the submatrix sizes are blockSize×blockSize except
+	// at the edges.
+	//
+	// In all cases, there is one dimension for each matrix along which
+	// C must be updated sequentially.
+	// Cij = \sum_k Aik Bkj,	(A * B)
+	// Cij = \sum_k Aki Bkj,	(Aᵀ * B)
+	// Cij = \sum_k Aik Bjk,	(A * Bᵀ)
+	// Cij = \sum_k Aki Bjk,	(Aᵀ * Bᵀ)
+	//
+	// This code computes one {i, j} block sequentially along the k dimension,
+	// and computes all of the {i, j} blocks concurrently. This
+	// partitioning allows Cij to be updated in-place without race-conditions.
+	// Instead of launching a goroutine for each possible concurrent computation,
+	// a number of worker goroutines are created and channels are used to pass
+	// available and completed cases.
+	//
+	// http://alexkr.com/docs/matrixmult.pdf is a good reference on matrix-matrix
+	// multiplies, though this code does not copy matrices to attempt to eliminate
+	// cache misses.
+
+	maxKLen := k
+	parBlocks := blocks(m, blockSize) * blocks(n, blockSize)
+	if parBlocks < minParBlock {
+		// matrix is small enough
+		sgemm(isATrans, isBTrans, m, n, k, a, lda, b, ldb, c, ldc, alpha)
+		return nil
+	}
+
+	workerLimit := make(chan struct{}, runtime.GOMAXPROCS(0))
+
+	var wg sync.WaitGroup
+	wg.Add(parBlocks)
+	defer wg.Wait()
+
+	for i := 0; i < m; i += blockSize {
+		for j := 0; j < n; j += blockSize {
+			workerLimit <- struct{}{}
+			go func(i, j int) {
+				defer func() {
+					wg.Done()
+					<-workerLimit
+				}()
+
+				leni := blockSize
+				if i+leni > m {
+					leni = m - i
+				}
+				lenj := blockSize
+				if j+lenj > n {
+					lenj = n - j
+				}
+
+				cSub := sliceView(c, ldc, i, j, leni, lenj)
+
+				// Compute A_ik B_kj for all k
+				for k := 0; k < maxKLen; k += blockSize {
+					lenk := blockSize
+					if k+lenk > maxKLen {
+						lenk = maxKLen - k
+					}
+					var aSub, bSub []float32
+					if isATrans {
+						aSub = sliceView(a, lda, k, i, lenk, leni)
+					} else {
+						aSub = sliceView(a, lda, i, k, leni, lenk)
+					}
+					if isBTrans {
+						bSub = sliceView(b, ldb, j, k, lenj, lenk)
+					} else {
+						bSub = sliceView(b, ldb, k, j, lenk, lenj)
+					}
+
+					sgemm(isATrans, isBTrans, leni, lenj, lenk, aSub, lda, bSub, ldb, cSub, ldc, alpha)
+				}
+			}(i, j)
+		}
+	}
 
 	return nil
+}
+
+// sgemm computes a straightforward matrix multiplication sequentially.
+func sgemm(aTrans, bTrans bool, m, n, k int, a []float32, lda int, b []float32, ldb int, c []float32, ldc int, alpha float32) {
+	switch {
+	case !aTrans && !bTrans:
+		for i := 0; i < m; i++ {
+			ctmp := c[i*ldc : i*ldc+n]
+			for l, v := range a[i*lda : i*lda+k] {
+				tmp := alpha * v
+				if tmp != 0 {
+					SaxpyUnitary(tmp, b[l*ldb:l*ldb+n], ctmp)
+				}
+			}
+		}
+	case aTrans && !bTrans:
+		for l := 0; l < k; l++ {
+			btmp := b[l*ldb : l*ldb+n]
+			for i, v := range a[l*lda : l*lda+m] {
+				tmp := alpha * v
+				if tmp != 0 {
+					ctmp := c[i*ldc : i*ldc+n]
+					SaxpyUnitary(tmp, btmp, ctmp)
+				}
+			}
+		}
+	case !aTrans && bTrans:
+		for i := 0; i < m; i++ {
+			atmp := a[i*lda : i*lda+k]
+			ctmp := c[i*ldc : i*ldc+n]
+			for j := 0; j < n; j++ {
+				ctmp[j] += alpha * DotUnitary(atmp, b[j*ldb:j*ldb+k])
+			}
+		}
+
+	default: // aTrans && bTrans:
+		for l := 0; l < k; l++ {
+			for i, v := range a[l*lda : l*lda+m] {
+				tmp := alpha * v
+				if tmp != 0 {
+					ctmp := c[i*ldc : i*ldc+n]
+					SaxpyInc(tmp, b[l:], ctmp, uintptr(n), uintptr(ldb), 1, 0, 0)
+				}
+			}
+		}
+	}
+}
+
+func blocks(dim, bsize int) int {
+	return (dim + bsize - 1) / bsize
+}
+
+func sliceView(a []float32, lda, i, j, r, c int) []float32 {
+	return a[i*lda+j : (i+r-1)*lda+j+c]
 }
