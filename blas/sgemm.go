@@ -145,35 +145,6 @@ func Sgemm(
 	 * - loop unrolling
 	 */
 
-	// sgemmParallel computes a parallel matrix multiplication bys partitioning
-	// a and b into sub-blocks, and updating c with the multiplication of the sub-block
-	// In all cases,
-	// A = [ 	A_11	A_12 ... 	A_1j
-	//			A_21	A_22 ...	A_2j
-	//				...
-	//			A_i1	A_i2 ...	A_ij]
-	//
-	// and same for B. All of the submatrix sizes are blockSize×blockSize except
-	// at the edges.
-	//
-	// In all cases, there is one dimension for each matrix along which
-	// C must be updated sequentially.
-	// Cij = \sum_k Aik Bkj,	(A * B)
-	// Cij = \sum_k Aki Bkj,	(Aᵀ * B)
-	// Cij = \sum_k Aik Bjk,	(A * Bᵀ)
-	// Cij = \sum_k Aki Bjk,	(Aᵀ * Bᵀ)
-	//
-	// This code computes one {i, j} block sequentially along the k dimension,
-	// and computes all of the {i, j} blocks concurrently. This
-	// partitioning allows Cij to be updated in-place without race-conditions.
-	// Instead of launching a goroutine for each possible concurrent computation,
-	// a number of worker goroutines are created and channels are used to pass
-	// available and completed cases.
-	//
-	// http://alexkr.com/docs/matrixmult.pdf is a good reference on matrix-matrix
-	// multiplies, though this code does not copy matrices to attempt to eliminate
-	// cache misses.
-
 	maxKLen := k
 	parBlocks := blocks(m, blockSize) * blocks(n, blockSize)
 	if parBlocks < minParBlock {
