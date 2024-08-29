@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/hidetatz/whale/cpuid"
-	"github.com/hidetatz/whale/flops"
+	"github.com/hidetatz/whale/tensor"
 )
 
 func main() {
-	info := cpuid.CPUID()
-	fmt.Printf("%+v\n", info)
-	fmt.Printf("%+v\n", flops.Calc(info))
+	t := tensor.Arange(0, 16, 1).Reshape(4, 4)
+	fmt.Println(t.Raw())
+	fmt.Println(t)
+	t2 := t.Transpose()
+	fmt.Println(t2.Raw())
+	fmt.Println(t2)
 }
