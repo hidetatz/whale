@@ -97,6 +97,8 @@ func F() {
 		panic(err)
 	}
 
+	fmt.Println(fmt.Sprintf(prg, strings.Join(sparams, "\n"), strings.Join(prgs, "\n")))
+
 	f.WriteString(fmt.Sprintf(prg, strings.Join(sparams, "\n"), strings.Join(prgs, "\n")))
 	f.Close()
 
