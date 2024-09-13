@@ -170,7 +170,7 @@ extern "C" float* f(char** cerr) {
 	f.WriteString(program)
 	f.Close()
 
-	out, err := exec.Command("nvcc", "-O3", "--shared", "-Xcompiler", "-fPIC", "-o", "/tmp/f.so", "/tmp/f.cu").CombinedOutput()
+	out, err := exec.Command("nvcc", "-O3", "--shared", "-Xcompiler", "-fPIC", "-o", "/tmp/whale_f_cuda.so", "/tmp/f.cu").CombinedOutput()
 	if err != nil {
 		panic(string(out))
 	}
