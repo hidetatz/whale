@@ -73,7 +73,7 @@ func F() []float32 {
 			panic(err)
 		}
 
-		*d.(*[]float32) = tasks[param].data
+		*d.(*[]float32) = tasks[param].constant
 	}
 
 	fn, err := p.Lookup("F")

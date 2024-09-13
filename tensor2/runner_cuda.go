@@ -69,7 +69,7 @@ func (c *cuda) indent() string {
 }
 
 func (c *cuda) run(tasks []*task) []float32 {
-	resultlen := len(tasks[0].data) // todo: calculate properly
+	resultlen := len(tasks[0].constant) // todo: calculate properly
 
 	computes := [][]string{}
 	inputIdx := []int{}
@@ -82,7 +82,7 @@ func (c *cuda) run(tasks []*task) []float32 {
 
 		case ops.constant:
 			inputIdx = append(inputIdx, i)
-			inputCPU = append(inputCPU, c.dataOnHost(i, len(tasks[i].data)))
+			inputCPU = append(inputCPU, c.dataOnHost(i, len(tasks[i].constant)))
 			inputGPU = append(inputGPU, c.memcpyHostToDevice(i))
 
 		case ops.add:
@@ -185,7 +185,7 @@ extern "C" float* f(char** cerr) {
 			panic(fmt.Sprintf("error resolving d: %v", C.GoString(C.dlerror())))
 		}
 
-		C.setFloatArray((*C.float)(d), (*C.float)(&tasks[idx].data[0]), C.int(len(tasks[idx].data)))
+		C.setFloatArray((*C.float)(d), (*C.float)(&tasks[idx].constant[0]), C.int(len(tasks[idx].constant)))
 	}
 
 	fname := C.CString("f")
