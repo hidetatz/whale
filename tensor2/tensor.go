@@ -14,8 +14,12 @@ func (op op) String() string {
 	switch op {
 	case ops.constant:
 		return "const"
+
 	case ops.add:
 		return "+"
+
+	case ops.mul:
+		return "*"
 	}
 
 	panic("switch-case is not exhaustive!")
@@ -42,11 +46,9 @@ func (t *Tensor) String() string {
 	switch t.op {
 	case ops.constant:
 		return fmt.Sprintf("%v", t.data)
-	case ops.add:
-		return fmt.Sprintf("{+ %v}", t.src)
+	default:
+		return fmt.Sprintf("{%v %v}", t.op, t.src)
 	}
-
-	panic("switch-case is not exhaustive!")
 }
 
 func empty(op op) *Tensor {
