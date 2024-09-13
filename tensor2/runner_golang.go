@@ -19,6 +19,9 @@ func (_ *golang) run(tasks []*task) []float32 {
 			params = append(params, i)
 		case ops.add:
 			prgs = append(prgs, fmt.Sprintf("	Data%v := add(Data%v, Data%v)", i, task.inputs[0], task.inputs[1]))
+
+		case ops.mul:
+			prgs = append(prgs, fmt.Sprintf("	Data%v := mul(Data%v, Data%v)", i, task.inputs[0], task.inputs[1]))
 		}
 
 		if i == len(tasks)-1 {
@@ -34,6 +37,14 @@ func add(a []float32, b []float32) []float32 {
 	data := make([]float32, len(a))
 	for i := range a {
 		data[i] = a[i] + b[i]
+	}
+	return data
+}
+
+func mul(a []float32, b []float32) []float32 {
+	data := make([]float32, len(a))
+	for i := range a {
+		data[i] = a[i] * b[i]
 	}
 	return data
 }

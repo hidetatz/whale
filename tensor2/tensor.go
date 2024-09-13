@@ -24,11 +24,12 @@ func (op op) String() string {
 type _ops struct {
 	constant op
 	add      op
+	mul      op
 }
 
 // Pseudo-namespacing
 var ops = &_ops{
-	1, 2,
+	1, 2, 3,
 }
 
 type Tensor struct {
@@ -62,12 +63,25 @@ func (t *Tensor) Add(t2 *Tensor) *Tensor {
 	return y
 }
 
+func (t *Tensor) Mul(t2 *Tensor) *Tensor {
+	y := empty(ops.mul)
+	y.src = []*Tensor{t, t2}
+	return y
+}
+
 func main() {
 	t := New([]float32{1, 2})
 	t2 := New([]float32{3, 4})
 	t3 := t.Add(t2)
-	t4 := t3.Add(New([]float32{10, 10}))
+	t4 := t3.Mul(New([]float32{10, 10}))
 
+	// t5 := New([]float32{1, 2})
+	// t6 := New([]float32{3, 4})
+	// t7 := t5.Add(t6)
+	// t8 := t7.Add(New([]float32{10, 10}))
+
+	// t9 := t8.Add(t4)
+	// t9.Materialize()
 	t4.Materialize()
 	fmt.Println(t4.data)
 }

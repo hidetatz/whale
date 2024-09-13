@@ -87,6 +87,9 @@ func (c *cuda) run(tasks []*task) []float32 {
 
 		case ops.add:
 			computes = append(computes, c.alu2("add", i, task.inputs[0], task.inputs[1]))
+
+		case ops.mul:
+			computes = append(computes, c.alu2("mul", i, task.inputs[0], task.inputs[1]))
 		}
 
 		if i == len(tasks)-1 {
@@ -96,6 +99,11 @@ func (c *cuda) run(tasks []*task) []float32 {
 
 	prg := `#include <cuda_runtime.h>
 #include <stdio.h>
+
+__global__ void mul(float *A, float *B, float *C) {
+  int i = threadIdx.x;
+  C[i] = A[i] * B[i];
+}
 
 __global__ void add(float *A, float *B, float *C) {
   int i = threadIdx.x;
