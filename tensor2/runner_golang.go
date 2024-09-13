@@ -36,9 +36,7 @@ func (g *golang) alu2(fn string, length, result, left, right int) []string {
 
 func (g *golang) returnresult(idx int) []string {
 	return []string{
-		g.f("var result []float32"),
-		g.f("result = Data%v", idx),
-		g.f("return result;"),
+		g.f("return Data%v", idx),
 	}
 }
 
