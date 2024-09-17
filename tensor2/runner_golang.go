@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"plugin"
 	"strings"
+	"time"
 )
 
 type golang struct {
@@ -92,7 +93,12 @@ func F() []float32 {
 }
 `
 
-	f, err := os.Create("/tmp/f.go")
+	// Because Go plugin cannot be closed, shared object filename must be different on different program
+	filename := time.Now().Format("20060102150405.000")
+	gofilename := "/tmp/whale_go_" + filename + ".go"
+	sofilename := "/tmp/whale_go_" + filename + ".so"
+
+	f, err := os.Create(gofilename)
 	if err != nil {
 		panic(err)
 	}
@@ -115,15 +121,19 @@ func F() []float32 {
 		join1(returnresult, "\n	"),
 	)
 
+	if debug {
+		fmt.Println(program)
+	}
+
 	f.WriteString(program)
 	f.Close()
 
-	out, err := exec.Command("go", "build", "-o", "/tmp/whale_f_golang.so", "-buildmode=plugin", "/tmp/f.go").CombinedOutput()
+	out, err := exec.Command("go", "build", "-o", sofilename, "-buildmode=plugin", gofilename).CombinedOutput()
 	if err != nil {
 		panic(string(out))
 	}
 
-	p, err := plugin.Open("/tmp/whale_f_golang.so")
+	p, err := plugin.Open(sofilename)
 	if err != nil {
 		panic(err)
 	}

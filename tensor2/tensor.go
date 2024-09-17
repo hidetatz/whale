@@ -2,9 +2,17 @@ package main
 
 import (
 	"fmt"
+	"os"
 )
 
+var debug bool
+
+func initDebug() {
+	debug = os.Getenv("DEBUG") == "1"
+}
+
 func init() {
+	initDebug()
 	initRunner()
 }
 
@@ -90,12 +98,6 @@ func (t *Tensor) Backprop() {
 	for i := range recipes {
 		t.function.inputs[0].function.inputs[i].grad.recipe = recipes[i]
 	}
-
-	// todo: function on const is nil now, so this panics
-	// recipes = t.function.inputs[1].function.differentiable.backward(t.function.inputs[0].grad.recipe)
-	// for i := range recipes {
-	// 	t.function.inputs[0].function.inputs[i].grad.recipe = recipes[i]
-	// }
 }
 
 func main() {
@@ -106,5 +108,8 @@ func main() {
 
 	t4.Backprop()
 
+	fmt.Println(t4.grad.Materialize())
 	fmt.Println(t3.grad.Materialize())
+	fmt.Println(t2.grad.Materialize())
+	fmt.Println(t.grad.Materialize())
 }
