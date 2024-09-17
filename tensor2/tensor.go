@@ -79,12 +79,32 @@ func (t *Tensor) Mul(t2 *Tensor) *Tensor {
 }
 
 func (t *Tensor) Backprop() {
+	t.grad = New([]float32{1})
+
+	recipes := t.function.differentiable.backward(t.grad.recipe)
+	for i := range recipes {
+		t.function.inputs[i].grad.recipe = recipes[i]
+	}
+
+	recipes = t.function.inputs[0].function.differentiable.backward(t.function.inputs[0].grad.recipe)
+	for i := range recipes {
+		t.function.inputs[0].function.inputs[i].grad.recipe = recipes[i]
+	}
+
+	// todo: function on const is nil now, so this panics
+	// recipes = t.function.inputs[1].function.differentiable.backward(t.function.inputs[0].grad.recipe)
+	// for i := range recipes {
+	// 	t.function.inputs[0].function.inputs[i].grad.recipe = recipes[i]
+	// }
 }
 
 func main() {
-	t := New([]float32{1, 2})
-	t2 := New([]float32{3, 4})
+	t := New([]float32{1})
+	t2 := New([]float32{2})
 	t3 := t.Add(t2)
-	t4 := t3.Mul(New([]float32{10, 10}))
-	fmt.Println(t4.Materialize())
+	t4 := t3.Mul(New([]float32{10}))
+
+	t4.Backprop()
+
+	fmt.Println(t3.grad.Materialize())
 }
