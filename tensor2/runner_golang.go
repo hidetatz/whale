@@ -115,8 +115,6 @@ func F() []float32 {
 		join1(returnresult, "\n	"),
 	)
 
-	fmt.Println(program)
-
 	f.WriteString(program)
 	f.Close()
 
