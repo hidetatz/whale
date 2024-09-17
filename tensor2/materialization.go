@@ -10,39 +10,39 @@ type task struct {
 	inputs   []int
 }
 
-func flatten(leaf *Tensor) []*Tensor {
-	visited := make(map[*Tensor]bool)
-	var tensors []*Tensor
-	var dfs func(*Tensor)
+func flatten(leaf *Tensor) []*recipe {
+	visited := make(map[*recipe]bool)
+	var recipes []*recipe
+	var dfs func(*recipe)
 
-	dfs = func(t *Tensor) {
-		if visited[t] {
+	dfs = func(r *recipe) {
+		if visited[r] {
 			return
 		}
 
-		visited[t] = true
-		for _, s := range t.src {
+		visited[r] = true
+		for _, s := range r.src {
 			dfs(s)
 		}
-		tensors = append(tensors, t)
+		recipes = append(recipes, r)
 	}
-	dfs(leaf)
-	return tensors
+	dfs(leaf.recipe)
+	return recipes
 }
 
-func dependencies(tensors []*Tensor) [][]*Tensor {
-	list := make([][]*Tensor, len(tensors))
-	for i := range tensors {
-		list[i] = tensors[i].src
+func dependencies(recipes []*recipe) [][]*recipe {
+	list := make([][]*recipe, len(recipes))
+	for i := range recipes {
+		list[i] = recipes[i].src
 	}
 	return list
 }
 
-func calcIndegree(tensors []*Tensor) []int {
-	list := make([]int, len(tensors))
-	for _, tensor := range tensors {
-		for _, src := range tensor.src {
-			for i, t := range tensors {
+func calcIndegree(recipes []*recipe) []int {
+	list := make([]int, len(recipes))
+	for _, recipe := range recipes {
+		for _, src := range recipe.src {
+			for i, t := range recipes {
 				if t == src {
 					list[i]++
 					break
@@ -62,37 +62,37 @@ func (t *Tensor) linearize() []*task {
 	 */
 
 	// Extract tensor tree to list. They are still connected via its pointer.
-	tensors := flatten(t)
+	recipes := flatten(t)
 
 	// Tensors order matters, This is latter used as something like task's ID.
 	// Preserve order here for later use.
-	at := map[*Tensor]int{}
-	for i, tensor := range tensors {
-		at[tensor] = i
+	at := map[*recipe]int{}
+	for i, r := range recipes {
+		at[r] = i
 	}
 
 	// Dependency list for topological sort.
 	// This is a list whose length is the same as tensors.
 	// deps[i] is a list of tensors that tensors[i] is depending on.
-	deps := dependencies(tensors)
+	deps := dependencies(recipes)
 
 	// Indegree counts for topological sort.
 	// This is a list whose length is the same as tensors.
 	// indegrees[i] is how many tensors are depending on tensors[i].
-	indegrees := calcIndegree(tensors)
+	indegrees := calcIndegree(recipes)
 
 	/*
 	 * Topological sort.
 	 */
 
-	queue := []*Tensor{}
+	queue := []*recipe{}
 	for i, indegree := range indegrees {
 		if indegree == 0 {
-			queue = append(queue, tensors[i])
+			queue = append(queue, recipes[i])
 		}
 	}
 
-	result := []*Tensor{}
+	result := []*recipe{}
 
 	// breadth first search
 	for len(queue) != 0 {
@@ -105,7 +105,7 @@ func (t *Tensor) linearize() []*task {
 		for _, dep := range deps[at[v]] {
 			indegrees[at[dep]]--
 			if indegrees[at[dep]] == 0 {
-				queue = append(queue, tensors[at[dep]])
+				queue = append(queue, recipes[at[dep]])
 			}
 		}
 	}
@@ -115,18 +115,18 @@ func (t *Tensor) linearize() []*task {
 	slices.Reverse(result)
 
 	tasks := make([]*task, len(result))
-	for i, t := range result {
-		tasks[i] = &task{op: t.op}
+	for i, r := range result {
+		tasks[i] = &task{op: r.op}
 
-		if t.op == ops.constant {
-			tasks[i].constant = t.data
+		if r.op == ops.constant {
+			tasks[i].constant = r.constant
 			continue
 		}
 
-		inputs := make([]int, len(t.src))
+		inputs := make([]int, len(r.src))
 
 		// find inputs index
-		for i, dep := range t.src {
+		for i, dep := range r.src {
 			for j, r := range result {
 				if dep == r {
 					inputs[i] = j

@@ -36,39 +36,49 @@ var ops = &_ops{
 	1, 2, 3,
 }
 
-type Tensor struct {
-	op   op
-	src  []*Tensor
-	data []float32
+type recipe struct {
+	op       op
+	constant []float32
+	src      []*recipe
 }
 
-func (t *Tensor) String() string {
-	switch t.op {
+func (r *recipe) String() string {
+	switch r.op {
 	case ops.constant:
-		return fmt.Sprintf("%v", t.data)
+		return fmt.Sprintf("%v", r.constant)
 	default:
-		return fmt.Sprintf("{%v %v}", t.op, t.src)
+		return fmt.Sprintf("%v", r.op)
 	}
 }
 
-func empty(op op) *Tensor {
-	return &Tensor{op: op}
+type Tensor struct {
+	function *function
+	recipe   *recipe
+	data     []float32
+	grad     []float32
+}
+
+func (t *Tensor) String() string {
+	return fmt.Sprintf("%v", t.data)
+}
+
+func empty() *Tensor {
+	return &Tensor{}
 }
 
 func New(data []float32) *Tensor {
-	return &Tensor{op: ops.constant, data: data}
+	return &Tensor{recipe: &recipe{op: ops.constant, constant: data}}
 }
 
 func (t *Tensor) Add(t2 *Tensor) *Tensor {
-	y := empty(ops.add)
-	y.src = []*Tensor{t, t2}
-	return y
+	return applyfunc(&add{}, t, t2)
 }
 
 func (t *Tensor) Mul(t2 *Tensor) *Tensor {
-	y := empty(ops.mul)
-	y.src = []*Tensor{t, t2}
-	return y
+	return applyfunc(&mul{}, t, t2)
+}
+
+func (t *Tensor) Backprop() {
 }
 
 func main() {
@@ -76,14 +86,5 @@ func main() {
 	t2 := New([]float32{3, 4})
 	t3 := t.Add(t2)
 	t4 := t3.Mul(New([]float32{10, 10}))
-
-	// t5 := New([]float32{1, 2})
-	// t6 := New([]float32{3, 4})
-	// t7 := t5.Add(t6)
-	// t8 := t7.Add(New([]float32{10, 10}))
-
-	// t9 := t8.Add(t4)
-	// t9.Materialize()
-	t4.Materialize()
-	fmt.Println(t4.data)
+	fmt.Println(t4.Materialize())
 }
