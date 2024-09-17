@@ -175,7 +175,7 @@ extern "C" float* f(char** cerr) {
 		panic(string(out))
 	}
 
-	soname := C.CString("/tmp/f.so")
+	soname := C.CString("/tmp/whale_f_cuda.so")
 	defer C.free(unsafe.Pointer(soname))
 
 	handle := C.dlopen(soname, C.RTLD_LAZY)
