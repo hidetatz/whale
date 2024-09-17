@@ -55,7 +55,7 @@ type Tensor struct {
 	function *function
 	recipe   *recipe
 	data     []float32
-	grad     []float32
+	grad     *Tensor
 }
 
 func (t *Tensor) String() string {
@@ -67,7 +67,7 @@ func empty() *Tensor {
 }
 
 func New(data []float32) *Tensor {
-	return &Tensor{recipe: &recipe{op: ops.constant, constant: data}}
+	return &Tensor{recipe: &recipe{op: ops.constant, constant: data}, grad: empty()}
 }
 
 func (t *Tensor) Add(t2 *Tensor) *Tensor {

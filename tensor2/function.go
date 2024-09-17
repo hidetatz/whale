@@ -20,6 +20,7 @@ func applyfunc(d differentiable, inputs ...*Tensor) *Tensor {
 		recipes[i] = inputs[i].recipe
 	}
 	y.recipe = d.forward(recipes...)
+	y.grad = empty()
 
 	return y
 }
