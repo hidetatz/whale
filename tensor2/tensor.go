@@ -44,24 +44,24 @@ var ops = &_ops{
 	1, 2, 3,
 }
 
-type recipe struct {
+type plan struct {
 	op       op
 	constant []float32
-	src      []*recipe
+	src      []*plan
 }
 
-func (r *recipe) String() string {
-	switch r.op {
+func (p *plan) String() string {
+	switch p.op {
 	case ops.constant:
-		return fmt.Sprintf("%v", r.constant)
+		return fmt.Sprintf("%v", p.constant)
 	default:
-		return fmt.Sprintf("%v", r.op)
+		return fmt.Sprintf("%v", p.op)
 	}
 }
 
 type Tensor struct {
 	function *function
-	recipe   *recipe
+	plan     *plan
 	data     []float32
 	grad     *Tensor
 }
@@ -75,11 +75,11 @@ func empty() *Tensor {
 }
 
 func New(data []float32) *Tensor {
-	return &Tensor{recipe: &recipe{op: ops.constant, constant: data}}
+	return &Tensor{plan: &plan{op: ops.constant, constant: data}}
 }
 
-func fromRecipe(r *recipe) *Tensor {
-	return &Tensor{recipe: r}
+func fromplan(p *plan) *Tensor {
+	return &Tensor{plan: p}
 }
 
 func (t *Tensor) Add(t2 *Tensor) *Tensor {
@@ -120,10 +120,10 @@ func (t *Tensor) Backprop() {
 	}
 
 	for _, tensor := range flatten(t) {
-		grads := tensor.function.backward(tensor.grad.recipe)
+		grads := tensor.function.backward(tensor.grad.plan)
 		for i := range grads {
 			input := tensor.function.inputs[i]
-			grad := fromRecipe(grads[i])
+			grad := fromplan(grads[i])
 
 			if input.grad == nil {
 				input.grad = grad

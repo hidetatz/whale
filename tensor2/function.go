@@ -1,8 +1,8 @@
 package main
 
 type differentiable interface {
-	forward(...*recipe) *recipe
-	backward(*recipe) []*recipe
+	forward(...*plan) *plan
+	backward(*plan) []*plan
 	String() string
 }
 
@@ -11,7 +11,7 @@ type function struct {
 	differentiable differentiable
 }
 
-func (f *function) backward(grad *recipe) []*recipe {
+func (f *function) backward(grad *plan) []*plan {
 	return f.differentiable.backward(grad)
 }
 
@@ -19,11 +19,11 @@ func applyfunc(d differentiable, inputs ...*Tensor) *Tensor {
 	y := empty()
 	y.function = &function{inputs: inputs, differentiable: d}
 
-	recipes := make([]*recipe, len(inputs))
+	plans := make([]*plan, len(inputs))
 	for i := range len(inputs) {
-		recipes[i] = inputs[i].recipe
+		plans[i] = inputs[i].plan
 	}
-	y.recipe = d.forward(recipes...)
+	y.plan = d.forward(plans...)
 
 	return y
 }
@@ -36,25 +36,25 @@ type add struct{}
 
 func (*add) String() string { return "+" }
 
-func (*add) forward(recipes ...*recipe) *recipe {
-	return &recipe{op: ops.add, src: []*recipe{recipes[0], recipes[1]}}
+func (*add) forward(plans ...*plan) *plan {
+	return &plan{op: ops.add, src: []*plan{plans[0], plans[1]}}
 }
 
-func (*add) backward(grad *recipe) []*recipe { return []*recipe{grad, grad} }
+func (*add) backward(grad *plan) []*plan { return []*plan{grad, grad} }
 
 type mul struct {
-	x, y *recipe
+	x, y *plan
 }
 
-func (m *mul) forward(recipes ...*recipe) *recipe {
-	m.x, m.y = recipes[0], recipes[1]
-	return &recipe{op: ops.mul, src: []*recipe{recipes[0], recipes[1]}}
+func (m *mul) forward(plans ...*plan) *plan {
+	m.x, m.y = plans[0], plans[1]
+	return &plan{op: ops.mul, src: []*plan{plans[0], plans[1]}}
 }
 
-func (m *mul) backward(grad *recipe) []*recipe {
-	return []*recipe{
-		{op: ops.mul, src: []*recipe{grad, m.y}},
-		{op: ops.mul, src: []*recipe{grad, m.x}},
+func (m *mul) backward(grad *plan) []*plan {
+	return []*plan{
+		{op: ops.mul, src: []*plan{grad, m.y}},
+		{op: ops.mul, src: []*plan{grad, m.x}},
 	}
 }
 
