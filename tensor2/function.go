@@ -11,6 +11,10 @@ type function struct {
 	differentiable differentiable
 }
 
+func (f *function) backward(grad *recipe) []*recipe {
+	return f.differentiable.backward(grad)
+}
+
 func applyfunc(d differentiable, inputs ...*Tensor) *Tensor {
 	y := empty()
 	y.function = &function{inputs: inputs, differentiable: d}
@@ -20,7 +24,6 @@ func applyfunc(d differentiable, inputs ...*Tensor) *Tensor {
 		recipes[i] = inputs[i].recipe
 	}
 	y.recipe = d.forward(recipes...)
-	y.grad = empty()
 
 	return y
 }

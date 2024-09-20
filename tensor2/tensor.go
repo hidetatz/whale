@@ -75,7 +75,11 @@ func empty() *Tensor {
 }
 
 func New(data []float32) *Tensor {
-	return &Tensor{recipe: &recipe{op: ops.constant, constant: data}, grad: empty()}
+	return &Tensor{recipe: &recipe{op: ops.constant, constant: data}}
+}
+
+func fromRecipe(r *recipe) *Tensor {
+	return &Tensor{recipe: r}
 }
 
 func (t *Tensor) Add(t2 *Tensor) *Tensor {
@@ -87,16 +91,47 @@ func (t *Tensor) Mul(t2 *Tensor) *Tensor {
 }
 
 func (t *Tensor) Backprop() {
-	t.grad = New([]float32{1})
-
-	recipes := t.function.differentiable.backward(t.grad.recipe)
-	for i := range recipes {
-		t.function.inputs[i].grad.recipe = recipes[i]
+	if t.grad == nil {
+		t.grad = New([]float32{1})
 	}
 
-	recipes = t.function.inputs[0].function.differentiable.backward(t.function.inputs[0].grad.recipe)
-	for i := range recipes {
-		t.function.inputs[0].function.inputs[i].grad.recipe = recipes[i]
+	flatten := func(t *Tensor) []*Tensor {
+		visited := make(map[*Tensor]bool)
+		var tensors []*Tensor
+		var dfs func(*Tensor)
+		dfs = func(_t *Tensor) {
+			if _t.function == nil {
+				return
+			}
+
+			if visited[_t] {
+				return
+			}
+			visited[_t] = true
+
+			tensors = append(tensors, _t)
+			for _, input := range _t.function.inputs {
+				dfs(input)
+			}
+		}
+
+		dfs(t)
+		return tensors
+	}
+
+	for _, tensor := range flatten(t) {
+		grads := tensor.function.backward(tensor.grad.recipe)
+		for i := range grads {
+			input := tensor.function.inputs[i]
+			grad := fromRecipe(grads[i])
+
+			if input.grad == nil {
+				input.grad = grad
+			} else {
+				y := input.grad.Add(grad)
+				input.grad = y
+			}
+		}
 	}
 }
 

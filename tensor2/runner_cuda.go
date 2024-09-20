@@ -167,6 +167,10 @@ extern "C" float* f(char** cerr) {
 		join1(returnresult, "\n  "),
 	)
 
+	if debug {
+		fmt.Println(program)
+	}
+
 	f.WriteString(program)
 	f.Close()
 
