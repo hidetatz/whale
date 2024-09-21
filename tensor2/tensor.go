@@ -60,10 +60,10 @@ func (p *plan) String() string {
 }
 
 type Tensor struct {
-	function *function
-	plan     *plan
-	data     []float32
-	grad     *Tensor
+	plan     *plan     // knows how to construct this tensor.
+	function *function // knows how to create/differentiate plan.
+	data     []float32 // actual data. Zero until materialized.
+	grad     *Tensor   // gradient. Backprop() must be called to create.
 }
 
 func (t *Tensor) String() string {
