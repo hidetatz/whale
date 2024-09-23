@@ -46,6 +46,14 @@ func (c *cuda) memcpyHostToDevice(idx int) []string {
 	}
 }
 
+func (c *cuda) alu(fn string, result, x int) []string {
+	return []string{
+		c.f("float *data%v;", result),
+		c.f("CHECKERR(cudaMalloc((float**)&data%v, nbytes));", result),
+		c.f("%v<<<grid, block>>>(data%v, data%v);", fn, x, result),
+	}
+}
+
 func (c *cuda) alu2(fn string, result, left, right int) []string {
 	return []string{
 		c.f("float *data%v;", result),
@@ -85,6 +93,9 @@ func (c *cuda) run(tasks []*task) []float32 {
 			inputCPU = append(inputCPU, c.dataOnHost(i, len(tasks[i].constant)))
 			inputGPU = append(inputGPU, c.memcpyHostToDevice(i))
 
+		case ops.recip:
+			computes = append(computes, c.alu("recip", i, task.inputs[0]))
+
 		case ops.add:
 			computes = append(computes, c.alu2("add", i, task.inputs[0], task.inputs[1]))
 
@@ -99,6 +110,11 @@ func (c *cuda) run(tasks []*task) []float32 {
 
 	prg := `#include <cuda_runtime.h>
 #include <stdio.h>
+
+__global__ void recip(float *A, float *B) {
+  int i = threadIdx.x;
+  B[i] = 1 / A[i];
+}
 
 __global__ void mul(float *A, float *B, float *C) {
   int i = threadIdx.x;

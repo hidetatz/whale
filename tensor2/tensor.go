@@ -16,49 +16,6 @@ func init() {
 	initRunner()
 }
 
-type op int
-
-func (op op) String() string {
-	switch op {
-	case ops.constant:
-		return "const"
-
-	case ops.add:
-		return "+"
-
-	case ops.mul:
-		return "*"
-	}
-
-	panic("switch-case is not exhaustive!")
-}
-
-type _ops struct {
-	constant op
-	add      op
-	mul      op
-}
-
-// Pseudo-namespacing
-var ops = &_ops{
-	1, 2, 3,
-}
-
-type plan struct {
-	op       op
-	constant []float32
-	src      []*plan
-}
-
-func (p *plan) String() string {
-	switch p.op {
-	case ops.constant:
-		return fmt.Sprintf("%v", p.constant)
-	default:
-		return fmt.Sprintf("%v", p.op)
-	}
-}
-
 type Tensor struct {
 	plan     *plan     // knows how to construct this tensor.
 	function *function // knows how to create/differentiate plan.
@@ -70,25 +27,63 @@ func (t *Tensor) String() string {
 	return fmt.Sprintf("%v", t.data)
 }
 
-func empty() *Tensor {
-	return &Tensor{}
-}
+/*******************************
+ *
+ * Tensor factory function
+ *
+ *******************************/
 
 func New(data []float32) *Tensor {
 	return &Tensor{plan: &plan{op: ops.constant, constant: data}}
+}
+
+func empty() *Tensor {
+	return &Tensor{}
 }
 
 func fromplan(p *plan) *Tensor {
 	return &Tensor{plan: p}
 }
 
+/*******************************
+ *
+ * Tensor calculation
+ *
+ *******************************/
+
+/*
+ * Arithmetic
+ */
+
+func (t *Tensor) Recip() *Tensor {
+	return applyfunc(&recip{}, t)
+}
+
+func (t *Tensor) Neg() *Tensor {
+	return applyfunc(&mul{}, t, New([]float32{-1}))
+}
+
 func (t *Tensor) Add(t2 *Tensor) *Tensor {
 	return applyfunc(&add{}, t, t2)
+}
+
+func (t *Tensor) Sub(t2 *Tensor) *Tensor {
+	return applyfunc(&add{}, t, t2.Neg())
 }
 
 func (t *Tensor) Mul(t2 *Tensor) *Tensor {
 	return applyfunc(&mul{}, t, t2)
 }
+
+func (t *Tensor) Div(t2 *Tensor) *Tensor {
+	return applyfunc(&mul{}, t, t2.Recip())
+}
+
+/*******************************
+ *
+ * Gradients
+ *
+ *******************************/
 
 func (t *Tensor) Backprop() {
 	if t.grad == nil {
@@ -139,12 +134,13 @@ func main() {
 	t := New([]float32{1})
 	t2 := New([]float32{2})
 	t3 := t.Add(t2)
-	t4 := t3.Mul(New([]float32{10}))
+	t4 := t3.Div(New([]float32{10}))
 
-	t4.Backprop()
+	// t4.Backprop()
 
-	fmt.Println(t4.grad.Materialize())
-	fmt.Println(t3.grad.Materialize())
-	fmt.Println(t2.grad.Materialize())
-	fmt.Println(t.grad.Materialize())
+	// t.grad.Backprop()
+	fmt.Println(t4.Materialize())
+	// fmt.Println(t3.grad.Materialize())
+	// fmt.Println(t2.grad.Materialize())
+	// fmt.Println(t.grad.Materialize())
 }

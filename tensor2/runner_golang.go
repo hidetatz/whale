@@ -27,6 +27,14 @@ func (g *golang) dataOnHost(idx int) []string {
 	}
 }
 
+func (g *golang) alu(fn string, length, result, x int) []string {
+	return []string{
+		g.f("var Data%v []float32", result),
+		g.f("Data%v = make([]float32, %v)", result, length),
+		g.f("%v(Data%v, Data%v);", fn, x, result),
+	}
+}
+
 func (g *golang) alu2(fn string, length, result, left, right int) []string {
 	return []string{
 		g.f("var Data%v []float32", result),
@@ -56,6 +64,9 @@ func (g *golang) run(tasks []*task) []float32 {
 			inputIdx = append(inputIdx, i)
 			inputCPU = append(inputCPU, g.dataOnHost(i))
 
+		case ops.recip:
+			computes = append(computes, g.alu("recip", resultlen, i, task.inputs[0]))
+
 		case ops.add:
 			computes = append(computes, g.alu2("add", resultlen, i, task.inputs[0], task.inputs[1]))
 
@@ -71,6 +82,12 @@ func (g *golang) run(tasks []*task) []float32 {
 	prg := `package main
 
 %v
+
+func recip(a, b []float32) {
+	for i := range a {
+		b[i] = 1 / a[i]
+	}
+}
 
 func add(a, b, c []float32) {
 	for i := range a {

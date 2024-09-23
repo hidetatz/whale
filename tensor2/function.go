@@ -32,6 +32,22 @@ func applyfunc(d differentiable, inputs ...*Tensor) *Tensor {
  * differentiable
  */
 
+type recip struct {
+}
+
+func (*recip) String() string { return " 1 / x" }
+
+func (r *recip) forward(plans ...*plan) *plan {
+	return &plan{op: ops.recip, src: []*plan{plans[0]}}
+}
+
+func (r *recip) backward(grad *plan) []*plan {
+	return []*plan{
+		// {op: ops.mul, src: []*plan{grad, m.y}},
+		// {op: ops.mul, src: []*plan{grad, m.x}},
+	}
+}
+
 type add struct{}
 
 func (*add) String() string { return "+" }
@@ -46,6 +62,8 @@ type mul struct {
 	x, y *plan
 }
 
+func (*mul) String() string { return "*" }
+
 func (m *mul) forward(plans ...*plan) *plan {
 	m.x, m.y = plans[0], plans[1]
 	return &plan{op: ops.mul, src: []*plan{plans[0], plans[1]}}
@@ -57,5 +75,3 @@ func (m *mul) backward(grad *plan) []*plan {
 		{op: ops.mul, src: []*plan{grad, m.x}},
 	}
 }
-
-func (*mul) String() string { return "*" }
