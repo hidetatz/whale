@@ -17,8 +17,8 @@ func init() {
 }
 
 type Tensor struct {
-	plan     *plan     // knows how to construct this tensor.
-	function *function // knows how to create/differentiate plan.
+	graph    *graph    // knows how to construct this tensor.
+	function *function // knows how to go backward the graph for differentiation.
 	data     []float32 // actual data. Zero until materialized.
 	grad     *Tensor   // gradient. Backprop() must be called to create.
 }
@@ -34,15 +34,28 @@ func (t *Tensor) String() string {
  *******************************/
 
 func New(data []float32) *Tensor {
-	return &Tensor{plan: &plan{op: ops.constant, constant: data}}
+	return &Tensor{graph: &graph{op: graphops.constant, constant: data}}
 }
 
 func empty() *Tensor {
 	return &Tensor{}
 }
 
-func fromplan(p *plan) *Tensor {
-	return &Tensor{plan: p}
+func fromgraph(g *graph) *Tensor {
+	return &Tensor{graph: g}
+}
+
+func fromfunc(d differentiable, inputs ...*Tensor) *Tensor {
+	y := empty()
+	y.function = &function{inputs: inputs, differentiable: d}
+
+	graphs := make([]*graph, len(inputs))
+	for i := range len(inputs) {
+		graphs[i] = inputs[i].graph
+	}
+	y.graph = d.forward(graphs...)
+
+	return y
 }
 
 /*******************************
@@ -56,27 +69,27 @@ func fromplan(p *plan) *Tensor {
  */
 
 func (t *Tensor) Recip() *Tensor {
-	return applyfunc(&recip{}, t)
+	return fromfunc(&recip{}, t)
 }
 
 func (t *Tensor) Neg() *Tensor {
-	return applyfunc(&mul{}, t, New([]float32{-1}))
+	return t.Mul(New([]float32{-1}))
 }
 
 func (t *Tensor) Add(t2 *Tensor) *Tensor {
-	return applyfunc(&add{}, t, t2)
+	return fromfunc(&add{}, t, t2)
 }
 
 func (t *Tensor) Sub(t2 *Tensor) *Tensor {
-	return applyfunc(&add{}, t, t2.Neg())
+	return t.Add(t2.Neg())
 }
 
 func (t *Tensor) Mul(t2 *Tensor) *Tensor {
-	return applyfunc(&mul{}, t, t2)
+	return fromfunc(&mul{}, t, t2)
 }
 
 func (t *Tensor) Div(t2 *Tensor) *Tensor {
-	return applyfunc(&mul{}, t, t2.Recip())
+	return t.Mul(t2.Recip())
 }
 
 /*******************************
@@ -115,10 +128,10 @@ func (t *Tensor) Backprop() {
 	}
 
 	for _, tensor := range flatten(t) {
-		grads := tensor.function.backward(tensor.grad.plan)
+		grads := tensor.function.backward(tensor.grad.graph)
 		for i := range grads {
 			input := tensor.function.inputs[i]
-			grad := fromplan(grads[i])
+			grad := fromgraph(grads[i])
 
 			if input.grad == nil {
 				input.grad = grad

@@ -5,44 +5,44 @@ import (
 )
 
 type task struct {
-	op       op
+	op       graphop
 	constant []float32
 	inputs   []int
 }
 
-func flatten(leaf *Tensor) []*plan {
-	visited := make(map[*plan]bool)
-	var plans []*plan
-	var dfs func(*plan)
+func flatten(leaf *Tensor) []*graph {
+	visited := make(map[*graph]bool)
+	var graphs []*graph
+	var dfs func(*graph)
 
-	dfs = func(p *plan) {
+	dfs = func(p *graph) {
 		if visited[p] {
 			return
 		}
 
 		visited[p] = true
-		for _, s := range p.src {
+		for _, s := range p.input {
 			dfs(s)
 		}
-		plans = append(plans, p)
+		graphs = append(graphs, p)
 	}
-	dfs(leaf.plan)
-	return plans
+	dfs(leaf.graph)
+	return graphs
 }
 
-func dependencies(plans []*plan) [][]*plan {
-	list := make([][]*plan, len(plans))
-	for i := range plans {
-		list[i] = plans[i].src
+func dependencies(graphs []*graph) [][]*graph {
+	list := make([][]*graph, len(graphs))
+	for i := range graphs {
+		list[i] = graphs[i].input
 	}
 	return list
 }
 
-func calcIndegree(plans []*plan) []int {
-	list := make([]int, len(plans))
-	for _, plan := range plans {
-		for _, src := range plan.src {
-			for i, t := range plans {
+func calcIndegree(graphs []*graph) []int {
+	list := make([]int, len(graphs))
+	for _, graph := range graphs {
+		for _, src := range graph.input {
+			for i, t := range graphs {
 				if t == src {
 					list[i]++
 					break
@@ -62,37 +62,37 @@ func (t *Tensor) linearize() []*task {
 	 */
 
 	// Extract tensor tree to list. They are still connected via its pointer.
-	plans := flatten(t)
+	graphs := flatten(t)
 
 	// Tensors order matters, This is latter used as something like task's ID.
 	// Preserve order here for later use.
-	at := map[*plan]int{}
-	for i, p := range plans {
+	at := map[*graph]int{}
+	for i, p := range graphs {
 		at[p] = i
 	}
 
 	// Dependency list for topological sort.
 	// This is a list whose length is the same as tensors.
 	// deps[i] is a list of tensors that tensors[i] is depending on.
-	deps := dependencies(plans)
+	deps := dependencies(graphs)
 
 	// Indegree counts for topological sort.
 	// This is a list whose length is the same as tensors.
 	// indegrees[i] is how many tensors are depending on tensors[i].
-	indegrees := calcIndegree(plans)
+	indegrees := calcIndegree(graphs)
 
 	/*
 	 * Topological sort.
 	 */
 
-	queue := []*plan{}
+	queue := []*graph{}
 	for i, indegree := range indegrees {
 		if indegree == 0 {
-			queue = append(queue, plans[i])
+			queue = append(queue, graphs[i])
 		}
 	}
 
-	result := []*plan{}
+	result := []*graph{}
 
 	// breadth first search
 	for len(queue) != 0 {
@@ -105,7 +105,7 @@ func (t *Tensor) linearize() []*task {
 		for _, dep := range deps[at[v]] {
 			indegrees[at[dep]]--
 			if indegrees[at[dep]] == 0 {
-				queue = append(queue, plans[at[dep]])
+				queue = append(queue, graphs[at[dep]])
 			}
 		}
 	}
@@ -118,15 +118,15 @@ func (t *Tensor) linearize() []*task {
 	for i, r := range result {
 		tasks[i] = &task{op: r.op}
 
-		if r.op == ops.constant {
+		if r.op == graphops.constant {
 			tasks[i].constant = r.constant
 			continue
 		}
 
-		inputs := make([]int, len(r.src))
+		inputs := make([]int, len(r.input))
 
 		// find inputs index
-		for i, dep := range r.src {
+		for i, dep := range r.input {
 			for j, r := range result {
 				if dep == r {
 					inputs[i] = j
@@ -141,69 +141,6 @@ func (t *Tensor) linearize() []*task {
 }
 
 func (t *Tensor) Materialize() []float32 {
-	/*
-	 * Materialization overview:
-	 *
-	 * So every tensor has 0 or more source tensors (t.src).
-	 * Let's assume calculation like this:
-	 *
-	 * t1 := Tensor([1, 2, 3])
-	 * t2 := Tensor([4, 5, 6])
-	 * t3 := t1 + t2
-	 * t4 := Tensor([7, 8, 9])
-	 * t5 := t3 + t4
-	 *
-	 * After this calculation, the tensor dependency tree will be constructed like this:
-	 *
-	 * t5 {
-	 * 	 op: +,
-	 * 	 src: [
-	 *     t3: {
-	 * 	     op: +,
-	 * 	     src: [
-	 * 	  	   t1: {
-	 * 	  	     op: const,
-	 * 	  	     data: [1, 2, 3],
-	 * 	  	   },
-	 * 	  	   t2: {
-	 * 	  	     op: const,
-	 * 	  	     data: [4, 5, 6],
-	 * 	  	   }
-	 * 	  	 ]
-	 *     },
-	 * 	   t4: {
-	 * 	     op: const,
-	 * 	     data: [7, 8, 9],
-	 * 	   },
-	 *   ]
-	 * }
-	 *
-	 * When t5.Materialize() is called, this tree is converted into a linear task list like this:
-	 * {
-	 *   task[op: const, data: [1, 2, 3]],
-	 *   task[op: const, data: [4, 5, 6]],
-	 *   task[op:     +, inputs:  [0, 1]], // task index
-	 *   task[op: const, data: [7, 8, 9]],
-	 *   task[op:     +, inputs:  [2, 4]],
-	 * }
-	 *
-	 * Note that it is ok to change tasks[2] and tasks[3] order.
-	 *
-	 * This tasks are rendered as source code which is run on device (with some device specific flavor) like this:
-	 *
-	 * // constant values are set from Go as pointer for code reusability
-	 * var data0;
-	 * var data1;
-	 * var data3;
-	 * float* f() {
-	 *   data2 = data0 + data1
-	 *   data4 = data0 + data1
-	 *   return data4
-	 * }
-	 *
-	 * Then, returned value will be set as t.data.
-	 */
-
 	// convert tree into task list
 	tasks := t.linearize()
 

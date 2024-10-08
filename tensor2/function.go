@@ -1,8 +1,8 @@
 package main
 
 type differentiable interface {
-	forward(...*plan) *plan
-	backward(*plan) []*plan
+	forward(...*graph) *graph
+	backward(*graph) []*graph
 	String() string
 }
 
@@ -11,25 +11,12 @@ type function struct {
 	differentiable differentiable
 }
 
-func (f *function) backward(grad *plan) []*plan {
+func (f *function) backward(grad *graph) []*graph {
 	return f.differentiable.backward(grad)
 }
 
-func applyfunc(d differentiable, inputs ...*Tensor) *Tensor {
-	y := empty()
-	y.function = &function{inputs: inputs, differentiable: d}
-
-	plans := make([]*plan, len(inputs))
-	for i := range len(inputs) {
-		plans[i] = inputs[i].plan
-	}
-	y.plan = d.forward(plans...)
-
-	return y
-}
-
 /*
- * differentiable
+ * differentiables
  */
 
 type recip struct {
@@ -37,14 +24,14 @@ type recip struct {
 
 func (*recip) String() string { return " 1 / x" }
 
-func (r *recip) forward(plans ...*plan) *plan {
-	return &plan{op: ops.recip, src: []*plan{plans[0]}}
+func (r *recip) forward(graphs ...*graph) *graph {
+	return &graph{op: graphops.recip, input: []*graph{graphs[0]}}
 }
 
-func (r *recip) backward(grad *plan) []*plan {
-	return []*plan{
-		// {op: ops.mul, src: []*plan{grad, m.y}},
-		// {op: ops.mul, src: []*plan{grad, m.x}},
+func (r *recip) backward(grad *graph) []*graph {
+	return []*graph{
+		// {op: ops.mul, src: []*graph{grad, m.y}},
+		// {op: ops.mul, src: []*graph{grad, m.x}},
 	}
 }
 
@@ -52,26 +39,26 @@ type add struct{}
 
 func (*add) String() string { return "+" }
 
-func (*add) forward(plans ...*plan) *plan {
-	return &plan{op: ops.add, src: []*plan{plans[0], plans[1]}}
+func (*add) forward(graphs ...*graph) *graph {
+	return &graph{op: graphops.add, input: []*graph{graphs[0], graphs[1]}}
 }
 
-func (*add) backward(grad *plan) []*plan { return []*plan{grad, grad} }
+func (*add) backward(grad *graph) []*graph { return []*graph{grad, grad} }
 
 type mul struct {
-	x, y *plan
+	x, y *graph
 }
 
 func (*mul) String() string { return "*" }
 
-func (m *mul) forward(plans ...*plan) *plan {
-	m.x, m.y = plans[0], plans[1]
-	return &plan{op: ops.mul, src: []*plan{plans[0], plans[1]}}
+func (m *mul) forward(graphs ...*graph) *graph {
+	m.x, m.y = graphs[0], graphs[1]
+	return &graph{op: graphops.mul, input: []*graph{graphs[0], graphs[1]}}
 }
 
-func (m *mul) backward(grad *plan) []*plan {
-	return []*plan{
-		{op: ops.mul, src: []*plan{grad, m.y}},
-		{op: ops.mul, src: []*plan{grad, m.x}},
+func (m *mul) backward(grad *graph) []*graph {
+	return []*graph{
+		{op: graphops.mul, input: []*graph{grad, m.y}},
+		{op: graphops.mul, input: []*graph{grad, m.x}},
 	}
 }

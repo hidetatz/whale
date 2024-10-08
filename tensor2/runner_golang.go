@@ -60,17 +60,17 @@ func (g *golang) run(tasks []*task) []float32 {
 
 	for i, task := range tasks {
 		switch task.op {
-		case ops.constant:
+		case graphops.constant:
 			inputIdx = append(inputIdx, i)
 			inputCPU = append(inputCPU, g.dataOnHost(i))
 
-		case ops.recip:
+		case graphops.recip:
 			computes = append(computes, g.alu("recip", resultlen, i, task.inputs[0]))
 
-		case ops.add:
+		case graphops.add:
 			computes = append(computes, g.alu2("add", resultlen, i, task.inputs[0], task.inputs[1]))
 
-		case ops.mul:
+		case graphops.mul:
 			computes = append(computes, g.alu2("mul", resultlen, i, task.inputs[0], task.inputs[1]))
 		}
 
