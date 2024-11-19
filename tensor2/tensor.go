@@ -34,6 +34,33 @@ func (t *Tensor) String() string {
 	return fmt.Sprintf("%v", t.data)
 }
 
+type dimension struct {
+	shape   []int
+	strides []int
+	offset  int
+}
+
+func newDimension(shape []int) *dimension {
+	product := func(arr []int) int {
+		p := 1
+		for i := range arr {
+			p *= arr[i]
+		}
+		return p
+	}
+
+	strides := []int{}
+	for i := range len(shape) {
+		strides[i] = product(shape[i+1:])
+	}
+
+	return &dimension{
+		shape:   shape,
+		strides: strides,
+		offset:  0,
+	}
+}
+
 /*******************************
  *
  * Tensor factory function
@@ -41,7 +68,7 @@ func (t *Tensor) String() string {
  *******************************/
 
 func New(data []float32) *Tensor {
-	return &Tensor{node: &node{op: nodeops.constant, constant: data}}
+	return &Tensor{node: &node{op: nodeops.constant, constant: data, dim: newDimension([]int{len(data)})}}
 }
 
 func empty() *Tensor {

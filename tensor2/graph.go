@@ -36,6 +36,7 @@ type node struct {
 	op       nodeop
 	constant []float32
 	input    []*node
+	dim      *dimension
 }
 
 func (n *node) String() string {
