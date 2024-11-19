@@ -1,8 +1,8 @@
 package main
 
 type differentiable interface {
-	forward(...*graph) *graph
-	backward(*graph) []*graph
+	forward(...*node) *node
+	backward(*node) []*node
 	String() string
 }
 
@@ -11,7 +11,7 @@ type function struct {
 	differentiable differentiable
 }
 
-func (f *function) backward(grad *graph) []*graph {
+func (f *function) backward(grad *node) []*node {
 	return f.differentiable.backward(grad)
 }
 
@@ -24,12 +24,12 @@ type recip struct {
 
 func (*recip) String() string { return " 1 / x" }
 
-func (r *recip) forward(graphs ...*graph) *graph {
-	return &graph{op: graphops.recip, input: []*graph{graphs[0]}}
+func (r *recip) forward(graphs ...*node) *node {
+	return &node{op: nodeops.recip, input: []*node{graphs[0]}}
 }
 
-func (r *recip) backward(grad *graph) []*graph {
-	return []*graph{
+func (r *recip) backward(grad *node) []*node {
+	return []*node{
 		// {op: ops.mul, src: []*graph{grad, m.y}},
 		// {op: ops.mul, src: []*graph{grad, m.x}},
 	}
@@ -39,26 +39,26 @@ type add struct{}
 
 func (*add) String() string { return "+" }
 
-func (*add) forward(graphs ...*graph) *graph {
-	return &graph{op: graphops.add, input: []*graph{graphs[0], graphs[1]}}
+func (*add) forward(graphs ...*node) *node {
+	return &node{op: nodeops.add, input: []*node{graphs[0], graphs[1]}}
 }
 
-func (*add) backward(grad *graph) []*graph { return []*graph{grad, grad} }
+func (*add) backward(grad *node) []*node { return []*node{grad, grad} }
 
 type mul struct {
-	x, y *graph
+	x, y *node
 }
 
 func (*mul) String() string { return "*" }
 
-func (m *mul) forward(graphs ...*graph) *graph {
+func (m *mul) forward(graphs ...*node) *node {
 	m.x, m.y = graphs[0], graphs[1]
-	return &graph{op: graphops.mul, input: []*graph{graphs[0], graphs[1]}}
+	return &node{op: nodeops.mul, input: []*node{graphs[0], graphs[1]}}
 }
 
-func (m *mul) backward(grad *graph) []*graph {
-	return []*graph{
-		{op: graphops.mul, input: []*graph{grad, m.y}},
-		{op: graphops.mul, input: []*graph{grad, m.x}},
+func (m *mul) backward(grad *node) []*node {
+	return []*node{
+		{op: nodeops.mul, input: []*node{grad, m.y}},
+		{op: nodeops.mul, input: []*node{grad, m.x}},
 	}
 }

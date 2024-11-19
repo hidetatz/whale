@@ -88,18 +88,18 @@ func (c *cuda) run(tasks []*task) []float32 {
 	for i, task := range tasks {
 		switch task.op {
 
-		case graphops.constant:
+		case nodeops.constant:
 			inputIdx = append(inputIdx, i)
 			inputCPU = append(inputCPU, c.dataOnHost(i, len(tasks[i].constant)))
 			inputGPU = append(inputGPU, c.memcpyHostToDevice(i))
 
-		case graphops.recip:
+		case nodeops.recip:
 			computes = append(computes, c.alu("recip", i, task.inputs[0]))
 
-		case graphops.add:
+		case nodeops.add:
 			computes = append(computes, c.alu2("add", i, task.inputs[0], task.inputs[1]))
 
-		case graphops.mul:
+		case nodeops.mul:
 			computes = append(computes, c.alu2("mul", i, task.inputs[0], task.inputs[1]))
 		}
 

@@ -1,52 +1,43 @@
 package main
 
-import (
-	"fmt"
-)
+type nodeop int
 
-type graphop int
-
-func (op graphop) String() string {
+func (op nodeop) String() string {
 	switch op {
-	case graphops.constant:
+	case nodeops.constant:
 		return "const"
 
-	case graphops.recip:
+	case nodeops.recip:
 		return "1/x"
 
-	case graphops.add:
+	case nodeops.add:
 		return "+"
 
-	case graphops.mul:
+	case nodeops.mul:
 		return "*"
 	}
 
 	panic("switch-case is not exhaustive!")
 }
 
-type _graphops struct {
-	constant graphop
-	recip    graphop
-	add      graphop
-	mul      graphop
+type _nodeops struct {
+	constant nodeop
+	recip    nodeop
+	add      nodeop
+	mul      nodeop
 }
 
-// Pseudo-namespacing
-var graphops = &_graphops{
+var nodeops = &_nodeops{
 	1, 2, 3, 4,
 }
 
-type graph struct {
-	op       graphop
+// computation graph node.
+type node struct {
+	op       nodeop
 	constant []float32
-	input    []*graph
+	input    []*node
 }
 
-func (g *graph) String() string {
-	switch g.op {
-	case graphops.constant:
-		return fmt.Sprintf("%v", g.constant)
-	default:
-		return fmt.Sprintf("%v", g.op)
-	}
+func (n *node) String() string {
+	return n.op.String()
 }

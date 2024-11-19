@@ -5,17 +5,17 @@ import (
 )
 
 type task struct {
-	op       graphop
+	op       nodeop
 	constant []float32
 	inputs   []int
 }
 
-func flatten(leaf *Tensor) []*graph {
-	visited := make(map[*graph]bool)
-	var graphs []*graph
-	var dfs func(*graph)
+func flatten(leaf *Tensor) []*node {
+	visited := make(map[*node]bool)
+	var graphs []*node
+	var dfs func(*node)
 
-	dfs = func(p *graph) {
+	dfs = func(p *node) {
 		if visited[p] {
 			return
 		}
@@ -26,19 +26,19 @@ func flatten(leaf *Tensor) []*graph {
 		}
 		graphs = append(graphs, p)
 	}
-	dfs(leaf.graph)
+	dfs(leaf.node)
 	return graphs
 }
 
-func dependencies(graphs []*graph) [][]*graph {
-	list := make([][]*graph, len(graphs))
+func dependencies(graphs []*node) [][]*node {
+	list := make([][]*node, len(graphs))
 	for i := range graphs {
 		list[i] = graphs[i].input
 	}
 	return list
 }
 
-func calcIndegree(graphs []*graph) []int {
+func calcIndegree(graphs []*node) []int {
 	list := make([]int, len(graphs))
 	for _, graph := range graphs {
 		for _, src := range graph.input {
@@ -66,7 +66,7 @@ func (t *Tensor) linearize() []*task {
 
 	// Tensors order matters, This is latter used as something like task's ID.
 	// Preserve order here for later use.
-	at := map[*graph]int{}
+	at := map[*node]int{}
 	for i, p := range graphs {
 		at[p] = i
 	}
@@ -85,14 +85,14 @@ func (t *Tensor) linearize() []*task {
 	 * Topological sort.
 	 */
 
-	queue := []*graph{}
+	queue := []*node{}
 	for i, indegree := range indegrees {
 		if indegree == 0 {
 			queue = append(queue, graphs[i])
 		}
 	}
 
-	result := []*graph{}
+	result := []*node{}
 
 	// breadth first search
 	for len(queue) != 0 {
@@ -118,7 +118,7 @@ func (t *Tensor) linearize() []*task {
 	for i, r := range result {
 		tasks[i] = &task{op: r.op}
 
-		if r.op == graphops.constant {
+		if r.op == nodeops.constant {
 			tasks[i].constant = r.constant
 			continue
 		}

@@ -17,10 +17,17 @@ func init() {
 }
 
 type Tensor struct {
-	graph    *graph    // knows how to construct this tensor.
-	function *function // knows how to go backward the graph for differentiation.
-	data     []float32 // actual data. Zero until materialized.
-	grad     *Tensor   // gradient. Backprop() must be called to create.
+	// Forward/backward. Creates node.
+	function *function
+
+	// Computation graph node created by function.
+	node *node
+
+	// Computed data. Available after materialization.
+	data []float32
+
+	// Gradient.  Available after materialization.
+	grad *Tensor
 }
 
 func (t *Tensor) String() string {
@@ -34,26 +41,26 @@ func (t *Tensor) String() string {
  *******************************/
 
 func New(data []float32) *Tensor {
-	return &Tensor{graph: &graph{op: graphops.constant, constant: data}}
+	return &Tensor{node: &node{op: nodeops.constant, constant: data}}
 }
 
 func empty() *Tensor {
 	return &Tensor{}
 }
 
-func fromgraph(g *graph) *Tensor {
-	return &Tensor{graph: g}
+func fromgraph(g *node) *Tensor {
+	return &Tensor{node: g}
 }
 
 func fromfunc(d differentiable, inputs ...*Tensor) *Tensor {
 	y := empty()
 	y.function = &function{inputs: inputs, differentiable: d}
 
-	graphs := make([]*graph, len(inputs))
+	nodes := make([]*node, len(inputs))
 	for i := range len(inputs) {
-		graphs[i] = inputs[i].graph
+		nodes[i] = inputs[i].node
 	}
-	y.graph = d.forward(graphs...)
+	y.node = d.forward(nodes...)
 
 	return y
 }
@@ -128,7 +135,7 @@ func (t *Tensor) Backprop() {
 	}
 
 	for _, tensor := range flatten(t) {
-		grads := tensor.function.backward(tensor.grad.graph)
+		grads := tensor.function.backward(tensor.grad.node)
 		for i := range grads {
 			input := tensor.function.inputs[i]
 			grad := fromgraph(grads[i])
@@ -144,7 +151,7 @@ func (t *Tensor) Backprop() {
 }
 
 func main() {
-	t := New([]float32{1})
+	t := New([]float32{1, 2})
 	t2 := New([]float32{2})
 	t3 := t.Add(t2)
 	t4 := t3.Div(New([]float32{10}))
