@@ -5,43 +5,43 @@ import (
 )
 
 type task struct {
-	op       nodeop
+	op       op
 	constant []float32
 	inputs   []int
 }
 
-func flatten(leaf *Tensor) []*node {
-	visited := make(map[*node]bool)
-	var graphs []*node
-	var dfs func(*node)
+func flatten(leaf *Tensor) []*Tensor {
+	visited := make(map[*Tensor]bool)
+	var graphs []*Tensor
+	var dfs func(*Tensor)
 
-	dfs = func(p *node) {
+	dfs = func(p *Tensor) {
 		if visited[p] {
 			return
 		}
 
 		visited[p] = true
-		for _, s := range p.input {
+		for _, s := range p.inputs {
 			dfs(s)
 		}
 		graphs = append(graphs, p)
 	}
-	dfs(leaf.node)
+	dfs(leaf)
 	return graphs
 }
 
-func dependencies(graphs []*node) [][]*node {
-	list := make([][]*node, len(graphs))
+func dependencies(graphs []*Tensor) [][]*Tensor {
+	list := make([][]*Tensor, len(graphs))
 	for i := range graphs {
-		list[i] = graphs[i].input
+		list[i] = graphs[i].inputs
 	}
 	return list
 }
 
-func calcIndegree(graphs []*node) []int {
+func calcIndegree(graphs []*Tensor) []int {
 	list := make([]int, len(graphs))
 	for _, graph := range graphs {
-		for _, src := range graph.input {
+		for _, src := range graph.inputs {
 			for i, t := range graphs {
 				if t == src {
 					list[i]++
@@ -62,37 +62,37 @@ func (t *Tensor) linearize() []*task {
 	 */
 
 	// Extract tensor tree to list. They are still connected via its pointer.
-	graphs := flatten(t)
+	flattened := flatten(t)
 
 	// Tensors order matters, This is latter used as something like task's ID.
 	// Preserve order here for later use.
-	at := map[*node]int{}
-	for i, p := range graphs {
+	at := map[*Tensor]int{}
+	for i, p := range flattened {
 		at[p] = i
 	}
 
 	// Dependency list for topological sort.
 	// This is a list whose length is the same as tensors.
 	// deps[i] is a list of tensors that tensors[i] is depending on.
-	deps := dependencies(graphs)
+	deps := dependencies(flattened)
 
 	// Indegree counts for topological sort.
 	// This is a list whose length is the same as tensors.
 	// indegrees[i] is how many tensors are depending on tensors[i].
-	indegrees := calcIndegree(graphs)
+	indegrees := calcIndegree(flattened)
 
 	/*
 	 * Topological sort.
 	 */
 
-	queue := []*node{}
+	queue := []*Tensor{}
 	for i, indegree := range indegrees {
 		if indegree == 0 {
-			queue = append(queue, graphs[i])
+			queue = append(queue, flattened[i])
 		}
 	}
 
-	result := []*node{}
+	result := []*Tensor{}
 
 	// breadth first search
 	for len(queue) != 0 {
@@ -105,7 +105,7 @@ func (t *Tensor) linearize() []*task {
 		for _, dep := range deps[at[v]] {
 			indegrees[at[dep]]--
 			if indegrees[at[dep]] == 0 {
-				queue = append(queue, graphs[at[dep]])
+				queue = append(queue, flattened[at[dep]])
 			}
 		}
 	}
@@ -118,15 +118,15 @@ func (t *Tensor) linearize() []*task {
 	for i, r := range result {
 		tasks[i] = &task{op: r.op}
 
-		if r.op == nodeops.constant {
-			tasks[i].constant = r.constant
+		if r.op == ops.constant {
+			tasks[i].constant = r.data
 			continue
 		}
 
-		inputs := make([]int, len(r.input))
+		inputs := make([]int, len(r.inputs))
 
 		// find inputs index
-		for i, dep := range r.input {
+		for i, dep := range r.inputs {
 			for j, r := range result {
 				if dep == r {
 					inputs[i] = j
@@ -141,14 +141,6 @@ func (t *Tensor) linearize() []*task {
 }
 
 func (t *Tensor) Materialize() []float32 {
-	// convert tree into task list
-	tasks := t.linearize()
-
-	// render source code from tasks then run it
-	result := runner.run(tasks)
-
-	// set calculated value, materialization done
-	t.data = result
-
+	t.data = runner.run(t.linearize())
 	return t.data
 }

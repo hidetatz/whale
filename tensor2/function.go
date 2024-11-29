@@ -1,64 +1,43 @@
 package main
 
-type differentiable interface {
-	forward(...*node) *node
-	backward(*node) []*node
-	String() string
+type op int
+
+type _ops struct {
+	constant, add, mul op
 }
 
-type function struct {
-	inputs         []*Tensor
-	differentiable differentiable
+var ops = _ops{
+	constant: 0, add: 1, mul: 2,
 }
 
-func (f *function) backward(grad *node) []*node {
-	return f.differentiable.backward(grad)
+type calculation struct {
+	do           func(inputs ...*Tensor) *Tensor
+	differential func(inputs []*Tensor, grad *Tensor) []*Tensor
 }
 
-/*
- * differentiables
- */
-
-type recip struct {
+type _calculations struct {
+	add *calculation
+	mul *calculation
 }
 
-func (*recip) String() string { return " 1 / x" }
-
-func (r *recip) forward(graphs ...*node) *node {
-	return &node{op: nodeops.recip, input: []*node{graphs[0]}}
-}
-
-func (r *recip) backward(grad *node) []*node {
-	return []*node{
-		// {op: ops.mul, src: []*graph{grad, m.y}},
-		// {op: ops.mul, src: []*graph{grad, m.x}},
-	}
-}
-
-type add struct{}
-
-func (*add) String() string { return "+" }
-
-func (*add) forward(graphs ...*node) *node {
-	return &node{op: nodeops.add, input: []*node{graphs[0], graphs[1]}}
-}
-
-func (*add) backward(grad *node) []*node { return []*node{grad, grad} }
-
-type mul struct {
-	x, y *node
-}
-
-func (*mul) String() string { return "*" }
-
-func (m *mul) forward(graphs ...*node) *node {
-	m.x, m.y = graphs[0], graphs[1]
-	return &node{op: nodeops.mul, input: []*node{graphs[0], graphs[1]}}
-}
-
-func (m *mul) backward(grad *node) []*node {
-	return []*node{
-		{op: nodeops.mul, input: []*node{grad, m.y}},
-		{op: nodeops.mul, input: []*node{grad, m.x}},
-	}
+var calculations = &_calculations{
+	add: &calculation{
+		do: func(inputs ...*Tensor) *Tensor {
+			return &Tensor{op: ops.add, inputs: []*Tensor{inputs[0], inputs[1]}}
+		},
+		differential: func(_ []*Tensor, grad *Tensor) []*Tensor {
+			return []*Tensor{grad, grad}
+		},
+	},
+	mul: &calculation{
+		do: func(inputs ...*Tensor) *Tensor {
+			return &Tensor{op: ops.mul, inputs: []*Tensor{inputs[0], inputs[1]}}
+		},
+		differential: func(inputs []*Tensor, grad *Tensor) []*Tensor {
+			return []*Tensor{
+				{op: ops.mul, inputs: []*Tensor{grad, inputs[1]}},
+				{op: ops.mul, inputs: []*Tensor{grad, inputs[0]}},
+			}
+		},
+	},
 }
