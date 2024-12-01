@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"iter"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -24,13 +26,17 @@ type dimension struct {
 }
 
 type Tensor struct {
-	inputs []*Tensor
-	op     op
-	dim    *dimension
-
 	data         []float32
+	dim          *dimension
 	materialized bool
 
+	// calculation graph
+	op      op
+	creator *calc
+	ctx     *context
+	inputs  []*Tensor
+
+	// gradient
 	grad *Tensor
 }
 
@@ -61,12 +67,20 @@ func (t *Tensor) string(depth int) string {
 		write("right: {")
 		writeraw(t.inputs[1].string(depth + 1))
 		write("},")
+	case ops.expand:
+		write("op: expand,")
+		write("from: {")
+		writeraw(t.inputs[0].string(depth + 1))
+		write("}")
+		write("to_shape: %v,", t.dim.shape)
+	default:
+		panic("switch-case is not exhaustive!")
 	}
 
 	return sb.String()
 }
 
-func newDimension(shape ...int) *dimension {
+func newdimension(shape ...int) *dimension {
 	product := func(arr []int) int {
 		p := 1
 		for i := range arr {
@@ -88,9 +102,31 @@ func newDimension(shape ...int) *dimension {
 }
 
 // returns broadcasted shape and true if broadcastable.
-// func (d *dimension) broadcastable(d2 *dimension) ([]int, bool) {
+func (d *dimension) broadcastable(d2 *dimension) ([]int, bool) {
+	if slices.Equal(d.shape, d2.shape) {
+		return d.shape, true
+	}
 
-// }
+	tmpd := slices.Clone(d.shape)
+	tmpd2 := slices.Clone(d2.shape)
+
+	// prepend 1s to be the same length
+	if len(tmpd) > len(tmpd2) {
+		tmpd2 = slices.Concat(slices.Repeat([]int{1}, len(tmpd)-len(tmpd2)), tmpd2)
+	} else if len(tmpd2) > len(tmpd) {
+		tmpd = slices.Concat(slices.Repeat([]int{1}, len(tmpd2)-len(tmpd)), tmpd)
+	}
+
+	broadcastedshape := []int{}
+	for s1, s2 := range zip(tmpd, tmpd2) {
+		if s1 != s2 && s1 != 1 && s2 != 1 {
+			return nil, false
+		}
+		broadcastedshape = append(broadcastedshape, max(s1, s2))
+	}
+
+	return broadcastedshape, true
+}
 
 /*******************************
  *
@@ -99,15 +135,24 @@ func newDimension(shape ...int) *dimension {
  *******************************/
 
 func Scalar(data float32) *Tensor {
-	return &Tensor{data: []float32{data}, dim: newDimension(), materialized: true}
+	return &Tensor{data: []float32{data}, dim: newdimension(), materialized: true}
 }
 
 func Vector(data []float32) *Tensor {
-	return &Tensor{data: data, dim: newDimension(len(data)), materialized: true}
+	return &Tensor{data: data, dim: newdimension(len(data)), materialized: true}
 }
 
-func fromcalculation(c *calculation, inputs ...*Tensor) *Tensor {
-	return c.do(inputs...)
+func newFromCalc(calc *calc, inputs ...*Tensor) *Tensor {
+	ctx := newcontext()
+	return newFromCalcWithCtx(calc, ctx, inputs...)
+}
+
+func newFromCalcWithCtx(calc *calc, ctx *context, inputs ...*Tensor) *Tensor {
+	ctx.inputs = inputs
+	t := calc.do(ctx, inputs...)
+	t.creator = calc
+	t.ctx = ctx
+	return t
 }
 
 /*******************************
@@ -129,7 +174,7 @@ func fromcalculation(c *calculation, inputs ...*Tensor) *Tensor {
 // }
 
 func (t *Tensor) Add(t2 *Tensor) *Tensor {
-	return fromcalculation(calculations.add, t, t2)
+	return newFromCalc(calculations.add, t.broadcasted(t2)...)
 }
 
 // func (t *Tensor) Sub(t2 *Tensor) *Tensor {
@@ -137,7 +182,10 @@ func (t *Tensor) Add(t2 *Tensor) *Tensor {
 // }
 
 func (t *Tensor) Mul(t2 *Tensor) *Tensor {
-	return fromcalculation(calculations.mul, t, t2)
+	bt := t.broadcasted(t2)
+	fmt.Println(11111, bt[0].inputs[0])
+	fmt.Println(22222, bt[1].inputs[0])
+	return newFromCalc(calculations.mul, bt...)
 }
 
 // func (t *Tensor) Div(t2 *Tensor) *Tensor {
@@ -150,9 +198,21 @@ func (t *Tensor) Mul(t2 *Tensor) *Tensor {
  *
  *******************************/
 
-// func (t *Tensor) Broadcasted(t2 *Tensor) []*Tensor {
-// 	shape := t.node.dim.broadcastable(t2.node.dim)
-// }
+func (t *Tensor) broadcasted(t2 *Tensor) []*Tensor {
+	// if slices.Equal(t.dim.shape, t2.dim.shape) {
+	// 	return []*Tensor{t, t2}
+	// }
+
+	shape, ok := t.dim.broadcastable(t2.dim)
+	if !ok {
+		panic(fmt.Sprintf("broadcast is impossible on shape %d and %d", t.dim.shape, t2.dim.shape))
+	}
+
+	return []*Tensor{
+		newFromCalcWithCtx(calculations.expand, newcontext().setshape(shape...), t),
+		newFromCalcWithCtx(calculations.expand, newcontext().setshape(shape...), t2),
+	}
+}
 
 /*******************************
  *
@@ -160,64 +220,68 @@ func (t *Tensor) Mul(t2 *Tensor) *Tensor {
  *
  *******************************/
 
-// func (t *Tensor) Backprop() {
-// 	if t.grad == nil {
-// 		t.grad = Vector([]float32{1})
-// 	}
+func (t *Tensor) Backprop() {
+	if t.grad == nil {
+		t.grad = Vector([]float32{1})
+	}
 
-// 	flatten := func(t *Tensor) []*Tensor {
-// 		visited := make(map[*Tensor]bool)
-// 		var tensors []*Tensor
-// 		var dfs func(*Tensor)
-// 		dfs = func(_t *Tensor) {
-// 			if _t.creator == nil {
-// 				return
-// 			}
+	flatten := func(t *Tensor) []*Tensor {
+		visited := make(map[*Tensor]bool)
+		var tensors []*Tensor
+		var dfs func(*Tensor)
+		dfs = func(_t *Tensor) {
+			if _t.creator == nil {
+				return
+			}
 
-// 			if visited[_t] {
-// 				return
-// 			}
-// 			visited[_t] = true
+			if visited[_t] {
+				return
+			}
+			visited[_t] = true
 
-// 			tensors = append(tensors, _t)
-// 			for _, input := range _t.creator.inputs {
-// 				dfs(input)
-// 			}
-// 		}
+			tensors = append(tensors, _t)
+			for _, input := range _t.inputs {
+				dfs(input)
+			}
+		}
 
-// 		dfs(t)
-// 		return tensors
-// 	}
+		dfs(t)
+		return tensors
+	}
 
-// 	for _, tensor := range flatten(t) {
-// 		grads := tensor.creator.backward(tensor.grad.node)
-// 		for i := range grads {
-// 			input := tensor.creator.inputs[i]
-// 			grad := fromnode(grads[i])
+	for _, tensor := range flatten(t) {
+		grads := tensor.creator.differential(tensor.ctx, tensor.grad)
 
-// 			if input.grad == nil {
-// 				input.grad = grad
-// 			} else {
-// 				y := input.grad.Add(grad)
-// 				input.grad = y
-// 			}
-// 		}
-// 	}
-// }
+		for input, grad := range zip(tensor.inputs, grads) {
+			if input.grad == nil {
+				input.grad = grad
+			} else {
+				y := input.grad.Add(grad)
+				input.grad = y
+			}
+		}
+	}
+}
 
 func main() {
 	t := Vector([]float32{1, 2})
-	t2 := Vector([]float32{3, 4})
-	t3 := t.Add(t2)
+	t2 := Vector([]float32{3})
+	t3 := t.Mul(t2)
 
-	// fmt.Println(t3)
-	// t4 := t3.Div(Vector([]float32{10}))
-
-	// t4.Backprop()
-
-	// t.grad.Backprop()
 	fmt.Println(t3.Materialize())
+
+	// fmt.Println(t3.grad, t2.grad, t.grad)
+	// t3.Backprop()
 	// fmt.Println(t3.grad.Materialize())
 	// fmt.Println(t2.grad.Materialize())
 	// fmt.Println(t.grad.Materialize())
+}
+
+// zip utility function
+func zip[K, V any](ks []K, vs []V) iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for i := range min(len(ks), len(vs)) {
+			yield(ks[i], vs[i])
+		}
+	}
 }
