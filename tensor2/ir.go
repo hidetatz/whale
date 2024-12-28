@@ -204,7 +204,7 @@ func (m *mnEndLoop) String() string {
 type alu1op int
 
 const (
-	alu1_neg alu1op = iota + 1
+	alu1_recip alu1op = iota + 1
 )
 
 // arithmetic operation with 1 operand.

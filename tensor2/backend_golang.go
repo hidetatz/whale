@@ -146,8 +146,8 @@ func (r *gorenderer) endloop() string {
 
 func (r *gorenderer) alu1(varname, from string, op alu1op) string {
 	switch op {
-	case alu1_neg:
-		return fmt.Sprintf("%v = -%v", varname, from)
+	case alu1_recip:
+		return fmt.Sprintf("var %v = 1.0 / %v", varname, from)
 	default:
 		panic("unknown alu1op!")
 	}

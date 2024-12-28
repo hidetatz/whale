@@ -83,6 +83,36 @@ func (g *basegenerator) generate(t *Tensor) (irs []*instruction, err error) {
 		case op_const:
 			return push(inst(&mnParam{typ: t_floats, val: t.data}))
 
+		case op_recip:
+			input := t.inputs[0]
+			size := input.Size()
+
+			inputid := dfs(input)
+
+			// define result to store
+			result := push(inst(&mnDecl{typ: t_floats, length: size}))
+
+			// start loop
+			loop := push(inst(&mnLoop{countImm: size}))
+
+			load := push(inst(&mnInit{from: inputid, idx: loop}))
+
+			var op alu1op
+			if t.op == op_recip {
+				op = alu1_recip
+			}
+
+			// do compute
+			alu1 := push(inst(&mnALU1{val: load, op: op}))
+
+			// assign computed to result
+			push(inst(&mnAssign{left: result, lidx: loop, right: alu1}))
+
+			// finish loop
+			push(inst(&mnEndLoop{}))
+
+			return result
+
 		case op_add, op_mul:
 			// todo: scalar optimization
 

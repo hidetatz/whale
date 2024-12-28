@@ -5,6 +5,7 @@ type operation int
 const (
 	op_const operation = iota + 1
 
+	op_recip
 	op_add
 	op_mul
 
@@ -17,10 +18,22 @@ type calculation interface {
 	differential(grad *Tensor) []*Tensor
 }
 
+/*
+ * Arithmetic
+ */
+
+type calcRecip struct {
+	ret *Tensor
 }
 
+func (c *calcRecip) do(inputs ...*Tensor) *Tensor {
+	c.ret = &Tensor{op: op_recip, inputs: []*Tensor{inputs[0]}, dim: newdim(inputs[0].dim.shape...)}
+	return c.ret
 }
 
+func (c *calcRecip) differential(grad *Tensor) []*Tensor {
+	// reciprocal' is (-1/(x^2)), because ret is (1/x), so this returns (-1*ret*ret)
+	return []*Tensor{Scalar(-1).Mul(c.ret).Mul(c.ret)}
 }
 
 type calcAdd struct{}

@@ -363,8 +363,9 @@ func main() {
 	t := Vector([]float32{2})
 	t2 := Vector([]float32{3, 5})
 	t3 := t.Mul(t2)
-	t4 := t3.Add(Vector([]float32{100, 200}))
-	fmt.Println(t4.Materialize())
+	t4 := t3.Recip()
+	t5 := t4.Add(Vector([]float32{100, 200}))
+	fmt.Println(t5.Materialize())
 
 	// fmt.Println(t3.grad, t2.grad, t.grad)
 	// t3.Backprop()
