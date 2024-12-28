@@ -280,10 +280,18 @@ func (t *Tensor) broadcasted(t2 *Tensor) []*Tensor {
 		panic(fmt.Sprintf("broadcast is impossible on shape %d and %d", t.dim.shape, t2.dim.shape))
 	}
 
-	return []*Tensor{
-		newFromCalcWithCtx(calculations.expand, newctx().setshape(shape...), t),
-		newFromCalcWithCtx(calculations.expand, newctx().setshape(shape...), t2),
+	expandedT := t
+	expandedT2 := t2
+
+	if !slices.Equal(t.dim.shape, shape) {
+		expandedT = newFromCalc(&calcExpand{shape: shape}, t)
 	}
+
+	if !slices.Equal(t2.dim.shape, shape) {
+		expandedT2 = newFromCalc(&calcExpand{shape: shape}, t2)
+	}
+
+	return []*Tensor{expandedT, expandedT2}
 }
 
 /*******************************
