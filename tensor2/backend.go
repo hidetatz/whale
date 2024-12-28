@@ -60,7 +60,7 @@ func (g *basegenerator) generate(t *Tensor) (irs []*instruction, err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf(r.(string))
+			err = fmt.Errorf("%v", r.(string))
 			irs = nil
 		}
 	}()
