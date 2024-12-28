@@ -137,8 +137,7 @@ type Tensor struct {
 
 	// calculation graph
 	op      operation
-	creator *calc
-	ctx     *context
+	creator calculation
 	inputs  []*Tensor
 
 	// gradient
@@ -205,16 +204,9 @@ func Vector(data []float32) *Tensor {
 	return newconst(data, len(data))
 }
 
-func newFromCalc(calc *calc, inputs ...*Tensor) *Tensor {
-	ctx := newctx()
-	return newFromCalcWithCtx(calc, ctx, inputs...)
-}
-
-func newFromCalcWithCtx(calc *calc, ctx *context, inputs ...*Tensor) *Tensor {
-	ctx.inputs = inputs
-	t := calc.do(ctx, inputs...)
+func newFromCalc(calc calculation, inputs ...*Tensor) *Tensor {
+	t := calc.do(inputs...)
 	t.creator = calc
-	t.ctx = ctx
 	return t
 }
 
@@ -248,16 +240,16 @@ func product(arr []int) int {
  * Arithmetic
  */
 
-// func (t *Tensor) Recip() *Tensor {
-// 	return fromfunc(&recip{}, t)
-// }
+func (t *Tensor) Recip() *Tensor {
+	return newFromCalc(&calcRecip{}, t)
+}
 
 // func (t *Tensor) Neg() *Tensor {
 // 	return t.Mul(Vector([]float32{-1}))
 // }
 
 func (t *Tensor) Add(t2 *Tensor) *Tensor {
-	return newFromCalc(calculations.add, t.broadcasted(t2)...)
+	return newFromCalc(&calcAdd{}, t.broadcasted(t2)...)
 }
 
 // func (t *Tensor) Sub(t2 *Tensor) *Tensor {
@@ -265,7 +257,7 @@ func (t *Tensor) Add(t2 *Tensor) *Tensor {
 // }
 
 func (t *Tensor) Mul(t2 *Tensor) *Tensor {
-	return newFromCalc(calculations.mul, t.broadcasted(t2)...)
+	return newFromCalc(&calcMul{}, t.broadcasted(t2)...)
 }
 
 // func (t *Tensor) Div(t2 *Tensor) *Tensor {
@@ -330,7 +322,7 @@ func (t *Tensor) Backprop() {
 	}
 
 	for _, tensor := range flatten(t) {
-		grads := tensor.creator.differential(tensor.ctx, tensor.grad)
+		grads := tensor.creator.differential(tensor.grad)
 
 		for input, grad := range zip(tensor.inputs, grads) {
 			if input.grad == nil {
