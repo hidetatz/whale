@@ -16,8 +16,12 @@ func initDebug() {
 
 func init() {
 	initDebug()
-	initRunner()
+	initBackend()
 }
+
+/*
+ * dimension
+ */
 
 type dimension struct {
 	shape   []int
@@ -25,70 +29,7 @@ type dimension struct {
 	offset  int
 }
 
-type Tensor struct {
-	data         []float32
-	dim          *dimension
-	materialized bool
-
-	// calculation graph
-	op      op
-	creator *calc
-	ctx     *context
-	inputs  []*Tensor
-
-	// gradient
-	grad *Tensor
-}
-
-func (t *Tensor) String() string {
-	return fmt.Sprintf("{\n%s}", t.string(1))
-}
-
-func (t *Tensor) string(depth int) string {
-	sb := strings.Builder{}
-	indent := strings.Repeat("  ", depth)
-
-	writeraw := func(format string, a ...any) { sb.WriteString(fmt.Sprintf(format, a...)) }
-	write := func(format string, a ...any) { writeraw(indent+format+"\n", a...) }
-
-	switch t.op {
-	case ops.constant:
-		write("op: const,")
-		write("data: %v", t.data)
-	case ops.add, ops.mul:
-		if t.op == ops.add {
-			write("op: +,")
-		} else if t.op == ops.mul {
-			write("op: *,")
-		}
-		write("left: {")
-		writeraw(t.inputs[0].string(depth + 1))
-		write("}")
-		write("right: {")
-		writeraw(t.inputs[1].string(depth + 1))
-		write("},")
-	case ops.expand:
-		write("op: expand,")
-		write("from: {")
-		writeraw(t.inputs[0].string(depth + 1))
-		write("}")
-		write("to_shape: %v,", t.dim.shape)
-	default:
-		panic("switch-case is not exhaustive!")
-	}
-
-	return sb.String()
-}
-
-func newdimension(shape ...int) *dimension {
-	product := func(arr []int) int {
-		p := 1
-		for i := range arr {
-			p *= arr[i]
-		}
-		return p
-	}
-
+func newdim(shape ...int) *dimension {
 	strides := make([]int, len(shape))
 	for i := range len(shape) {
 		strides[i] = product(shape[i+1:])
@@ -98,6 +39,63 @@ func newdimension(shape ...int) *dimension {
 		shape:   shape,
 		strides: strides,
 		offset:  0,
+	}
+}
+
+func (d *dimension) String() string {
+	return fmt.Sprintf("{shape: %v, strides: %v, offset: %v}", d.shape, d.strides, d.offset)
+}
+
+func (d *dimension) copy() *dimension {
+	return &dimension{
+		shape:   slices.Clone(d.shape),
+		strides: slices.Clone(d.strides),
+		offset:  d.offset,
+	}
+}
+
+func (d *dimension) ndim() int {
+	return len(d.shape)
+}
+
+func (d *dimension) size() int {
+	return product(d.shape)
+}
+
+func (d *dimension) expand(newshape ...int) *dimension {
+	if slices.Equal(d.shape, newshape) {
+		return d
+	}
+
+	if len(d.shape) > len(newshape) {
+		panic("cannot expand to smaller dimensions")
+	}
+
+	delta := len(newshape) - len(d.shape)
+	newstrides := make([]int, len(newshape))
+
+	for i := d.ndim() - 1; 0 <= i; i-- {
+		if newshape[delta+i] == d.shape[i] && d.shape[i] == 1 {
+			newstrides[delta+i] = 0
+			continue
+		}
+
+		if newshape[delta+i] == d.shape[i] && d.shape[i] != 1 {
+			newstrides[delta+i] = d.strides[i]
+			continue
+		}
+
+		if d.shape[i] != 1 {
+			panic("expand: dimension number is not 1")
+		}
+
+		newstrides[delta+i] = 0
+	}
+
+	return &dimension{
+		shape:   newshape,
+		strides: newstrides,
+		offset:  d.offset,
 	}
 }
 
@@ -128,22 +126,87 @@ func (d *dimension) broadcastable(d2 *dimension) ([]int, bool) {
 	return broadcastedshape, true
 }
 
+/*
+ * Tensor
+ */
+
+type Tensor struct {
+	data         []float32
+	dim          *dimension
+	materialized bool
+
+	// calculation graph
+	op      operation
+	creator *calc
+	ctx     *context
+	inputs  []*Tensor
+
+	// gradient
+	grad *Tensor
+}
+
+func (t *Tensor) String() string {
+	return fmt.Sprintf("{\n%s}", t.string(1))
+}
+
+func (t *Tensor) string(depth int) string {
+	sb := strings.Builder{}
+	indent := strings.Repeat("  ", depth)
+
+	writeraw := func(format string, a ...any) { sb.WriteString(fmt.Sprintf(format, a...)) }
+	write := func(format string, a ...any) { writeraw(indent+format+"\n", a...) }
+
+	switch t.op {
+	case op_const:
+		write("op: const,")
+		write("dim: %v,", t.dim)
+		write("data: %v", t.data)
+	case op_add, op_mul:
+		write("dim: %v,", t.dim)
+		if t.op == op_add {
+			write("op: +,")
+		} else if t.op == op_mul {
+			write("op: *,")
+		}
+		write("left: {")
+		writeraw(t.inputs[0].string(depth + 1))
+		write("}")
+		write("right: {")
+		writeraw(t.inputs[1].string(depth + 1))
+		write("},")
+	case op_expand:
+		write("op: expand,")
+		write("dim: %v,", t.dim)
+		write("from: {")
+		writeraw(t.inputs[0].string(depth + 1))
+		write("}")
+	default:
+		panic("switch-case is not exhaustive!")
+	}
+
+	return sb.String()
+}
+
 /*******************************
  *
  * Tensor factory function
  *
  *******************************/
 
+func newconst(data []float32, shape ...int) *Tensor {
+	return &Tensor{op: op_const, data: data, dim: newdim(shape...), materialized: true}
+}
+
 func Scalar(data float32) *Tensor {
-	return &Tensor{data: []float32{data}, dim: newdimension(), materialized: true}
+	return newconst([]float32{data})
 }
 
 func Vector(data []float32) *Tensor {
-	return &Tensor{data: data, dim: newdimension(len(data)), materialized: true}
+	return newconst(data, len(data))
 }
 
 func newFromCalc(calc *calc, inputs ...*Tensor) *Tensor {
-	ctx := newcontext()
+	ctx := newctx()
 	return newFromCalcWithCtx(calc, ctx, inputs...)
 }
 
@@ -153,6 +216,26 @@ func newFromCalcWithCtx(calc *calc, ctx *context, inputs ...*Tensor) *Tensor {
 	t.creator = calc
 	t.ctx = ctx
 	return t
+}
+
+func (t *Tensor) IsScalar() bool {
+	return len(t.dim.shape) == 0
+}
+
+func (t *Tensor) IsVector() bool {
+	return len(t.dim.shape) == 1
+}
+
+func (t *Tensor) Size() int {
+	return t.dim.size()
+}
+
+func product(arr []int) int {
+	p := 1
+	for i := range arr {
+		p *= arr[i]
+	}
+	return p
 }
 
 /*******************************
@@ -182,10 +265,7 @@ func (t *Tensor) Add(t2 *Tensor) *Tensor {
 // }
 
 func (t *Tensor) Mul(t2 *Tensor) *Tensor {
-	bt := t.broadcasted(t2)
-	fmt.Println(11111, bt[0].inputs[0])
-	fmt.Println(22222, bt[1].inputs[0])
-	return newFromCalc(calculations.mul, bt...)
+	return newFromCalc(calculations.mul, t.broadcasted(t2)...)
 }
 
 // func (t *Tensor) Div(t2 *Tensor) *Tensor {
@@ -199,9 +279,9 @@ func (t *Tensor) Mul(t2 *Tensor) *Tensor {
  *******************************/
 
 func (t *Tensor) broadcasted(t2 *Tensor) []*Tensor {
-	// if slices.Equal(t.dim.shape, t2.dim.shape) {
-	// 	return []*Tensor{t, t2}
-	// }
+	if slices.Equal(t.dim.shape, t2.dim.shape) {
+		return []*Tensor{t, t2}
+	}
 
 	shape, ok := t.dim.broadcastable(t2.dim)
 	if !ok {
@@ -209,8 +289,8 @@ func (t *Tensor) broadcasted(t2 *Tensor) []*Tensor {
 	}
 
 	return []*Tensor{
-		newFromCalcWithCtx(calculations.expand, newcontext().setshape(shape...), t),
-		newFromCalcWithCtx(calculations.expand, newcontext().setshape(shape...), t2),
+		newFromCalcWithCtx(calculations.expand, newctx().setshape(shape...), t),
+		newFromCalcWithCtx(calculations.expand, newctx().setshape(shape...), t2),
 	}
 }
 
@@ -263,12 +343,28 @@ func (t *Tensor) Backprop() {
 	}
 }
 
-func main() {
-	t := Vector([]float32{1, 2})
-	t2 := Vector([]float32{3})
-	t3 := t.Mul(t2)
+/*******************************
+ *
+ * Materialization
+ *
+ *******************************/
 
-	fmt.Println(t3.Materialize())
+func (t *Tensor) Materialize() []float32 {
+	result, err := compute(t)
+	if err != nil {
+		panic(err)
+	}
+
+	t.data = result
+	return t.data
+}
+
+func main() {
+	t := Vector([]float32{2})
+	t2 := Vector([]float32{3, 5})
+	t3 := t.Mul(t2)
+	t4 := t3.Add(Vector([]float32{100, 200}))
+	fmt.Println(t4.Materialize())
 
 	// fmt.Println(t3.grad, t2.grad, t.grad)
 	// t3.Backprop()

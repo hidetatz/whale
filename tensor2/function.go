@@ -1,14 +1,17 @@
 package main
 
-type op int
+type operation int
 
-type _ops struct {
-	constant, add, mul, expand op
-}
+const (
+	// underscore makes it easier to read for me
+	op_const operation = iota + 1
 
-var ops = _ops{
-	constant: 0, add: 1, mul: 2, expand: 3,
-}
+	op_add
+	op_mul
+
+	// transform
+	op_expand
+)
 
 // calculation context
 type context struct {
@@ -16,7 +19,7 @@ type context struct {
 	params map[string]any
 }
 
-func newcontext() *context {
+func newctx() *context {
 	return &context{params: map[string]any{}}
 }
 
@@ -37,6 +40,7 @@ func (c *context) getshape() []int {
 	return c.get("shape").([]int)
 }
 
+// forward/backward
 type calc struct {
 	do           func(ctx *context, inputs ...*Tensor) *Tensor
 	differential func(ctx *context, grad *Tensor) []*Tensor
@@ -60,7 +64,7 @@ var calculations = &_calculations{
 
 	add: &calc{
 		do: func(ctx *context, inputs ...*Tensor) *Tensor {
-			return &Tensor{op: ops.add, inputs: []*Tensor{inputs[0], inputs[1]}}
+			return &Tensor{op: op_add, inputs: []*Tensor{inputs[0], inputs[1]}, dim: newdim(inputs[0].dim.shape...)}
 		},
 		differential: func(ctx *context, grad *Tensor) []*Tensor {
 			return []*Tensor{grad, grad}
@@ -69,12 +73,12 @@ var calculations = &_calculations{
 
 	mul: &calc{
 		do: func(ctx *context, inputs ...*Tensor) *Tensor {
-			return &Tensor{op: ops.mul, inputs: []*Tensor{inputs[0], inputs[1]}}
+			return &Tensor{op: op_mul, inputs: []*Tensor{inputs[0], inputs[1]}, dim: newdim(inputs[0].dim.shape...)}
 		},
 		differential: func(ctx *context, grad *Tensor) []*Tensor {
 			return []*Tensor{
-				{op: ops.mul, inputs: []*Tensor{grad, ctx.inputs[1]}},
-				{op: ops.mul, inputs: []*Tensor{grad, ctx.inputs[0]}},
+				{op: op_mul, inputs: []*Tensor{grad, ctx.inputs[1]}},
+				{op: op_mul, inputs: []*Tensor{grad, ctx.inputs[0]}},
 			}
 		},
 	},
@@ -86,7 +90,7 @@ var calculations = &_calculations{
 	expand: &calc{
 		do: func(ctx *context, inputs ...*Tensor) *Tensor {
 			ctx.set("original_shape", inputs[0].dim.shape)
-			return &Tensor{op: ops.expand, inputs: []*Tensor{inputs[0]}, dim: newdimension(ctx.getshape()...)}
+			return &Tensor{op: op_expand, inputs: []*Tensor{inputs[0]}, dim: inputs[0].dim.expand(ctx.getshape()...)}
 		},
 		differential: func(ctx *context, grad *Tensor) []*Tensor {
 			// todo: sum using orig shape
