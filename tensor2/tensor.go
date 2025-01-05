@@ -160,25 +160,31 @@ func (t *Tensor) string(depth int) string {
 		write("op: const,")
 		write("dim: %v,", t.dim)
 		write("data: %v", t.data)
+
+	case op_recip:
+		write("dim: %v,", t.dim)
+		write("op: %v,", t.op)
+		write("input: {")
+		writeraw(t.inputs[0].string(depth + 1))
+		write("}")
+
 	case op_add, op_mul:
 		write("dim: %v,", t.dim)
-		if t.op == op_add {
-			write("op: +,")
-		} else if t.op == op_mul {
-			write("op: *,")
-		}
+		write("op: %v,", t.op)
 		write("left: {")
 		writeraw(t.inputs[0].string(depth + 1))
 		write("}")
 		write("right: {")
 		writeraw(t.inputs[1].string(depth + 1))
 		write("},")
+
 	case op_expand:
 		write("op: expand,")
 		write("dim: %v,", t.dim)
 		write("from: {")
 		writeraw(t.inputs[0].string(depth + 1))
 		write("}")
+
 	default:
 		panic("switch-case is not exhaustive!")
 	}

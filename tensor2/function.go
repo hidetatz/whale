@@ -18,6 +18,28 @@ type calculation interface {
 	differential(grad *Tensor) []*Tensor
 }
 
+func (op operation) String() string {
+	switch op {
+	case op_const:
+		return "const"
+
+	case op_recip:
+		return "1 / x"
+
+	case op_add:
+		return "+"
+
+	case op_mul:
+		return "*"
+
+	case op_expand:
+		return "expand"
+
+	default:
+		panic("switch-case is not exhaustive!")
+	}
+}
+
 /*
  * Arithmetic
  */
