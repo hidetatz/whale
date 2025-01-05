@@ -40,30 +40,18 @@ func initBackend() {
 }
 
 /*
- * irgenerator: generate a list of IR from AST (tensor computation graph).
+ * Generate a sequence of IR from tensor AST
  */
 
-type irgenerator interface {
-	generate(t *Tensor) ([]*instruction, error)
-}
-
-/*
- * Generator for basic machine
- */
-
-type basegenerator struct {
-	override func(t *Tensor) instid
-}
-
-func (g *basegenerator) generate(t *Tensor) (irs []*instruction, err error) {
-	irs = []*instruction{}
-
+func generateIR(t *Tensor) (irs []*instruction, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r.(string))
 			irs = nil
 		}
 	}()
+
+	irs = []*instruction{}
 
 	push := func(ir *instruction) instid {
 		irs = append(irs, ir)
@@ -72,13 +60,6 @@ func (g *basegenerator) generate(t *Tensor) (irs []*instruction, err error) {
 
 	var dfs func(t *Tensor) instid
 	dfs = func(t *Tensor) instid {
-		if g.override != nil {
-			overriddenID := g.override(t)
-			if overriddenID.valid() {
-				return overriddenID
-			}
-		}
-
 		switch t.op {
 		case op_const:
 			return push(inst(&mnParam{typ: t_floats, val: t.data}))
@@ -177,31 +158,6 @@ func (g *basegenerator) generate(t *Tensor) (irs []*instruction, err error) {
 	push(inst(&mnReturn{val: result}))
 
 	return irs, nil
-}
-
-/*
- * Generator for CPU machine.
- * The same as base.
- */
-
-type cpuGenerator struct{}
-
-func (g *cpuGenerator) generate(t *Tensor) (irs []*instruction, err error) {
-	base := &basegenerator{}
-	return base.generate(t)
-}
-
-/*
- * Generator for GPU machine.
- * Mostly the same as base, but optimized for parallel computation.
- */
-
-type gpuGenerator struct{}
-
-func (g *gpuGenerator) generate(t *Tensor) (irs []*instruction, err error) {
-	// todo: override
-	base := &basegenerator{}
-	return base.generate(t)
 }
 
 /*
@@ -398,24 +354,21 @@ func compute(t *Tensor) ([]float32, error) {
 	}
 
 	var (
-		irgenerator irgenerator
-		renderer    renderer
-		executor    executor
+		renderer renderer
+		executor executor
 	)
 
 	switch backend {
 	case be_golang:
-		irgenerator = &cpuGenerator{}
 		renderer = &cLikeRenderer{lang: &gorenderer{}}
 		executor = &goexecutor{}
 
 	case be_cuda:
-		// irgenerator = &gpuGenerator{}
 		// renderer = &cLikeRenderer{lang: &cudarenderer{}}
 		// executor = &cudaexecutor{}
 	}
 
-	irs, err := irgenerator.generate(t)
+	irs, err := generateIR(t)
 	if err != nil {
 		return nil, err
 	}
