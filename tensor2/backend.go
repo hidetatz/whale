@@ -51,18 +51,29 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 		}
 	}()
 
-	irs = []*instruction{}
+	inst := func(m mnemonic) *instruction {
+		return &instruction{id: newInstid(), mnemonic: m}
+	}
 
-	push := func(ir *instruction) instid {
-		irs = append(irs, ir)
+	kernels := []*instruction{}
+	pushK := func(ir *instruction) instid {
+		kernels = append(kernels, ir)
 		return ir.id
 	}
+
+	entries := []*instruction{}
+	pushE := func(ir *instruction) instid {
+		entries = append(entries, ir)
+		return ir.id
+	}
+
+	pushE(inst(&mnEntry{}))
 
 	var dfs func(t *Tensor) instid
 	dfs = func(t *Tensor) instid {
 		switch t.op {
 		case op_const:
-			return push(inst(&mnParam{typ: t_floats, val: t.data}))
+			return pushE(inst(&mnParam{typ: t_floats, val: t.data}))
 
 		case op_recip:
 			input := t.inputs[0]
@@ -70,27 +81,33 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 
 			inputid := dfs(input)
 
-			// define result to store
-			result := push(inst(&mnDecl{typ: t_floats, length: size}))
-
-			// start loop
-			loop := push(inst(&mnLoop{countImm: size}))
-
-			load := push(inst(&mnInit{from: inputid, idx: loop}))
-
+			/*
+			 * define kernel
+			 */
+			paramIdx := pushK(inst(&mnKernParam{typ: t_int}))
+			paramx := pushK(inst(&mnKernParam{typ: t_floats}))
+			paramresult := pushK(inst(&mnKernParam{typ: t_floats}))
+			kern := pushK(inst(&mnKernel{params: []instid{paramIdx, paramx, paramresult}}))
+			target := pushK(inst(&mnInit{from: paramx, idx: paramIdx}))
 			var op alu1op
 			if t.op == op_recip {
 				op = alu1_recip
 			}
+			alu1 := pushK(inst(&mnALU1{val: target, op: op}))
+			pushK(inst(&mnAssign{left: paramresult, lidx: paramIdx, right: alu1}))
+			pushK(inst(&mnEndKernel{}))
 
-			// do compute
-			alu1 := push(inst(&mnALU1{val: load, op: op}))
+			/*
+			 * call kernel from entry
+			 */
 
-			// assign computed to result
-			push(inst(&mnAssign{left: result, lidx: loop, right: alu1}))
+			// define result to store
+			result := pushE(inst(&mnDecl{typ: t_floats, length: size}))
 
-			// finish loop
-			push(inst(&mnEndLoop{}))
+			// start loop and invokes kernel
+			loop := pushE(inst(&mnLoop{countImm: size}))
+			pushE(inst(&mnInvokeKernel{kernel: kern, args: []instid{loop, inputid, result}}))
+			pushE(inst(&mnEndLoop{}))
 
 			return result
 
@@ -107,25 +124,25 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 			lid, rid := dfs(l), dfs(r)
 
 			// define result to store
-			result := push(inst(&mnDecl{typ: t_floats, length: sizel}))
+			result := pushE(inst(&mnDecl{typ: t_floats, length: sizel}))
 
 			// start loop
-			loop := push(inst(&mnLoop{countImm: sizel}))
+			loop := pushE(inst(&mnLoop{countImm: sizel}))
 
 			// assume vector
 			// todo: support 2 or more dimensions
 
 			// compute stride, considering broadcast
-			lstride := push(inst(&mnInitImm{typ: t_int, val: l.dim.strides[0]}))
-			rstride := push(inst(&mnInitImm{typ: t_int, val: r.dim.strides[0]}))
+			lstride := pushE(inst(&mnInitImm{typ: t_int, val: l.dim.strides[0]}))
+			rstride := pushE(inst(&mnInitImm{typ: t_int, val: r.dim.strides[0]}))
 
 			// define index
-			lidx := push(inst(&mnALU2{left: loop, op: alu2_mul, right: lstride}))
-			ridx := push(inst(&mnALU2{left: loop, op: alu2_mul, right: rstride}))
+			lidx := pushE(inst(&mnALU2{left: loop, op: alu2_mul, right: lstride}))
+			ridx := pushE(inst(&mnALU2{left: loop, op: alu2_mul, right: rstride}))
 
 			// load value to be computed from left and right
-			loadl := push(inst(&mnInit{from: lid, idx: lidx}))
-			loadr := push(inst(&mnInit{from: rid, idx: ridx}))
+			loadl := pushE(inst(&mnInit{from: lid, idx: lidx}))
+			loadr := pushE(inst(&mnInit{from: rid, idx: ridx}))
 
 			var op alu2op
 
@@ -136,13 +153,13 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 			}
 
 			// do compute
-			alu2 := push(inst(&mnALU2{left: loadl, op: op, right: loadr}))
+			alu2 := pushE(inst(&mnALU2{left: loadl, op: op, right: loadr}))
 
 			// assign computed to result
-			push(inst(&mnAssign{left: result, lidx: loop, right: alu2}))
+			pushE(inst(&mnAssign{left: result, lidx: loop, right: alu2}))
 
 			// finish loop
-			push(inst(&mnEndLoop{}))
+			pushE(inst(&mnEndLoop{}))
 
 			return result
 
@@ -155,9 +172,10 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 	}
 
 	result := dfs(t)
-	push(inst(&mnReturn{val: result}))
+	pushE(inst(&mnReturn{val: result}))
+	pushE(inst(&mnEndEntry{}))
 
-	return irs, nil
+	return slices.Concat(kernels, entries), nil
 }
 
 /*
@@ -193,10 +211,15 @@ type cLikeLangRenderer interface {
 
 	varname(id int) string
 
-	entrypoint() string
+	kernelName(id int) string
+	kernel(kernname string, params []string, typs []typ) string
+	endKernel() string
 
-	kernel(entry string) string
-	endkernel() string
+	invokeKernel(kernname string, args []string) string
+
+	entrypointName() string
+	entrypoint(entryname string) string
+	endEntrypoint() string
 
 	// ir
 	global(varname string, typ typ) string
@@ -238,6 +261,11 @@ func (r *cLikeRenderer) render(irs []*instruction) (*dll, error) {
 		return ok
 	})
 
+	irmap := map[instid]*instruction{}
+	for _, ir := range irs {
+		irmap[ir.id] = ir
+	}
+
 	/*
 	 * start rendering
 	 */
@@ -268,12 +296,6 @@ func (r *cLikeRenderer) render(irs []*instruction) (*dll, error) {
 
 	write("")
 
-	// render main kernel
-
-	entry := r.lang.entrypoint()
-	write(r.lang.kernel(entry))
-	r.depth++
-
 	toidx := func(id instid) *idx {
 		if !id.valid() {
 			return nil
@@ -282,10 +304,53 @@ func (r *cLikeRenderer) render(irs []*instruction) (*dll, error) {
 		return &idx{val: varname(id)}
 	}
 
+	var entry string
+
 	for _, ir := range irs {
 		v := varname(ir.id)
 
 		switch mn := ir.mnemonic.(type) {
+		case *mnEntry:
+			entry = r.lang.entrypointName()
+			write(r.lang.entrypoint(entry))
+			r.depth++
+
+		case *mnEndEntry:
+			r.depth--
+			write(r.lang.endEntrypoint())
+			write("")
+
+		case *mnKernParam:
+			// do nothing
+
+		case *mnKernel:
+			kernname := r.lang.kernelName(int(ir.id))
+
+			// extrace kernel parameter
+			params := make([]string, len(mn.params))
+			typs := make([]typ, len(mn.params))
+			for i, paramID := range mn.params {
+				param := irmap[paramID]
+				params[i] = varname(param.id)
+				typs[i] = param.mnemonic.(*mnKernParam).typ // assume param type is *mnKernParam
+			}
+
+			write(r.lang.kernel(kernname, params, typs))
+			r.depth++
+
+		case *mnEndKernel:
+			r.depth--
+			write(r.lang.endKernel())
+			write("")
+
+		case *mnInvokeKernel:
+			kernname := r.lang.kernelName(int(mn.kernel))
+			args := make([]string, len(mn.args))
+			for i, arg := range mn.args {
+				args[i] = varname(arg)
+			}
+			write(r.lang.invokeKernel(kernname, args))
+
 		case *mnReturn:
 			write(r.lang.return_(varname(mn.val)))
 
@@ -308,6 +373,7 @@ func (r *cLikeRenderer) render(irs []*instruction) (*dll, error) {
 		case *mnEndLoop:
 			r.depth--
 			write(r.lang.endloop())
+			write("")
 
 		case *mnALU1:
 			write(r.lang.alu1(v, varname(mn.val), mn.op))
@@ -320,8 +386,6 @@ func (r *cLikeRenderer) render(irs []*instruction) (*dll, error) {
 		}
 	}
 
-	r.depth--
-	write(r.lang.endkernel())
 	write("")
 
 	write(r.lang.footer())

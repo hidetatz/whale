@@ -38,10 +38,6 @@ func (i *instruction) String() string {
 	return fmt.Sprintf("%v: %v", i.id, i.mnemonic)
 }
 
-func inst(m mnemonic) *instruction {
-	return &instruction{id: newInstid(), mnemonic: m}
-}
-
 /*
  * mnemonics
  */
@@ -79,6 +75,57 @@ type mnemonic interface {
 	fmt.Stringer
 }
 
+// kernel parameter.
+type mnKernParam struct {
+	mnemonic
+
+	typ typ
+}
+
+func (m *mnKernParam) String() string {
+	return fmt.Sprintf("{kern_param %v}", m.typ)
+}
+
+// starts kernel function.
+type mnKernel struct {
+	mnemonic
+
+	params []instid
+}
+
+func (m *mnKernel) String() string {
+	params := ""
+	for i := range m.params {
+		params += fmt.Sprintf("%v", m.params[i])
+		if i != len(m.params)-1 {
+			params += ", "
+		}
+	}
+	return fmt.Sprintf("{kernel(%v)}", params)
+}
+
+// finishes kernel function.
+type mnEndKernel struct {
+	mnemonic
+}
+
+func (m *mnEndKernel) String() string {
+	return "{endkernel}"
+}
+
+// invokes kernel function.
+type mnInvokeKernel struct {
+	mnemonic
+
+	kernel instid
+	args   []instid
+}
+
+func (m *mnInvokeKernel) String() string {
+	return fmt.Sprintf("{invoke_kernel kern%v(with %v args)}", m.kernel, len(m.args))
+}
+
+// declare a external parameter passed from outside the runtime.
 type mnParam struct {
 	mnemonic
 
@@ -86,6 +133,27 @@ type mnParam struct {
 	val any
 }
 
+func (m *mnParam) String() string {
+	return fmt.Sprintf("{param %v (%v)}", m.val, m.typ)
+}
+
+type mnEntry struct {
+	mnemonic
+}
+
+func (m *mnEntry) String() string {
+	return fmt.Sprintf("{entry}")
+}
+
+type mnEndEntry struct {
+	mnemonic
+}
+
+func (m *mnEndEntry) String() string {
+	return fmt.Sprintf("{end_entry}")
+}
+
+// declare return value from the runtime to whale.
 type mnReturn struct {
 	mnemonic
 
@@ -94,10 +162,6 @@ type mnReturn struct {
 
 func (m *mnReturn) String() string {
 	return fmt.Sprintf("{return %v}", m.val)
-}
-
-func (m *mnParam) String() string {
-	return fmt.Sprintf("{param %v (%v)}", m.val, m.typ)
 }
 
 // declare a variable without initialization

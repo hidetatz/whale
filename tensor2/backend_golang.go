@@ -74,15 +74,35 @@ func (r *gorenderer) varname(id int) string {
 	return fmt.Sprintf("D%v", id)
 }
 
-func (r *gorenderer) entrypoint() string {
-	return "F" // must be exported
+func (r *gorenderer) kernelName(id int) string {
+	return fmt.Sprintf("kern%d", id)
 }
 
-func (r *gorenderer) kernel(entry string) string {
+func (r *gorenderer) kernel(kernname string, _params []string, typs []typ) string {
+	params := make([]string, len(_params))
+	for i, p := range _params {
+		params[i] = fmt.Sprintf("%v %v", p, r.encodeType(typs[i]))
+	}
+	return fmt.Sprintf("func %v(%v) {", kernname, strings.Join(params, ", "))
+}
+
+func (r *gorenderer) endKernel() string {
+	return "}"
+}
+
+func (r *gorenderer) invokeKernel(kernname string, args []string) string {
+	return fmt.Sprintf("%v(%v)", kernname, strings.Join(args, ", "))
+}
+
+func (r *gorenderer) entrypointName() string {
+	return "Entry" // must be exported
+}
+
+func (r *gorenderer) entrypoint(entry string) string {
 	return fmt.Sprintf("func %v() []float32 {", entry)
 }
 
-func (r *gorenderer) endkernel() string {
+func (r *gorenderer) endEntrypoint() string {
 	return "}"
 }
 

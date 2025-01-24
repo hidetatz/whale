@@ -162,19 +162,19 @@ func (t *Tensor) string(depth int) string {
 		write("data: %v", t.data)
 
 	case op_recip:
-		write("dim: %v,", t.dim)
 		write("op: %v,", t.op)
-		write("input: {")
+		write("dim: %v,", t.dim)
+		write("x: {")
 		writeraw(t.inputs[0].string(depth + 1))
 		write("}")
 
 	case op_add, op_mul:
+		write("op: x %v y,", t.op)
 		write("dim: %v,", t.dim)
-		write("op: %v,", t.op)
-		write("left: {")
+		write("x: {")
 		writeraw(t.inputs[0].string(depth + 1))
 		write("}")
-		write("right: {")
+		write("y: {")
 		writeraw(t.inputs[1].string(depth + 1))
 		write("},")
 
@@ -367,11 +367,11 @@ func (t *Tensor) Materialize() []float32 {
 
 func main() {
 	t := Vector([]float32{2})
-	t2 := Vector([]float32{3, 5})
-	t3 := t.Mul(t2)
-	t4 := t3.Recip()
-	t5 := t4.Add(Vector([]float32{100, 200}))
-	fmt.Println(t5.Materialize())
+	// t2 := Vector([]float32{3, 5})
+	// t3 := t.Mul(t2)
+	t2 := t.Recip()
+	// t5 := t4.Add(Vector([]float32{100, 200}))
+	fmt.Println(t2.Materialize())
 
 	// fmt.Println(t3.grad, t2.grad, t.grad)
 	// t3.Backprop()
