@@ -112,8 +112,6 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 			return result
 
 		case op_add, op_mul:
-			// todo: scalar optimization
-
 			l, r := t.inputs[0], t.inputs[1]
 			sizel, sizer := l.Size(), r.Size()
 			if sizel != sizer {
@@ -123,29 +121,32 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 			// get left and right id first
 			lid, rid := dfs(l), dfs(r)
 
-			// define result to store
-			result := pushE(inst(&mnDecl{typ: t_floats, length: sizel}))
+			/*
+			 * define kernel
+			 */
 
-			// start loop
-			loop := pushE(inst(&mnLoop{countImm: sizel}))
+			paramIdx := pushK(inst(&mnKernParam{typ: t_int}))
+			paraml := pushK(inst(&mnKernParam{typ: t_floats}))
+			paramr := pushK(inst(&mnKernParam{typ: t_floats}))
+			paramresult := pushK(inst(&mnKernParam{typ: t_floats}))
+			kern := pushK(inst(&mnKernel{params: []instid{paramIdx, paraml, paramr, paramresult}}))
 
 			// assume vector
 			// todo: support 2 or more dimensions
 
 			// compute stride, considering broadcast
-			lstride := pushE(inst(&mnInitImm{typ: t_int, val: l.dim.strides[0]}))
-			rstride := pushE(inst(&mnInitImm{typ: t_int, val: r.dim.strides[0]}))
+			lstride := pushK(inst(&mnInitImm{typ: t_int, val: l.dim.strides[0]}))
+			rstride := pushK(inst(&mnInitImm{typ: t_int, val: r.dim.strides[0]}))
 
 			// define index
-			lidx := pushE(inst(&mnALU2{left: loop, op: alu2_mul, right: lstride}))
-			ridx := pushE(inst(&mnALU2{left: loop, op: alu2_mul, right: rstride}))
+			lidx := pushK(inst(&mnALU2{left: paramIdx, op: alu2_mul, right: lstride}))
+			ridx := pushK(inst(&mnALU2{left: paramIdx, op: alu2_mul, right: rstride}))
 
 			// load value to be computed from left and right
-			loadl := pushE(inst(&mnInit{from: lid, idx: lidx}))
-			loadr := pushE(inst(&mnInit{from: rid, idx: ridx}))
+			loadl := pushK(inst(&mnInit{from: paraml, idx: lidx}))
+			loadr := pushK(inst(&mnInit{from: paramr, idx: ridx}))
 
 			var op alu2op
-
 			if t.op == op_add {
 				op = alu2_add
 			} else {
@@ -153,12 +154,24 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 			}
 
 			// do compute
-			alu2 := pushE(inst(&mnALU2{left: loadl, op: op, right: loadr}))
+			alu2 := pushK(inst(&mnALU2{left: loadl, op: op, right: loadr}))
 
 			// assign computed to result
-			pushE(inst(&mnAssign{left: result, lidx: loop, right: alu2}))
+			pushK(inst(&mnAssign{left: paramresult, lidx: paramIdx, right: alu2}))
 
-			// finish loop
+			// finish kernel
+			pushK(inst(&mnEndKernel{}))
+
+			/*
+			 * call kernel from entry
+			 */
+
+			// define result to store
+			result := pushE(inst(&mnDecl{typ: t_floats, length: sizel}))
+
+			// start loop and invoke kernel
+			loop := pushE(inst(&mnLoop{countImm: sizel}))
+			pushE(inst(&mnInvokeKernel{kernel: kern, args: []instid{loop, lid, rid, result}}))
 			pushE(inst(&mnEndLoop{}))
 
 			return result
