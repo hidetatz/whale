@@ -113,12 +113,18 @@ func (m *mnEndKernel) String() string {
 	return "{endkernel}"
 }
 
+type kernelParallelizationParam struct {
+	x, y, z int
+}
+
 // invokes kernel function.
 type mnInvokeKernel struct {
 	mnemonic
 
-	kernel instid
-	args   []instid
+	kernel         instid
+	parallelLevel1 *kernelParallelizationParam
+	parallelLevel2 *kernelParallelizationParam
+	args           []instid
 }
 
 func (m *mnInvokeKernel) String() string {
@@ -303,4 +309,15 @@ type mnALU2 struct {
 
 func (m *mnALU2) String() string {
 	return fmt.Sprintf("{alu2 %v %v %v}", m.left, m.op, m.right)
+}
+
+// for GPU
+type mnThreadPosition struct {
+	mnemonic
+
+	dimensions int
+}
+
+func (m *mnThreadPosition) String() string {
+	return fmt.Sprintf("{thread_position (dim%v)}", m.dimensions)
 }

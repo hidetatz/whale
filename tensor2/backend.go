@@ -43,7 +43,7 @@ func initBackend() {
  * Generate a sequence of IR from tensor AST
  */
 
-func generateIR(t *Tensor) (irs []*instruction, err error) {
+func generateIR(t *Tensor, gpu bool) (irs []*instruction, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r.(string))
@@ -84,18 +84,37 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 			/*
 			 * define kernel
 			 */
-			paramIdx := pushK(inst(&mnKernParam{typ: t_int}))
-			paramx := pushK(inst(&mnKernParam{typ: t_floats}))
-			paramresult := pushK(inst(&mnKernParam{typ: t_floats}))
-			kern := pushK(inst(&mnKernel{params: []instid{paramIdx, paramx, paramresult}}))
-			target := pushK(inst(&mnInit{from: paramx, idx: paramIdx}))
-			var op alu1op
-			if t.op == op_recip {
-				op = alu1_recip
+
+			var kern instid
+
+			if gpu {
+				paramx := pushK(inst(&mnKernParam{typ: t_floats}))
+				paramresult := pushK(inst(&mnKernParam{typ: t_floats}))
+				kern = pushK(inst(&mnKernel{params: []instid{paramx, paramresult}}))
+				idx := pushK(inst(&mnThreadPosition{dimensions: 1}))
+				target := pushK(inst(&mnInit{from: paramx, idx: idx}))
+				var op alu1op
+				if t.op == op_recip {
+					op = alu1_recip
+				}
+				alu1 := pushK(inst(&mnALU1{val: target, op: op}))
+				pushK(inst(&mnAssign{left: paramresult, lidx: idx, right: alu1}))
+				pushK(inst(&mnEndKernel{}))
+
+			} else {
+				paramIdx := pushK(inst(&mnKernParam{typ: t_int}))
+				paramx := pushK(inst(&mnKernParam{typ: t_floats}))
+				paramresult := pushK(inst(&mnKernParam{typ: t_floats}))
+				kern = pushK(inst(&mnKernel{params: []instid{paramIdx, paramx, paramresult}}))
+				target := pushK(inst(&mnInit{from: paramx, idx: paramIdx}))
+				var op alu1op
+				if t.op == op_recip {
+					op = alu1_recip
+				}
+				alu1 := pushK(inst(&mnALU1{val: target, op: op}))
+				pushK(inst(&mnAssign{left: paramresult, lidx: paramIdx, right: alu1}))
+				pushK(inst(&mnEndKernel{}))
 			}
-			alu1 := pushK(inst(&mnALU1{val: target, op: op}))
-			pushK(inst(&mnAssign{left: paramresult, lidx: paramIdx, right: alu1}))
-			pushK(inst(&mnEndKernel{}))
 
 			/*
 			 * call kernel from entry
@@ -104,9 +123,19 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 			// define result to store
 			result := pushE(inst(&mnDecl{typ: t_floats, length: size}))
 
-			// start loop and invokes kernel
-			loop := pushE(inst(&mnLoop{countImm: size}))
-			pushE(inst(&mnInvokeKernel{kernel: kern, args: []instid{loop, inputid, result}}))
+			if gpu {
+				pushE(inst(&mnInvokeKernel{
+					kernel:         kern,
+					parallelLevel1: &kernelParallelizationParam{x: 1},
+					parallelLevel2: &kernelParallelizationParam{x: size},
+					args:           []instid{inputid, result},
+				}))
+			} else {
+				// start loop and invokes kernel
+				loop := pushE(inst(&mnLoop{countImm: size}))
+				pushE(inst(&mnInvokeKernel{kernel: kern, args: []instid{loop, inputid, result}}))
+			}
+
 			pushE(inst(&mnEndLoop{}))
 
 			return result
@@ -125,42 +154,84 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 			 * define kernel
 			 */
 
-			paramIdx := pushK(inst(&mnKernParam{typ: t_int}))
-			paraml := pushK(inst(&mnKernParam{typ: t_floats}))
-			paramr := pushK(inst(&mnKernParam{typ: t_floats}))
-			paramresult := pushK(inst(&mnKernParam{typ: t_floats}))
-			kern := pushK(inst(&mnKernel{params: []instid{paramIdx, paraml, paramr, paramresult}}))
+			var kern instid
 
-			// assume vector
-			// todo: support 2 or more dimensions
+			if gpu {
+				paraml := pushK(inst(&mnKernParam{typ: t_floats}))
+				paramr := pushK(inst(&mnKernParam{typ: t_floats}))
+				paramresult := pushK(inst(&mnKernParam{typ: t_floats}))
+				kern = pushK(inst(&mnKernel{params: []instid{paraml, paramr, paramresult}}))
 
-			// compute stride, considering broadcast
-			lstride := pushK(inst(&mnInitImm{typ: t_int, val: l.dim.strides[0]}))
-			rstride := pushK(inst(&mnInitImm{typ: t_int, val: r.dim.strides[0]}))
+				// assume vector
+				// todo: support 2 or more dimensions
 
-			// define index
-			lidx := pushK(inst(&mnALU2{left: paramIdx, op: alu2_mul, right: lstride}))
-			ridx := pushK(inst(&mnALU2{left: paramIdx, op: alu2_mul, right: rstride}))
+				idx := pushK(inst(&mnThreadPosition{dimensions: 1}))
 
-			// load value to be computed from left and right
-			loadl := pushK(inst(&mnInit{from: paraml, idx: lidx}))
-			loadr := pushK(inst(&mnInit{from: paramr, idx: ridx}))
+				// compute stride, considering broadcast
+				lstride := pushK(inst(&mnInitImm{typ: t_int, val: l.dim.strides[0]}))
+				rstride := pushK(inst(&mnInitImm{typ: t_int, val: r.dim.strides[0]}))
 
-			var op alu2op
-			if t.op == op_add {
-				op = alu2_add
+				// define index
+				lidx := pushK(inst(&mnALU2{left: idx, op: alu2_mul, right: lstride}))
+				ridx := pushK(inst(&mnALU2{left: idx, op: alu2_mul, right: rstride}))
+
+				// load value to be computed from left and right
+				loadl := pushK(inst(&mnInit{from: paraml, idx: lidx}))
+				loadr := pushK(inst(&mnInit{from: paramr, idx: ridx}))
+
+				var op alu2op
+				if t.op == op_add {
+					op = alu2_add
+				} else {
+					op = alu2_mul
+				}
+
+				// do compute
+				alu2 := pushK(inst(&mnALU2{left: loadl, op: op, right: loadr}))
+
+				// assign computed to result
+				pushK(inst(&mnAssign{left: paramresult, lidx: idx, right: alu2}))
+
+				// finish kernel
+				pushK(inst(&mnEndKernel{}))
 			} else {
-				op = alu2_mul
+				paramIdx := pushK(inst(&mnKernParam{typ: t_int}))
+				paraml := pushK(inst(&mnKernParam{typ: t_floats}))
+				paramr := pushK(inst(&mnKernParam{typ: t_floats}))
+				paramresult := pushK(inst(&mnKernParam{typ: t_floats}))
+				kern = pushK(inst(&mnKernel{params: []instid{paramIdx, paraml, paramr, paramresult}}))
+
+				// assume vector
+				// todo: support 2 or more dimensions
+
+				// compute stride, considering broadcast
+				lstride := pushK(inst(&mnInitImm{typ: t_int, val: l.dim.strides[0]}))
+				rstride := pushK(inst(&mnInitImm{typ: t_int, val: r.dim.strides[0]}))
+
+				// define index
+				lidx := pushK(inst(&mnALU2{left: paramIdx, op: alu2_mul, right: lstride}))
+				ridx := pushK(inst(&mnALU2{left: paramIdx, op: alu2_mul, right: rstride}))
+
+				// load value to be computed from left and right
+				loadl := pushK(inst(&mnInit{from: paraml, idx: lidx}))
+				loadr := pushK(inst(&mnInit{from: paramr, idx: ridx}))
+
+				var op alu2op
+				if t.op == op_add {
+					op = alu2_add
+				} else {
+					op = alu2_mul
+				}
+
+				// do compute
+				alu2 := pushK(inst(&mnALU2{left: loadl, op: op, right: loadr}))
+
+				// assign computed to result
+				pushK(inst(&mnAssign{left: paramresult, lidx: paramIdx, right: alu2}))
+
+				// finish kernel
+				pushK(inst(&mnEndKernel{}))
 			}
-
-			// do compute
-			alu2 := pushK(inst(&mnALU2{left: loadl, op: op, right: loadr}))
-
-			// assign computed to result
-			pushK(inst(&mnAssign{left: paramresult, lidx: paramIdx, right: alu2}))
-
-			// finish kernel
-			pushK(inst(&mnEndKernel{}))
 
 			/*
 			 * call kernel from entry
@@ -169,9 +240,19 @@ func generateIR(t *Tensor) (irs []*instruction, err error) {
 			// define result to store
 			result := pushE(inst(&mnDecl{typ: t_floats, length: sizel}))
 
-			// start loop and invoke kernel
-			loop := pushE(inst(&mnLoop{countImm: sizel}))
-			pushE(inst(&mnInvokeKernel{kernel: kern, args: []instid{loop, lid, rid, result}}))
+			if gpu {
+				pushE(inst(&mnInvokeKernel{
+					kernel:         kern,
+					parallelLevel1: &kernelParallelizationParam{x: 1},
+					parallelLevel2: &kernelParallelizationParam{x: sizel},
+					args:           []instid{lid, rid, result},
+				}))
+			} else {
+				// start loop and invoke kernel
+				loop := pushE(inst(&mnLoop{countImm: sizel}))
+				pushE(inst(&mnInvokeKernel{kernel: kern, args: []instid{loop, lid, rid, result}}))
+			}
+
 			pushE(inst(&mnEndLoop{}))
 
 			return result
@@ -433,19 +514,22 @@ func compute(t *Tensor) ([]float32, error) {
 	var (
 		renderer renderer
 		executor executor
+		gpu      bool
 	)
 
 	switch backend {
 	case be_golang:
 		renderer = &cLikeRenderer{lang: &gorenderer{}}
 		executor = &goexecutor{}
+		gpu = false
 
 	case be_cuda:
 		// renderer = &cLikeRenderer{lang: &cudarenderer{}}
 		// executor = &cudaexecutor{}
+		// gpu = true
 	}
 
-	irs, err := generateIR(t)
+	irs, err := generateIR(t, gpu)
 	if err != nil {
 		return nil, err
 	}
