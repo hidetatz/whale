@@ -12,7 +12,7 @@ class CUDAKernel:
 class CUDADeviceBuffer:
     ptr: any  # pointer on device memory
     length: int  # array length
-    size: int  # byte size (length * sizeof(float))
+    size: int  # byte size
 
 class CUDA:
     def __init__(self, ptx_dir="/tmp"):
@@ -32,10 +32,6 @@ class CUDA:
             raise RuntimeError(f"cuDeviceGet failed: {result}")
 
         self.device_handle = dev.value
-
-        #
-        # create cuda context
-        #
 
         ctx = c_void_p()
         result = self.libcuda.cuCtxCreate(byref(ctx), 0, self.device_handle)
@@ -141,7 +137,7 @@ if __name__ == "__main__":
         result = cuda.memcpyDtoH(output)
 
         print(f"Output: {result}")
-        
+
     except Exception as e:
         print(f"error: {e}")
 
