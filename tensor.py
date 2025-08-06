@@ -410,11 +410,12 @@ def ones_like(t):
 def zeros_like(t):
     return full(t.shape, 0)
 
-t1 = tensor([[1, 2, 3], [1, 2, 3]])
-t2 = tensor([[4, 5, 6], [4, 5, 6]])
-t3 = t1 + t2
-t4 = tensor([[7, 8, 9], [7, 8, 9]])
-t5 = t3 * t4
+for _ in range(3):
+    t1 = tensor([[1, 2, 3], [1, 2, 3]])
+    t2 = tensor([[4, 5, 6], [4, 5, 6]])
+    t3 = t1 + t2
+    t4 = tensor([[7, 8, 9], [7, 8, 9]])
+    t5 = t3 * t4
 
-t5.backprop()
-print(t1.grad.materialize())
+    t5.backprop()
+    print(t1.grad.materialize())

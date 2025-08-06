@@ -35,8 +35,11 @@ class KernelManager:
         self.kerns = []
 
     def load(self, srcs):
-        fps = self.load_kern_ptr(srcs)
-        self.kerns.extend([Kernel(src.name, fp) for src, fp in zip(srcs, fps)])
+        # kern cache
+        srcs_new = [src for src in srcs if src.name not in [k.name for k in self.kerns]]
+        if srcs_new:
+            fps = self.load_kern_ptr(srcs_new)
+            self.kerns.extend([Kernel(src.name, fp) for src, fp in zip(srcs_new, fps)])
 
     def get_kern(self, name):
         for k in self.kerns:
