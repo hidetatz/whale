@@ -1,27 +1,12 @@
 from ctypes import CDLL, byref, cast, c_void_p, c_int, c_uint, c_float, sizeof
-from dataclasses import dataclass
 import os
 import time
 
-@dataclass
-class CUDAKernel:
-    mod: any
-    func: any
-
-@dataclass
-class CUDADeviceBuffer:
-    ptr: any  # pointer on device memory
-    length: int  # array length
-    size: int  # byte size
+import device
 
 class CUDA:
-    def __init__(self, ptx_dir="/tmp"):
-        self.ptx_dir = ptx_dir
-
-        try:
-            self.libcuda = CDLL('libcuda.so')
-        except OSError as e:
-            raise RuntimeError(f"libcuda.so is not found: {e}")
+    def __init__(self):
+        self.libcuda = CDLL('libcuda.so')
 
         if self.libcuda.cuInit(0) != 0:
             raise RuntimeError(f"cuInit failed: {result}")
@@ -40,62 +25,107 @@ class CUDA:
 
         self.ctx = ctx
 
-    # allocate device memory
-    def memalloc_float(self, length):
+    def __del__(self):
+        if self.ctx:
+            self.libcuda.cuCtxDestroy(self.ctx)
+            self.context = None
+
+cuda = CUDA()
+
+class Renderer(device.Renderer):
+    def render_kernel(self, name, params, body):
+        return f'extern "C" __global__ void {name}({", ".join([f"float* {param}" for param in params])}) {{\n    {"\n    ".join(body)}\n}}'
+
+    def render_kern_add(self):
+        return self.render_kernel("add", ("l", "r", "result"), [
+            "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
+            "result[idx] = l[idx] + r[idx];",
+        ])
+
+    def render_kern_mul(self):
+        return self.render_kernel("mul", ("l", "r", "result"), [
+            "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
+            "result[idx] = l[idx] * r[idx];",
+        ])
+
+class Allocator(device.Allocator):
+    def allocate(self, length):
         size = length * sizeof(c_float)  # byte size
         ptr = c_void_p()
-        result = self.libcuda.cuMemAlloc(byref(ptr), size)
+        result = cuda.libcuda.cuMemAlloc(byref(ptr), size)
         if result != 0:
             raise RuntimeError(f"cuMemAlloc failed: {result}")
 
-        return CUDADeviceBuffer(ptr, length, size)
+        return device.GPUBuffer(ptr, length, size)
 
-    def memcpyHtoD(self, buff, input):
-        result = self.libcuda.cuMemcpyHtoD(buff.ptr, (c_float * buff.length)(*input), buff.size)
+    def free(self, gpu_buff):
+        cuda.libcuda.cuMemFree(gpu_buff.input)
+        del gpu_buff
+
+    def copy_to_device(self, py_buff, gpu_buff):
+        result = cuda.libcuda.cuMemcpyHtoD(gpu_buff.ptr, (c_float * gpu_buff.length)(*py_buff.value), gpu_buff.size)
         if result != 0:
             raise RuntimeError(f"cuMemcpyHtoD failed: {result}")
-
-    def memcpyDtoH(self, buff):
-        out = (c_float * buff.length)()
-        result = self.libcuda.cuMemcpyDtoH(out, buff.ptr, buff.size)
+    
+    def copy_from_device(self, gpu_buff):
+        out = (c_float * gpu_buff.length)()
+        result = cuda.libcuda.cuMemcpyDtoH(out, gpu_buff.ptr, gpu_buff.size)
         if result != 0:
             raise RuntimeError(f"cuMemcpyDtoH failed: {result}")
 
-        return [out[i] for i in range(buff.length)]
+        return device.PythonBuffer([out[i] for i in range(gpu_buff.length)])
 
-    # free device memory
-    def free(self, buff):
-        self.libcuda.cuMemFree(buff.input)
-        del buff
+class PTXCompiler:
+    def __init__(self, dir="/tmp"):
+        self.dir = dir
 
-    def load_kernel(self, kern_src_path, kern_name):
+    def compile_and_get_ptx_src(self, kern_src):
         t = int(time.time())
-        ptx_path = f"{self.ptx_dir}/kern_{t}.ptx"
+        kern_src_path = f"{self.dir}/kern_{t}.cu"
+        with open(kern_src_path, "w") as f:
+            f.write(kern_src)
+
+        ptx_path = f"{self.dir}/kern_{t}.ptx"
         result = os.system(f"nvcc --ptx {kern_src_path} -o {ptx_path}")
         if result != 0:
             raise RuntimeError(f"ptx compilation failed: {result}")
 
-        try:
-            with open(ptx_path, "rb") as f:
-                ptx = f.read()
-        except IOError:
-            raise RuntimeError(f"loading ptx failed: {ptx_path}")
-        
-        mod = c_void_p()
-        result = self.libcuda.cuModuleLoadData(byref(mod), ptx)
-        if result != 0:
-            raise RuntimeError(f"cuModuleLoadData failed: {result}")
+        os.remove(kern_src_path)
 
-        func = c_void_p()
-        result = self.libcuda.cuModuleGetFunction(byref(func), mod, kern_name.encode("utf-8"))
-        if result != 0:
-            raise RuntimeError(f"cuModuleGetFunction failed: {result}")
+        with open(ptx_path, "rb") as f:
+            ptx_src = f.read()
 
         os.remove(ptx_path)
 
-        return CUDAKernel(mod, func)
+        return ptx_src
 
-    def call_kernel(self, kern, grid, block, params):
+
+class KernelManager(device.KernelManager):
+    def __init__(self, dir="/tmp"):
+        self.ptx_compiler = PTXCompiler(dir)
+        super().__init__()
+
+    def load_kern_ptr(self, srcs):
+        whole_src = "\n\n".join([s.src for s in srcs])
+        ptx_src = self.ptx_compiler.compile_and_get_ptx_src(whole_src)
+        
+        mod = c_void_p()
+        result = cuda.libcuda.cuModuleLoadData(byref(mod), ptx_src)
+        if result != 0:
+            raise RuntimeError(f"cuModuleLoadData failed: {result}")
+
+        fps = []
+        for src in srcs:
+            fp = c_void_p()
+            result = cuda.libcuda.cuModuleGetFunction(byref(fp), mod, src.name.encode("utf-8"))
+            if result != 0:
+                raise RuntimeError(f"cuModuleGetFunction failed: {result}")
+            fps.append(fp)
+
+        return fps
+
+
+    def invoke(self, kern_name, grid, block, params):
         def extract(p):
             if type(p) == int:
                 return p, 1, 1
@@ -105,41 +135,14 @@ class CUDA:
         gridx, gridy, gridz = extract(grid)
         blockx, blocky, blockz = extract(block)
         kernel_params = (c_void_p * len(params))(*[cast(byref(p.ptr), c_void_p) for p in params])
-        result = self.libcuda.cuLaunchKernel(
-            kern.func,
+        result = cuda.libcuda.cuLaunchKernel(
+            self.get_kern(kern_name).func_pointer,
             gridx, gridy, gridz, blockx, blocky, blockz,
             0, None, kernel_params, None
         )
         if result != 0:
             raise RuntimeError(f"cuLaunchKernel failed: {result}")
         
-        result = self.libcuda.cuCtxSynchronize()
+        result = cuda.libcuda.cuCtxSynchronize()
         if result != 0:
             raise RuntimeError(f"cuCtxSynchronize failed: {result}")
-
-    def __del__(self):
-        if self.ctx:
-            self.libcuda.cuCtxDestroy(self.ctx)
-            self.context = None
-
-if __name__ == "__main__":
-    cuda = CUDA()
-
-    try:
-        kern = cuda.load_kernel("relu.cu", "kern")
-
-        input = cuda.memalloc_float(4)
-        cuda.memcpyHtoD(input, [-1.0, 0.0, 1.0, 2.0])
-
-        output = cuda.memalloc_float(4)
-
-        cuda.call_kernel(kern, 1, 4, (input, output))
-        result = cuda.memcpyDtoH(output)
-
-        print(f"Output: {result}")
-
-    except Exception as e:
-        print(f"error: {e}")
-
-    finally:
-        del cuda
