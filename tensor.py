@@ -8,6 +8,8 @@ import time
 import cuda
 import device
 
+dbg = os.getenv("WHALE_DEBUG", "") != ""
+
 class Backend(Enum):
     PYTHON = auto()
     CUDA = auto()
@@ -43,8 +45,8 @@ class Materializer:
 
         self.executor = Executor()
 
-        backend = Backend.detect()
-        if backend == Backend.CUDA:
+        self.backend = Backend.detect()
+        if self.backend == Backend.CUDA:
             self.renderer = cuda.Renderer()
             self.allocator = cuda.Allocator()
             self.kernel_manager = cuda.KernelManager()
@@ -55,16 +57,41 @@ class Materializer:
     def materialize(cls, t):
         self = cls() # get materializer singleton instance
 
+        if dbg:
+            print("=== materialization start ===")
+            print("=== backend")
+            print(self.backend)
+
+            print("=== tensor graph")
+            print(t.str_as_graph())
+
         tensors = self.linearize(t)
+
+        if dbg:
+            print("=== linearized tensors")
+            print("\n".join([f"{t.str_as_oneline()}" for t in tensors]))
 
         # generate and load kernels
         kernel_srcs = self.generate_kernels(tensors)
+
+        if dbg:
+            print("=== kernels")
+            print("\n\n".join([f"{kern_src.src}" for kern_src in kernel_srcs]))
+
         self.kernel_manager.load(kernel_srcs)
 
         # compile tensors into instructions
         instructions = self.generate_instructions(tensors)
+        if dbg:
+            print("=== instructions")
+            print("\n".join([f"{inst}" for inst in instructions]))
 
-        return self.executor.execute(instructions, self.allocator, self.kernel_manager).value
+        result = self.executor.execute(instructions, self.allocator, self.kernel_manager).value
+
+        if dbg:
+            print("=== materialization successfully finished ===")
+
+        return result
 
     def linearize(self, t):
         tensors = []
@@ -80,6 +107,7 @@ class Materializer:
                 dfs(i)
 
         dfs(t)
+        tensors.reverse()
         return tensors
 
     def generate_kernels(self, tensors):
@@ -97,120 +125,127 @@ class Materializer:
     def generate_instructions(self, tensors):
         instmap = {}
         insts = []
-        gen = InstructionGenerator()
+        iss = InstIssuer()
 
-        for i, t in enumerate(reversed(tensors)):
+        for i, t in enumerate(tensors):
             if t.op == TensorOp.CONST:
-                insts.append(gen.device_buffer_alloc(t.size()))
-                insts.append(gen.copy_buffer_python_to_device(device.PythonBuffer(t.data), insts[-1].instid))
-                instmap[t] = insts[-1].instid
+                i_py_buff = iss.issue(PythonBufferAlloc(t.data))
+                i_dev_buff = iss.issue(DeviceBufferAlloc(t.size()))
+                i_copy = iss.issue(CopyBufferPythonToDevice(i_py_buff.instid, i_dev_buff.instid))
+                insts.extend((i_py_buff, i_dev_buff, i_copy))
+                instmap[t] = i_dev_buff.instid
 
             elif t.op == TensorOp.ADD:
-                insts.append(gen.device_buffer_alloc(t.size()))
-                insts.append(gen.invoke_kernel("add", 1, t.size(), (instmap[t.inputs[0]], instmap[t.inputs[1]], insts[-1].instid), insts[-1].instid))
-                instmap[t] = insts[-1].instid
+                i_result = iss.issue(DeviceBufferAlloc(t.size()))
+                l = instmap[t.inputs[0]]
+                r = instmap[t.inputs[1]]
+                i_inv_kern = iss.issue(InvokeKernel("add", 1, t.size(), (l, r, i_result.instid)))
+                insts.extend((i_result, i_inv_kern))
+                instmap[t] = i_result.instid
 
             elif t.op == TensorOp.MUL:
-                insts.append(gen.device_buffer_alloc(t.size()))
-                insts.append(gen.invoke_kernel("mul", 1, t.size(), (instmap[t.inputs[0]], instmap[t.inputs[1]], insts[-1].instid), insts[-1].instid))
-                instmap[t] = insts[-1].instid
+                i_result = iss.issue(DeviceBufferAlloc(t.size()))
+                l = instmap[t.inputs[0]]
+                r = instmap[t.inputs[1]]
+                i_inv_kern = iss.issue(InvokeKernel("mul", 1, t.size(), (l, r, i_result.instid)))
+                insts.extend((i_result, i_inv_kern))
+                instmap[t] = i_result.instid
 
             if i == len(tensors) - 1:
-                insts.append(gen.copy_buffer_device_to_python(insts[-1].instid, device.PythonBuffer([])))
-                insts.append(gen.return_value_to_python(insts[-1].instid))
+                i_py_buff = iss.issue(PythonBufferAlloc(None))
+                i_last = instmap[t]
+                i_copy = iss.issue(CopyBufferDeviceToPython(i_last, i_py_buff.instid))
+                i_term = iss.issue(Terminate(i_py_buff.instid))
+                insts.extend((i_py_buff, i_copy, i_term))
 
         return insts
 
-class Mnemonic(Enum):
-    DEVICE_BUFFER_ALLOC = auto()
-    COPY_BUFFER_DEVICE_TO_PYTHON = auto()
-    COPY_BUFFER_PYTHON_TO_DEVICE = auto()
-    INVOKE_KERNEL = auto()
-    RETURN_VALUE_TO_PYTHON = auto()
-
-class InstructionGenerator:
+class InstIssuer:
     def __init__(self):
         self.current_id = 0
 
-    def generate(self, mnemonic, **kwargs):
+    def issue(self, inst):
         self.current_id += 1
-        return Instruction(self.current_id, mnemonic, **kwargs)
+        inst.set_id(self.current_id)
+        return inst
 
-    def python_buffer_alloc(self, length):
-        return self.generate(Mnemonic.PYTHON_BUFFER_ALLOC)
-
-    def device_buffer_alloc(self, length):
-        return self.generate(Mnemonic.DEVICE_BUFFER_ALLOC, length=length)
-
-    def copy_buffer_python_to_device(self, py_buff, gpu_buff_id):
-        return self.generate(Mnemonic.COPY_BUFFER_PYTHON_TO_DEVICE, py_buff=py_buff, gpu_buff_id=gpu_buff_id)
-
-    def copy_buffer_device_to_python(self, gpu_buff_id, py_buff):
-        return self.generate(Mnemonic.COPY_BUFFER_DEVICE_TO_PYTHON, gpu_buff_id=gpu_buff_id, py_buff=py_buff)
-
-    def invoke_kernel(self, kern_name, grid, block, input_ids, output_id):
-        return self.generate(Mnemonic.INVOKE_KERNEL, kern_name=kern_name, grid=grid, block=block, input_ids=input_ids, output_id=output_id)
-
-    def return_value_to_python(self, buff_id):
-        return self.generate(Mnemonic.RETURN_VALUE_TO_PYTHON, buff_id=buff_id)
-
-class Instruction:
-    def __init__(self, instid, mnemonic, **kwargs):
+class Inst:
+    def set_id(self, instid):
         self.instid = instid
-        self.mnemonic = mnemonic
-        for k, v in kwargs.items():
-            setattr(self, k, v)
 
     def __str__(self):
-        input = "()" if not hasattr(self, "input") else f"{self.input}" if type(self.input) == tuple else f"({self.input})"
-        return f"<{self.instid}:{self.mnemonic}{input}>"
+        params = ", ".join(f"{k}={v}" for k, v in self.__dict__.items() if k != "instid")
+        return f"<{self.instid}:{self.__class__.__name__}{f"({params})"}>"
 
     def __repr__(self):
         return self.__str__()
 
+@dataclass(repr=False)
+class PythonBufferAlloc(Inst):
+    data: list
+
+@dataclass(repr=False)
+class DeviceBufferAlloc(Inst):
+    length: int
+
+@dataclass(repr=False)
+class CopyBufferPythonToDevice(Inst):
+    py_buff_id: int
+    gpu_buff_id: int
+
+@dataclass(repr=False)
+class CopyBufferDeviceToPython(Inst):
+    gpu_buff_id: int
+    py_buff_id: int
+
+@dataclass(repr=False)
+class InvokeKernel(Inst):
+    kern: str
+    grid: any
+    block: any
+    param_ids: tuple
+
+@dataclass
+class Terminate(Inst):
+    ret_id: int
+
 class Executor:
     class MemoryManager:
         def __init__(self):
-            self.memory = {"python": {}, "device": {}}
+            self.memory = {}
 
-        def allocate_python(self, instid, buf):
-            self.memory["python"][instid] = buf
+        def set(self, addr, buf):
+            self.memory[addr] = buf
 
-        def allocate_device(self, instid, buf):
-            self.memory["device"][instid] = buf
-
-        def get_python_buff(self, instid):
-            return self.memory["python"][instid]
-
-        def get_device_buff(self, instid):
-            return self.memory["device"][instid]
+        def get(self, addr):
+            return self.memory[addr]
 
     def __init__(self):
         self.memory = self.MemoryManager()
 
     def execute(self, instructions, allocator, kernel_manager):
         for inst in instructions:
-            if inst.mnemonic == Mnemonic.DEVICE_BUFFER_ALLOC:
-                gpu_buff = allocator.allocate(inst.length)
-                self.memory.allocate_device(inst.instid, gpu_buff)
+            if isinstance(inst, PythonBufferAlloc):
+                self.memory.set(inst.instid, device.PythonBuffer(inst.data))
 
-            elif inst.mnemonic == Mnemonic.COPY_BUFFER_PYTHON_TO_DEVICE:
-                gpu_buff = self.memory.get_device_buff(inst.gpu_buff_id)
-                allocator.copy_to_device(inst.py_buff, gpu_buff)
-                self.memory.allocate_device(inst.instid, gpu_buff)
+            elif isinstance(inst, DeviceBufferAlloc):
+                self.memory.set(inst.instid, allocator.allocate(inst.length))
 
-            elif inst.mnemonic == Mnemonic.COPY_BUFFER_DEVICE_TO_PYTHON:
-                gpu_buff = self.memory.get_device_buff(inst.gpu_buff_id)
-                py_buff = allocator.copy_from_device(gpu_buff)
-                self.memory.allocate_python(inst.instid, py_buff)
+            elif isinstance(inst, CopyBufferPythonToDevice):
+                py_buff = self.memory.get(inst.py_buff_id)
+                gpu_buff = self.memory.get(inst.gpu_buff_id)
+                allocator.copy_to_device(py_buff, gpu_buff)
 
-            elif inst.mnemonic == Mnemonic.INVOKE_KERNEL:
-                kernel_manager.invoke(inst.kern_name, inst.grid, inst.block, [self.memory.get_device_buff(instid) for instid in inst.input_ids])
-                out = self.memory.get_device_buff(inst.output_id)
-                self.memory.allocate_device(inst.instid, out)
+            elif isinstance(inst, CopyBufferDeviceToPython):
+                gpu_buff = self.memory.get(inst.gpu_buff_id)
+                py_buff = self.memory.get(inst.py_buff_id)
+                allocator.copy_from_device(gpu_buff, py_buff)
 
-            elif inst.mnemonic == Mnemonic.RETURN_VALUE_TO_PYTHON:
-                return self.memory.get_python_buff(inst.buff_id)
+            elif isinstance(inst, InvokeKernel):
+                kernel_manager.invoke(inst.kern, inst.grid, inst.block, [self.memory.get(param_id) for param_id in inst.param_ids])
+
+            elif isinstance(inst, Terminate):
+                return self.memory.get(inst.ret_id)
 
 class Calculation:
     def __call__(self, inputs):
@@ -294,19 +329,6 @@ class Tensor:
     def __matmul__(self, r):
         return _from_calc(MATMUL, [self, r])
 
-    def str_ndarr(self):
-        if len(self.shape) == 0:
-            return f"{self.data[0]}"
-
-        if 0 in self.shape:
-            return f"[]"
-
-        if len(self.shape) == 1:
-            return f"[{', '.join(map(str, self.data))}]"
-
-        # todo: implement
-        return f"[{', '.join(map(str, self.data))}] (shape: {self.shape}, stride: {self.stride})"
-
     def backprop(self):
         if self.grad is None:
             self.grad = ones_like(self)
@@ -339,24 +361,40 @@ class Tensor:
     def backward(self):
         self.backprop()
 
+    def str_as_ndarr(self):
+        if len(self.shape) == 0:
+            return f"Tensor({self.data[0]})"
+
+        if 0 in self.shape:
+            return f"Tensor([])"
+
+        if len(self.shape) == 1:
+            return f"Tensor([{', '.join(map(str, self.data))}])"
+
+        # todo: implement
+        return f"Tensor(data: {self.data}, shape: {self.shape}, stride: {self.stride})"
+
+    def str_as_graph(self):
+        def f(depth, t):
+            indent = "    " * depth
+            trail_comma = ',' if depth != 0 else ''
+
+            if not t.inputs:
+                return f"{indent}Tensor(op:{t.op}, shape:{t.shape}, stride: {t.stride}){trail_comma}"
+
+            input = "[\n" + "\n".join([f(depth+1, i) for i in t.inputs]) + f"\n{indent}]"
+            return f"{indent}Tensor(op:{t.op}, shape:{t.shape}, stride: {t.stride}, input: {input}){trail_comma}"
+
+        return f(0, self)
+
+    def str_as_oneline(self):
+        return f"Tensor(op:{self.op}, shape:{self.shape}, stride:{self.stride})"
+
     def __str__(self):
-        if self.materialized:
-            return f"Tensor({self.str_ndarr()})"
-
-        else:
-            if self.op == TensorOp.ADD:
-                return f"{self.inputs[0]} + {self.inputs[1]}"
-
-            if self.op == TensorOp.MUL:
-                return f"{self.inputs[0]} * {self.inputs[1]}"
-
-            raise NotImplementedError()
+        return self.str_as_ndarr() if self.materialized else self.str_as_graph()
 
     def __repr__(self):
         return self.__str__()
-        
-    def debug(self):
-        return f"data: {self.data}, shape: {self.shape}, stride: {self.stride}, op: {self.op}, materialized: {self.materialized}, dtype: {self.dtype}"
 
 def _from_calc(calc, inputs):
     c = calc()
@@ -410,12 +448,12 @@ def ones_like(t):
 def zeros_like(t):
     return full(t.shape, 0)
 
-for _ in range(3):
-    t1 = tensor([[1, 2, 3], [1, 2, 3]])
-    t2 = tensor([[4, 5, 6], [4, 5, 6]])
-    t3 = t1 + t2
-    t4 = tensor([[7, 8, 9], [7, 8, 9]])
-    t5 = t3 * t4
+# for _ in range(3):
+t1 = tensor([[1, 2, 3], [1, 2, 3]])
+t2 = tensor([[4, 5, 6], [4, 5, 6]])
+t3 = t1 + t2
+t4 = tensor([[7, 8, 9], [7, 8, 9]])
+t5 = t3 * t4
 
-    t5.backprop()
-    print(t1.grad.materialize())
+# t5.backprop()
+print(t5.materialize())

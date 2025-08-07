@@ -67,13 +67,13 @@ class Allocator(device.Allocator):
         if result != 0:
             raise RuntimeError(f"cuMemcpyHtoD failed: {result}")
     
-    def copy_from_device(self, gpu_buff):
+    def copy_from_device(self, gpu_buff, py_buff):
         out = (c_float * gpu_buff.length)()
         result = cuda.libcuda.cuMemcpyDtoH(out, gpu_buff.ptr, gpu_buff.size)
         if result != 0:
             raise RuntimeError(f"cuMemcpyDtoH failed: {result}")
 
-        return device.PythonBuffer([out[i] for i in range(gpu_buff.length)])
+        py_buff.value = [out[i] for i in range(gpu_buff.length)]
 
 class PTXCompiler:
     def __init__(self, dir="/tmp"):
