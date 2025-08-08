@@ -10,6 +10,7 @@ import device
 
 dbg = os.getenv("WHALE_DEBUG", "") != ""
 
+
 class Backend(Enum):
     PYTHON = auto()
     CUDA = auto()
@@ -18,6 +19,7 @@ class Backend(Enum):
     def detect(cls):
         be = os.environ.get("WHALE_BACKEND")
         if be is None:
+
             def cmd_avail(cmd):
                 return os.system(f"command -v {cmd} > /dev/null") == 0
 
@@ -31,6 +33,7 @@ class Backend(Enum):
             return cls.CUDA
 
         return cls.PYTHON
+
 
 class Materializer:
     # materializer is singleton for caching some info
@@ -55,7 +58,7 @@ class Materializer:
 
     @classmethod
     def materialize(cls, t):
-        self = cls() # get materializer singleton instance
+        self = cls()  # get materializer singleton instance
 
         if dbg:
             print("=== materialization start ===")
@@ -96,6 +99,7 @@ class Materializer:
     def linearize(self, t):
         tensors = []
         seen = []
+
         def dfs(_t):
             if _t in seen:
                 return
@@ -160,6 +164,7 @@ class Materializer:
 
         return insts
 
+
 class InstIssuer:
     def __init__(self):
         self.current_id = 0
@@ -168,6 +173,7 @@ class InstIssuer:
         self.current_id += 1
         inst.set_id(self.current_id)
         return inst
+
 
 class Inst:
     def set_id(self, instid):
@@ -180,23 +186,28 @@ class Inst:
     def __repr__(self):
         return self.__str__()
 
+
 @dataclass(repr=False)
 class PythonBufferAlloc(Inst):
     data: list
 
+
 @dataclass(repr=False)
 class DeviceBufferAlloc(Inst):
     length: int
+
 
 @dataclass(repr=False)
 class CopyBufferPythonToDevice(Inst):
     py_buff_id: int
     gpu_buff_id: int
 
+
 @dataclass(repr=False)
 class CopyBufferDeviceToPython(Inst):
     gpu_buff_id: int
     py_buff_id: int
+
 
 @dataclass(repr=False)
 class InvokeKernel(Inst):
@@ -205,9 +216,11 @@ class InvokeKernel(Inst):
     block: any
     param_ids: tuple
 
+
 @dataclass
 class Terminate(Inst):
     ret_id: int
+
 
 class Executor:
     class MemoryManager:
@@ -242,10 +255,13 @@ class Executor:
                 allocator.copy_from_device(gpu_buff, py_buff)
 
             elif isinstance(inst, InvokeKernel):
-                kernel_manager.invoke(inst.kern, inst.grid, inst.block, [self.memory.get(param_id) for param_id in inst.param_ids])
+                kernel_manager.invoke(
+                    inst.kern, inst.grid, inst.block, [self.memory.get(param_id) for param_id in inst.param_ids]
+                )
 
             elif isinstance(inst, Terminate):
                 return self.memory.get(inst.ret_id)
+
 
 class BackpropContext:
     def forward(self, inputs):
@@ -257,22 +273,32 @@ class BackpropContext:
     def backward(self, grad):
         return self._backward(grad)
 
-    def _forward(self, inputs): raise NotImplementedError()
-    def _backward(self, grad): raise NotImplementedError()
+    def _forward(self, inputs):
+        raise NotImplementedError()
+
+    def _backward(self, grad):
+        raise NotImplementedError()
+
 
 class Add(BackpropContext):
     def _forward(self, inputs):
-        return Tensor(shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.ADD, inputs=inputs, dtype=inputs[0].dtype)
+        return Tensor(
+            shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.ADD, inputs=inputs, dtype=inputs[0].dtype
+        )
 
     def _backward(self, grad):
         return grad, grad
 
+
 class Mul(BackpropContext):
     def _forward(self, inputs):
-        return Tensor(shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.MUL, inputs=inputs, dtype=inputs[0].dtype)
+        return Tensor(
+            shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.MUL, inputs=inputs, dtype=inputs[0].dtype
+        )
 
     def _backward(self, grad):
-        return grad*self.inputs[1], grad*self.inputs[0]
+        return grad * self.inputs[1], grad * self.inputs[0]
+
 
 class DType(Enum):
     I32 = auto()
@@ -285,6 +311,7 @@ class DType(Enum):
         if typ == float:
             return cls.F32
 
+
 class TensorOp(Enum):
     CONST = auto()
 
@@ -294,6 +321,7 @@ class TensorOp(Enum):
     MATMUL = auto()
 
     MAXIMUM = auto()
+
 
 class Tensor:
     def __init__(self, data=[], shape=[], stride=[], op=None, creator=None, inputs=[], materialized=False, dtype=None):
@@ -336,11 +364,13 @@ class Tensor:
 
         calcs = []
         seen = set()
+
         def f(c):
             if c not in seen:
                 calcs.append(c)
                 seen.add(c)
                 calcs.sort(key=lambda x: x.generation)
+
         f(self.creator)
 
         while calcs:
@@ -348,7 +378,7 @@ class Tensor:
             gy = c.output
             gxs = c.backward(gy)
             if not isinstance(gxs, tuple):
-                gxs = gxs,
+                gxs = (gxs,)
 
             for x, gx in zip(c.inputs, gxs):
                 if x.grad is None:
@@ -378,12 +408,12 @@ class Tensor:
     def str_as_graph(self):
         def f(depth, t):
             indent = "    " * depth
-            trail_comma = ',' if depth != 0 else ''
+            trail_comma = "," if depth != 0 else ""
 
             if not t.inputs:
                 return f"{indent}Tensor(op:{t.op}, shape:{t.shape}, stride: {t.stride}){trail_comma}"
 
-            input = "[\n" + "\n".join([f(depth+1, i) for i in t.inputs]) + f"\n{indent}]"
+            input = "[\n" + "\n".join([f(depth + 1, i) for i in t.inputs]) + f"\n{indent}]"
             return f"{indent}Tensor(op:{t.op}, shape:{t.shape}, stride: {t.stride}, input: {input}){trail_comma}"
 
         return f(0, self)
@@ -397,6 +427,7 @@ class Tensor:
     def __repr__(self):
         return self.__str__()
 
+
 def _from_calc(calc, inputs):
     c = calc()
     t = c.forward(inputs)
@@ -404,9 +435,13 @@ def _from_calc(calc, inputs):
     t.generation = c.generation + 1
     return t
 
+
 def tensor_with_shape(arr, shape):
-    stride = [math.prod(shape[i+1:]) for i in range(len(shape))]
-    return Tensor(data=arr, shape=shape, stride=stride, op=TensorOp.CONST, materialized=True, dtype=DType.from_type(type(arr[0])))
+    stride = [math.prod(shape[i + 1 :]) for i in range(len(shape))]
+    return Tensor(
+        data=arr, shape=shape, stride=stride, op=TensorOp.CONST, materialized=True, dtype=DType.from_type(type(arr[0]))
+    )
+
 
 def tensor(arr):
     if type(arr) == int or type(arr) == float:
@@ -415,6 +450,7 @@ def tensor(arr):
     elif type(arr) == list:
         data = []
         shape = []
+
         def f(d, dim):
             if type(d) != int and type(d) != float and type(d) != list:
                 raise ValueError(f"array must be a multi-dimensional array of int or float: {arr}")
@@ -432,22 +468,27 @@ def tensor(arr):
                     raise ValueError(f"array must be homogeneous: {arr}")
 
             for elem in d:
-                f(elem, dim+1)
+                f(elem, dim + 1)
 
         f(arr, 0)
         return tensor_with_shape(data, shape)
 
+
 def array(arr):
     return tensor(arr)
+
 
 def full(shape, value):
     return tensor_with_shape([value] * math.prod(shape), shape)
 
+
 def ones_like(t):
     return full(t.shape, 1)
 
+
 def zeros_like(t):
     return full(t.shape, 0)
+
 
 t1 = tensor([[1, 2, 3], [1, 2, 3]])
 t2 = tensor([[4, 5, 6], [4, 5, 6]])
