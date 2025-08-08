@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+# whale task runner
+
+import os
+import sys
+
+#
+# command definition
+# 
+
+def _default(*args):
+    fmt(*args)
+    test(*args)
+
+def fmt(*args):
+    os.system("black -q -l 120 -t py313 .")
+
+def test(*args):
+    print("test is still not implemented")
+
+#
+# arg processing
+# 
+
+if len(sys.argv) == 1:
+    _default()
+    sys.exit()
+
+cmd = sys.argv[1]
+loc = locals()
+if cmd not in loc:
+    print(f"unknown command: {cmd}")
+    sys.exit()
+
+f = loc[cmd]
+f(sys.argv[2:])
