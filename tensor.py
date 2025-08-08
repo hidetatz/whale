@@ -125,6 +125,8 @@ class Materializer:
                 kerns.append(device.KernelSrc(self.renderer.render_kern_mul(), "mul"))
             elif op == TensorOp.RECIP:
                 kerns.append(device.KernelSrc(self.renderer.render_kern_recip(), "recip"))
+            elif op == TensorOp.POW:
+                kerns.append(device.KernelSrc(self.renderer.render_kern_pow(), "power"))
 
         return kerns
 
@@ -161,6 +163,14 @@ class Materializer:
                 i_result = iss.issue(DeviceBufferAlloc(t.size()))
                 x = instmap[t.inputs[0]]
                 i_inv_kern = iss.issue(InvokeKernel("recip", 1, t.size(), (x, i_result.instid)))
+                insts.extend((i_result, i_inv_kern))
+                instmap[t] = i_result.instid
+
+            elif t.op == TensorOp.POW:
+                i_result = iss.issue(DeviceBufferAlloc(t.size()))
+                l = instmap[t.inputs[0]]
+                r = instmap[t.inputs[1]]
+                i_inv_kern = iss.issue(InvokeKernel("power", 1, t.size(), (l, r, i_result.instid)))
                 insts.extend((i_result, i_inv_kern))
                 instmap[t] = i_result.instid
 
@@ -319,6 +329,16 @@ class Recip(BackpropContext):
         return grad * (full(self.inputs[0].shape, -1.0) / (self.inputs[0] * self.inputs[0]))
 
 
+class Pow(BackpropContext):
+    def _forward(self, inputs):
+        return Tensor(
+            shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.POW, inputs=inputs, dtype=inputs[0].dtype
+        )
+
+    def _backward(self, grad):
+        raise NotImplementedError()
+
+
 class DType(Enum):
     I32 = auto()
     F32 = auto()
@@ -338,6 +358,7 @@ class TensorOp(Enum):
     ADD = auto()
     MUL = auto()
     RECIP = auto()
+    POW = auto()
     MATMUL = auto()
 
     MAXIMUM = auto()
@@ -383,6 +404,9 @@ class Tensor:
         # l/r = l * (1/r)
         return _from_calc(Mul, [self, _from_calc(Recip, [r])])
 
+    def pow(self, r):
+        return _from_calc(Pow, [self, r])
+
     def __add__(self, r):
         return self.add(r)
 
@@ -394,6 +418,9 @@ class Tensor:
 
     def __truediv__(self, r):
         return self.div(r)
+
+    def __pow__(self, r):
+        return self.pow(r)
 
     def __matmul__(self, r):
         return _from_calc(MATMUL, [self, r])
@@ -527,9 +554,9 @@ def zeros_like(t):
 
 
 if __name__ == "__main__":
-    wt1 = array(1)
-    wt2 = array(4)
-    wt3 = wt1 / wt2
+    wt1 = array(2)
+    wt2 = array(2)
+    wt3 = wt1**wt2
     print(wt3.materialize())
     # t1 = array([[1, 2, 3], [1, 2, 3]])
     # t2 = array([[4, 5, 6], [4, 5, 6]])

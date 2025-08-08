@@ -12,8 +12,9 @@ class WhaleTest(unittest.TestCase):
         wt3 = tensor.array([7, 8, 9])
         wt4 = tensor.array([10, 11, 12])
         wt5 = tensor.array([13, 14, 15])
+        wt6 = tensor.array([0, 2, 4])
 
-        wresult = wt1 + wt2 * wt3 - wt4 / wt5
+        wresult = wt1 + wt2 * wt3 - wt4 / wt5**wt6
         wresult.materialize()
 
         tt1 = torch.tensor([1, 2, 3])
@@ -21,8 +22,9 @@ class WhaleTest(unittest.TestCase):
         tt3 = torch.tensor([7, 8, 9])
         tt4 = torch.tensor([10, 11, 12])
         tt5 = torch.tensor([13, 14, 15])
+        tt6 = torch.tensor([0, 2, 4])
 
-        tresult = tt1 + tt2 * tt3 - tt4 / tt5
+        tresult = tt1 + tt2 * tt3 - tt4 / tt5**tt6
 
         self.assertEqual(wresult.data, tresult.tolist())
 

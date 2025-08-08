@@ -69,6 +69,18 @@ class Renderer(device.Renderer):
             ],
         )
 
+    def render_kern_pow(self):
+        inc = "#include <cmath>"
+        kern = self.render_kernel(
+            "power",
+            ("l", "r", "result"),
+            [
+                "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
+                "result[idx] = powf(l[idx], r[idx]);",
+            ],
+        )
+        return inc + "\n\n" + kern
+
 
 class Allocator(device.Allocator):
     def allocate(self, length):
