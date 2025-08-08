@@ -59,6 +59,16 @@ class Renderer(device.Renderer):
             ],
         )
 
+    def render_kern_recip(self):
+        return self.render_kernel(
+            "recip",
+            ("x", "result"),
+            [
+                "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
+                "result[idx] = 1.0f / x[idx];",
+            ],
+        )
+
 
 class Allocator(device.Allocator):
     def allocate(self, length):

@@ -123,6 +123,8 @@ class Materializer:
                 kerns.append(device.KernelSrc(self.renderer.render_kern_add(), "add"))
             elif op == TensorOp.MUL:
                 kerns.append(device.KernelSrc(self.renderer.render_kern_mul(), "mul"))
+            elif op == TensorOp.RECIP:
+                kerns.append(device.KernelSrc(self.renderer.render_kern_recip(), "recip"))
 
         return kerns
 
@@ -152,6 +154,13 @@ class Materializer:
                 l = instmap[t.inputs[0]]
                 r = instmap[t.inputs[1]]
                 i_inv_kern = iss.issue(InvokeKernel("mul", 1, t.size(), (l, r, i_result.instid)))
+                insts.extend((i_result, i_inv_kern))
+                instmap[t] = i_result.instid
+
+            elif t.op == TensorOp.RECIP:
+                i_result = iss.issue(DeviceBufferAlloc(t.size()))
+                x = instmap[t.inputs[0]]
+                i_inv_kern = iss.issue(InvokeKernel("recip", 1, t.size(), (x, i_result.instid)))
                 insts.extend((i_result, i_inv_kern))
                 instmap[t] = i_result.instid
 
@@ -300,6 +309,16 @@ class Mul(BackpropContext):
         return grad * self.inputs[1], grad * self.inputs[0]
 
 
+class Recip(BackpropContext):
+    def _forward(self, inputs):
+        return Tensor(
+            shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.RECIP, inputs=inputs, dtype=inputs[0].dtype
+        )
+
+    def _backward(self, grad):
+        return grad * (full(self.inputs[0].shape, -1.0) / (self.inputs[0] * self.inputs[0]))
+
+
 class DType(Enum):
     I32 = auto()
     F32 = auto()
@@ -318,6 +337,7 @@ class TensorOp(Enum):
     # arithmetic
     ADD = auto()
     MUL = auto()
+    RECIP = auto()
     MATMUL = auto()
 
     MAXIMUM = auto()
@@ -349,11 +369,31 @@ class Tensor:
     def relu(self):
         return _from_calc(MAXIMUM, [self, zeros_like(self.shape)])
 
-    def __add__(self, r):
+    def add(self, r):
         return _from_calc(Add, [self, r])
 
-    def __mul__(self, r):
+    def sub(self, r):
+        # l-r is l+(-1*r)
+        return _from_calc(Add, [self, _from_calc(Mul, [full(r.shape, -1.0), r])])
+
+    def mul(self, r):
         return _from_calc(Mul, [self, r])
+
+    def div(self, r):
+        # l/r = l * (1/r)
+        return _from_calc(Mul, [self, _from_calc(Recip, [r])])
+
+    def __add__(self, r):
+        return self.add(r)
+
+    def __sub__(self, r):
+        return self.sub(r)
+
+    def __mul__(self, r):
+        return self.mul(r)
+
+    def __truediv__(self, r):
+        return self.div(r)
 
     def __matmul__(self, r):
         return _from_calc(MATMUL, [self, r])
@@ -489,17 +529,8 @@ def zeros_like(t):
 if __name__ == "__main__":
     wt1 = array(1)
     wt2 = array(4)
-    wt3 = array(7)
-
-    wresult = wt1 + wt2 * wt3
-    wresult.backprop()
-    wt1.grad.materialize()
-    wt2.grad.materialize()
-    wt3.grad.materialize()
-    print(wresult.grad)
-    print(wt1.grad)
-    print(wt2.grad)
-    print(wt3.grad)
+    wt3 = wt1 / wt2
+    print(wt3.materialize())
     # t1 = array([[1, 2, 3], [1, 2, 3]])
     # t2 = array([[4, 5, 6], [4, 5, 6]])
     # t3 = t1 + t2
