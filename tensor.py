@@ -479,19 +479,32 @@ def full(shape, value):
 
 
 def ones_like(t):
-    return full(t.shape, 1)
+    return full(t.shape, 1.0)
 
 
 def zeros_like(t):
-    return full(t.shape, 0)
+    return full(t.shape, 0.0)
 
 
 if __name__ == "__main__":
-    t1 = array([[1, 2, 3], [1, 2, 3]])
-    t2 = array([[4, 5, 6], [4, 5, 6]])
-    t3 = t1 + t2
-    t4 = array([[7, 8, 9], [7, 8, 9]])
-    t5 = t3 * t4
+    wt1 = array(1)
+    wt2 = array(4)
+    wt3 = array(7)
 
-    t5.backprop()
-    print(t1.grad.materialize())
+    wresult = wt1 + wt2 * wt3
+    wresult.backprop()
+    wt1.grad.materialize()
+    wt2.grad.materialize()
+    wt3.grad.materialize()
+    print(wresult.grad)
+    print(wt1.grad)
+    print(wt2.grad)
+    print(wt3.grad)
+    # t1 = array([[1, 2, 3], [1, 2, 3]])
+    # t2 = array([[4, 5, 6], [4, 5, 6]])
+    # t3 = t1 + t2
+    # t4 = array([[7, 8, 9], [7, 8, 9]])
+    # t5 = t3 * t4
+
+    # t5.backprop()
+    # print(t1.grad.materialize())
