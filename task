@@ -10,7 +10,6 @@ import sys
 # 
 
 def _default(*args):
-    fmt(*args)
     test(*args)
 
 def fmt(*args):
