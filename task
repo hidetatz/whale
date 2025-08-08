@@ -17,7 +17,7 @@ def fmt(*args):
     os.system("black -q -l 120 -t py313 .")
 
 def test(*args):
-    print("test is still not implemented")
+    os.system("python test.py")
 
 #
 # arg processing

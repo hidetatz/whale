@@ -443,7 +443,7 @@ def tensor_with_shape(arr, shape):
     )
 
 
-def tensor(arr):
+def array(arr):
     if type(arr) == int or type(arr) == float:
         return Tensor(data=[arr], op=TensorOp.CONST, materialized=True, dtype=DType.from_type(type(arr)))
 
@@ -474,10 +474,6 @@ def tensor(arr):
         return tensor_with_shape(data, shape)
 
 
-def array(arr):
-    return tensor(arr)
-
-
 def full(shape, value):
     return tensor_with_shape([value] * math.prod(shape), shape)
 
@@ -490,11 +486,12 @@ def zeros_like(t):
     return full(t.shape, 0)
 
 
-t1 = tensor([[1, 2, 3], [1, 2, 3]])
-t2 = tensor([[4, 5, 6], [4, 5, 6]])
-t3 = t1 + t2
-t4 = tensor([[7, 8, 9], [7, 8, 9]])
-t5 = t3 * t4
+if __name__ == "__main__":
+    t1 = array([[1, 2, 3], [1, 2, 3]])
+    t2 = array([[4, 5, 6], [4, 5, 6]])
+    t3 = t1 + t2
+    t4 = array([[7, 8, 9], [7, 8, 9]])
+    t5 = t3 * t4
 
-t5.backprop()
-print(t1.grad.materialize())
+    t5.backprop()
+    print(t1.grad.materialize())
