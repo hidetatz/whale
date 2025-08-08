@@ -375,7 +375,7 @@ class Tensor:
 
         while calcs:
             c = calcs.pop()
-            gy = c.output
+            gy = c.output.grad
             gxs = c.backward(gy)
             if not isinstance(gxs, tuple):
                 gxs = (gxs,)
