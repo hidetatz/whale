@@ -247,31 +247,32 @@ class Executor:
             elif isinstance(inst, Terminate):
                 return self.memory.get(inst.ret_id)
 
-class Calculation:
-    def __call__(self, inputs):
+class BackpropContext:
+    def forward(self, inputs):
         self.inputs = inputs
         self.generation = max([i.generation for i in inputs])
-        out = self.forward(inputs)
-        self.output = out
-        return out
+        self.output = self._forward(inputs)
+        return self.output
 
-    def backward(self, grad): raise NotImplementedError()
+    def backward(self, grad):
+        return self._backward(grad)
 
-class Add(Calculation):
-    def forward(self, inputs):
+    def _forward(self, inputs): raise NotImplementedError()
+    def _backward(self, grad): raise NotImplementedError()
+
+class Add(BackpropContext):
+    def _forward(self, inputs):
         return Tensor(shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.ADD, inputs=inputs, dtype=inputs[0].dtype)
 
-    def backward(self, grad):
+    def _backward(self, grad):
         return grad, grad
 
-class Mul(Calculation):
-    def forward(self, inputs):
-        self.l = inputs[0]
-        self.r = inputs[1]
+class Mul(BackpropContext):
+    def _forward(self, inputs):
         return Tensor(shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.MUL, inputs=inputs, dtype=inputs[0].dtype)
 
-    def backward(self, grad):
-        return grad*self.r, grad*self.l
+    def _backward(self, grad):
+        return grad*self.inputs[1], grad*self.inputs[0]
 
 class DType(Enum):
     I32 = auto()
@@ -398,7 +399,7 @@ class Tensor:
 
 def _from_calc(calc, inputs):
     c = calc()
-    t = c(inputs)
+    t = c.forward(inputs)
     t.creator = c
     t.generation = c.generation + 1
     return t
@@ -448,12 +449,11 @@ def ones_like(t):
 def zeros_like(t):
     return full(t.shape, 0)
 
-# for _ in range(3):
 t1 = tensor([[1, 2, 3], [1, 2, 3]])
 t2 = tensor([[4, 5, 6], [4, 5, 6]])
 t3 = t1 + t2
 t4 = tensor([[7, 8, 9], [7, 8, 9]])
 t5 = t3 * t4
 
-# t5.backprop()
-print(t5.materialize())
+t5.backprop()
+print(t1.grad.materialize())
