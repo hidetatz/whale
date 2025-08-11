@@ -387,9 +387,6 @@ class Tensor:
 
         return self
 
-    def relu(self):
-        return _from_calc(MAXIMUM, [self, zeros_like(self.shape)])
-
     def add(self, r):
         return _from_calc(Add, [self, r])
 
