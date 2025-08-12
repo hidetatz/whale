@@ -357,6 +357,26 @@ class Pow(BackpropContext):
         raise NotImplementedError()
 
 
+class GetItem(BackpropContext):
+    def __init__(self, newshape, newstrides, newoffset):
+        self.newshape = newshape
+        self.newstrides = newstrides
+        self.newoffset = newoffset
+
+    def _forward(self, inputs):
+        return Tensor(
+            shape=self.newshape,
+            strides=self.newstrides,
+            offset=self.newoffset,
+            op=TensorOp.GETITEM,
+            inputs=inputs,
+            dtype=inputs[0].dtype,
+        )
+
+    def _backward(self, grad):
+        raise NotImplementedError()
+
+
 class DType(Enum):
     I32 = auto()
     F32 = auto()
@@ -431,6 +451,64 @@ class Tensor:
     def pow(self, r):
         return _from_calc(Pow(), [self, r])
 
+    def _getitem(self, indices):
+        if type(indices) != tuple:
+            indices = (indices,)
+
+        if self._is_scalar():
+            raise ValueError(f"cannot index on scalar: {self}")
+
+        if self.ndim < len(indices):
+            raise ValueError(f"too many index accessors specified")
+
+        if Tensor in [type(i) for i in indices]:
+            return self._get_item__advanced(indices)
+
+        return self._get_item_basic(indices)
+
+    # numpy basic index
+    # https://numpy.org/doc/stable/user/basics.indexing.html#basic-indexing
+    def _get_item_basic(self, indices):
+        for i in range(self.ndim - len(indices)):
+            indices = indices + (slice(None, None, None),)
+
+        newshape = [0] * len(self.shape)
+        newstrides = [0] * len(self.strides)
+        newoffset = self.offset
+
+        for i, idx in enumerate(indices):
+            if type(idx) == int:
+                if self.shape[i] - 1 < idx:
+                    raise ValueError(f"index out of bounds for axis {i} with size {self.shape[i]}")
+
+                newoffset += idx * self.strides[i]
+                newshape[i] = -1  # dummy
+                newstrides[i] = -1  # dummy
+
+            elif type(idx) == slice:
+                start = 0 if idx.start is None else idx.start
+                stop = self.shape[i] if idx.stop is None else idx.stop
+                step = 1 if idx.step is None else idx.step
+                if step == 0:
+                    raise ValueError(f"step in slice index must not be 0: {idx}")
+
+                if self.shape[i] < start or stop < start:
+                    newshape[i] = 0
+                else:
+                    newshape[i] = (stop - start + step - 1) // step
+
+                newstrides[i] = self.strides[i] * step
+
+                if newshape[i] != 0:
+                    newoffset += start * self.strides[i]
+
+            else:
+                raise RuntimeError(f"unhandled index in basic index: {type(idx)}")
+
+        newshape = [s for s in newshape if s != -1]
+        newstrides = [s for s in newstrides if s != -1]
+        return _from_calc(GetItem(newshape, newstrides, newoffset), [self])
+
     def __add__(self, r):
         return self.add(r)
 
@@ -446,8 +524,14 @@ class Tensor:
     def __pow__(self, r):
         return self.pow(r)
 
+    def __getitem__(self, indices):
+        return self._getitem(indices)
+
     def __matmul__(self, r):
         return _from_calc(MATMUL, [self, r])
+
+    def _is_scalar(self):
+        return self.ndim == 0
 
     def backprop(self):
         if self.grad is None:
@@ -586,10 +670,9 @@ def zeros_like(t):
 
 
 if __name__ == "__main__":
-    wt1 = array(2)
-    wt2 = array(2)
-    wt3 = wt1**wt2
-    print(wt3.materialize())
+    t1 = array([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
+    t2 = t1[0, 1]
+    t2.materialize()
     # t1 = array([[1, 2, 3], [1, 2, 3]])
     # t2 = array([[4, 5, 6], [4, 5, 6]])
     # t3 = t1 + t2
