@@ -13,7 +13,7 @@ def _default(*args):
     test(*args)
 
 def fmt(*args):
-    os.system("black -q -l 120 -t py313 .")
+    os.system("black -q -l 150 -t py313 .")
 
 def test(*args):
     os.system("python test.py")

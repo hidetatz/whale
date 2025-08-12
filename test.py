@@ -52,5 +52,6 @@ class WhaleTest(unittest.TestCase):
         self.assertEqual(results["whale_grad_t4"].tolist()[0], results["torch_grad_t4"].tolist())
         self.assertEqual(results["whale_grad_t5"].tolist()[0], results["torch_grad_t5"].tolist())
 
+
 if __name__ == "__main__":
     unittest.main()

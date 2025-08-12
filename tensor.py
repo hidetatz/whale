@@ -138,39 +138,39 @@ class Materializer:
         for i, t in enumerate(tensors):
             if t.op == TensorOp.CONST:
                 i_py_buff = iss.issue(PythonBufferAlloc(t.data))
-                i_dev_buff = iss.issue(DeviceBufferAlloc(t.size()))
+                i_dev_buff = iss.issue(DeviceBufferAlloc(t.size))
                 i_copy = iss.issue(CopyBufferPythonToDevice(i_py_buff.instid, i_dev_buff.instid))
                 insts.extend((i_py_buff, i_dev_buff, i_copy))
                 instmap[t] = i_dev_buff.instid
 
             elif t.op == TensorOp.ADD:
-                i_result = iss.issue(DeviceBufferAlloc(t.size()))
+                i_result = iss.issue(DeviceBufferAlloc(t.size))
                 l = instmap[t.inputs[0]]
                 r = instmap[t.inputs[1]]
-                i_inv_kern = iss.issue(InvokeKernel("add", 1, t.size(), (l, r, i_result.instid)))
+                i_inv_kern = iss.issue(InvokeKernel("add", 1, t.size, (l, r, i_result.instid)))
                 insts.extend((i_result, i_inv_kern))
                 instmap[t] = i_result.instid
 
             elif t.op == TensorOp.MUL:
-                i_result = iss.issue(DeviceBufferAlloc(t.size()))
+                i_result = iss.issue(DeviceBufferAlloc(t.size))
                 l = instmap[t.inputs[0]]
                 r = instmap[t.inputs[1]]
-                i_inv_kern = iss.issue(InvokeKernel("mul", 1, t.size(), (l, r, i_result.instid)))
+                i_inv_kern = iss.issue(InvokeKernel("mul", 1, t.size, (l, r, i_result.instid)))
                 insts.extend((i_result, i_inv_kern))
                 instmap[t] = i_result.instid
 
             elif t.op == TensorOp.RECIP:
-                i_result = iss.issue(DeviceBufferAlloc(t.size()))
+                i_result = iss.issue(DeviceBufferAlloc(t.size))
                 x = instmap[t.inputs[0]]
-                i_inv_kern = iss.issue(InvokeKernel("recip", 1, t.size(), (x, i_result.instid)))
+                i_inv_kern = iss.issue(InvokeKernel("recip", 1, t.size, (x, i_result.instid)))
                 insts.extend((i_result, i_inv_kern))
                 instmap[t] = i_result.instid
 
             elif t.op == TensorOp.POW:
-                i_result = iss.issue(DeviceBufferAlloc(t.size()))
+                i_result = iss.issue(DeviceBufferAlloc(t.size))
                 l = instmap[t.inputs[0]]
                 r = instmap[t.inputs[1]]
-                i_inv_kern = iss.issue(InvokeKernel("power", 1, t.size(), (l, r, i_result.instid)))
+                i_inv_kern = iss.issue(InvokeKernel("power", 1, t.size, (l, r, i_result.instid)))
                 insts.extend((i_result, i_inv_kern))
                 instmap[t] = i_result.instid
 
@@ -274,9 +274,7 @@ class Executor:
                 allocator.copy_from_device(gpu_buff, py_buff)
 
             elif isinstance(inst, InvokeKernel):
-                kernel_manager.invoke(
-                    inst.kern, inst.grid, inst.block, [self.memory.get(param_id) for param_id in inst.param_ids]
-                )
+                kernel_manager.invoke(inst.kern, inst.grid, inst.block, [self.memory.get(param_id) for param_id in inst.param_ids])
 
             elif isinstance(inst, Terminate):
                 return self.memory.get(inst.ret_id)
@@ -302,7 +300,12 @@ class BackpropContext:
 class Add(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
-            shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.ADD, inputs=inputs, dtype=inputs[0].dtype
+            shape=inputs[0].shape,
+            strides=inputs[0].strides,
+            offset=inputs[0].offset,
+            op=TensorOp.ADD,
+            inputs=inputs,
+            dtype=inputs[0].dtype,
         )
 
     def _backward(self, grad):
@@ -312,7 +315,12 @@ class Add(BackpropContext):
 class Mul(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
-            shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.MUL, inputs=inputs, dtype=inputs[0].dtype
+            shape=inputs[0].shape,
+            strides=inputs[0].strides,
+            offset=inputs[0].offset,
+            op=TensorOp.MUL,
+            inputs=inputs,
+            dtype=inputs[0].dtype,
         )
 
     def _backward(self, grad):
@@ -322,7 +330,12 @@ class Mul(BackpropContext):
 class Recip(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
-            shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.RECIP, inputs=inputs, dtype=inputs[0].dtype
+            shape=inputs[0].shape,
+            strides=inputs[0].strides,
+            offset=inputs[0].offset,
+            op=TensorOp.RECIP,
+            inputs=inputs,
+            dtype=inputs[0].dtype,
         )
 
     def _backward(self, grad):
@@ -332,7 +345,12 @@ class Recip(BackpropContext):
 class Pow(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
-            shape=inputs[0].shape, stride=inputs[0].stride, op=TensorOp.POW, inputs=inputs, dtype=inputs[0].dtype
+            shape=inputs[0].shape,
+            strides=inputs[0].strides,
+            offset=inputs[0].offset,
+            op=TensorOp.POW,
+            inputs=inputs,
+            dtype=inputs[0].dtype,
         )
 
     def _backward(self, grad):
@@ -363,12 +381,16 @@ class TensorOp(Enum):
 
     MAXIMUM = auto()
 
+    # movement
+    GETITEM = auto()
+
 
 class Tensor:
-    def __init__(self, data=[], shape=[], stride=[], op=None, creator=None, inputs=[], materialized=False, dtype=None):
+    def __init__(self, data=[], shape=[], strides=[], offset=0, op=None, creator=None, inputs=[], materialized=False, dtype=None):
         self.data = data
         self.shape = shape
-        self.stride = stride
+        self.strides = strides
+        self.offset = offset
         self.op = op
         self.creator = creator
         self.inputs = inputs
@@ -377,8 +399,13 @@ class Tensor:
         self.grad = None
         self.generation = 0
 
+    @property
     def size(self):
         return math.prod(self.shape)
+
+    @property
+    def ndim(self):
+        return len(self.shape)
 
     def materialize(self):
         if not self.materialized:
@@ -388,21 +415,21 @@ class Tensor:
         return self
 
     def add(self, r):
-        return _from_calc(Add, [self, r])
+        return _from_calc(Add(), [self, r])
 
     def sub(self, r):
         # l-r is l+(-1*r)
-        return _from_calc(Add, [self, _from_calc(Mul, [full(r.shape, -1.0), r])])
+        return _from_calc(Add(), [self, _from_calc(Mul(), [full(r.shape, -1.0), r])])
 
     def mul(self, r):
-        return _from_calc(Mul, [self, r])
+        return _from_calc(Mul(), [self, r])
 
     def div(self, r):
         # l/r = l * (1/r)
-        return _from_calc(Mul, [self, _from_calc(Recip, [r])])
+        return _from_calc(Mul(), [self, _from_calc(Recip(), [r])])
 
     def pow(self, r):
-        return _from_calc(Pow, [self, r])
+        return _from_calc(Pow(), [self, r])
 
     def __add__(self, r):
         return self.add(r)
@@ -471,7 +498,7 @@ class Tensor:
             return f"Tensor([{', '.join(map(str, self.data))}])"
 
         # todo: implement
-        return f"Tensor(data: {self.data}, shape: {self.shape}, stride: {self.stride})"
+        return f"Tensor(data: {self.data}, offset: {self.offset}, shape: {self.shape}, strides: {self.strides})"
 
     def str_as_graph(self):
         def f(depth, t):
@@ -479,15 +506,15 @@ class Tensor:
             trail_comma = "," if depth != 0 else ""
 
             if not t.inputs:
-                return f"{indent}Tensor(op:{t.op}, shape:{t.shape}, stride: {t.stride}){trail_comma}"
+                return f"{indent}Tensor(op:{t.op}, offset: {self.offset}, shape:{t.shape}, strides: {t.strides}){trail_comma}"
 
             input = "[\n" + "\n".join([f(depth + 1, i) for i in t.inputs]) + f"\n{indent}]"
-            return f"{indent}Tensor(op:{t.op}, shape:{t.shape}, stride: {t.stride}, input: {input}){trail_comma}"
+            return f"{indent}Tensor(op:{t.op}, offset: {t.offset}, shape:{t.shape}, strides: {t.strides}, input: {input}){trail_comma}"
 
         return f(0, self)
 
     def str_as_oneline(self):
-        return f"Tensor(op:{self.op}, shape:{self.shape}, stride:{self.stride})"
+        return f"Tensor(op:{self.op}, shape:{self.shape}, strides:{self.strides})"
 
     def __str__(self):
         return self.str_as_ndarr() if self.materialized else self.str_as_graph()
@@ -497,17 +524,21 @@ class Tensor:
 
 
 def _from_calc(calc, inputs):
-    c = calc()
-    t = c.forward(inputs)
-    t.creator = c
-    t.generation = c.generation + 1
+    t = calc.forward(inputs)
+    t.creator = calc
+    t.generation = calc.generation + 1
     return t
 
 
 def tensor_with_shape(arr, shape):
-    stride = [math.prod(shape[i + 1 :]) for i in range(len(shape))]
+    strides = [math.prod(shape[i + 1 :]) for i in range(len(shape))]
     return Tensor(
-        data=arr, shape=shape, stride=stride, op=TensorOp.CONST, materialized=True, dtype=DType.from_type(type(arr[0]))
+        data=arr,
+        shape=shape,
+        strides=strides,
+        op=TensorOp.CONST,
+        materialized=True,
+        dtype=DType.from_type(type(arr[0])),
     )
 
 
