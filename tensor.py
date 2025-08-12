@@ -456,6 +456,10 @@ class Tensor:
     def backward(self):
         self.backprop()
 
+    def tolist(self):
+        # todo: fix
+        return self.data
+
     def str_as_ndarr(self):
         if len(self.shape) == 0:
             return f"Tensor({self.data[0]})"

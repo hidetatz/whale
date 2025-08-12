@@ -6,59 +6,51 @@ import tensor
 
 
 class WhaleTest(unittest.TestCase):
+    def get_tensor(self, mod, arr):
+        return tensor.array(arr) if mod == "whale" else torch.tensor(arr, requires_grad=True)
+
+    def backprop(self, mod, t):
+        return t.backprop() if mod == "whale" else t.backward()
+
+    def calc(self, mod, t):
+        return t.materialize() if mod == "whale" else t
+
     def test_arith(self):
-        wt1 = tensor.array([1, 2, 3])
-        wt2 = tensor.array([4, 5, 6])
-        wt3 = tensor.array([7, 8, 9])
-        wt4 = tensor.array([10, 11, 12])
-        wt5 = tensor.array([13, 14, 15])
-        wt6 = tensor.array([0, 2, 4])
+        results = {}
+        for mod in ["whale", "torch"]:
+            t1 = self.get_tensor(mod, [1.0, 2.0, 3.0])
+            t2 = self.get_tensor(mod, [4.0, 5.0, 6.0])
+            t3 = self.get_tensor(mod, [7.0, 8.0, 9.0])
+            t4 = self.get_tensor(mod, [10.0, 11.0, 12.0])
+            t5 = self.get_tensor(mod, [13.0, 14.0, 15.0])
+            t6 = self.get_tensor(mod, [0.0, 2.0, 4.0])
 
-        wresult = wt1 + wt2 * wt3 - wt4 / wt5**wt6
-        wresult.materialize()
+            results[mod] = self.calc(mod, t1 + t2 * t3 - t4 / t5**t6)
 
-        tt1 = torch.tensor([1, 2, 3])
-        tt2 = torch.tensor([4, 5, 6])
-        tt3 = torch.tensor([7, 8, 9])
-        tt4 = torch.tensor([10, 11, 12])
-        tt5 = torch.tensor([13, 14, 15])
-        tt6 = torch.tensor([0, 2, 4])
-
-        tresult = tt1 + tt2 * tt3 - tt4 / tt5**tt6
-
-        self.assertEqual(wresult.data, tresult.tolist())
+        self.assertEqual(results["whale"].tolist(), results["torch"].tolist())
 
     def test_backprop(self):
-        wt1 = tensor.array(1)
-        wt2 = tensor.array(4)
-        wt3 = tensor.array(7)
-        wt4 = tensor.array(10)
-        wt5 = tensor.array(13)
+        results = {}
+        for mod in ["whale", "torch"]:
+            t1 = self.get_tensor(mod, 1.0)
+            t2 = self.get_tensor(mod, 4.0)
+            t3 = self.get_tensor(mod, 7.0)
+            t4 = self.get_tensor(mod, 10.0)
+            t5 = self.get_tensor(mod, 13.0)
 
-        wresult = wt1 + wt2 * wt3 - wt4 / wt5
-        wresult.backprop()
-        wt1.grad.materialize()
-        wt2.grad.materialize()
-        wt3.grad.materialize()
-        wt4.grad.materialize()
-        wt5.grad.materialize()
+            result = self.calc(mod, t1 + t2 * t3 - t4 / t5)
+            self.backprop(mod, result)
+            results[f"{mod}_grad_t1"] = self.calc(mod, t1.grad)
+            results[f"{mod}_grad_t2"] = self.calc(mod, t2.grad)
+            results[f"{mod}_grad_t3"] = self.calc(mod, t3.grad)
+            results[f"{mod}_grad_t4"] = self.calc(mod, t4.grad)
+            results[f"{mod}_grad_t5"] = self.calc(mod, t5.grad)
 
-        tt1 = torch.tensor(1.0, requires_grad=True)
-        tt2 = torch.tensor(4.0, requires_grad=True)
-        tt3 = torch.tensor(7.0, requires_grad=True)
-        tt4 = torch.tensor(10.0, requires_grad=True)
-        tt5 = torch.tensor(13.0, requires_grad=True)
-
-        tresult = tt1 + tt2 * tt3 - tt4 / tt5
-        tresult.backward()
-
-        # fix
-        self.assertEqual(wt1.grad.data[0], tt1.grad.tolist())
-        self.assertEqual(wt2.grad.data[0], tt2.grad.tolist())
-        self.assertEqual(wt3.grad.data[0], tt3.grad.tolist())
-        self.assertEqual(wt4.grad.data[0], tt4.grad.tolist())
-        self.assertEqual(wt5.grad.data[0], tt5.grad.tolist())
-
+        self.assertEqual(results["whale_grad_t1"].tolist()[0], results["torch_grad_t1"].tolist())
+        self.assertEqual(results["whale_grad_t2"].tolist()[0], results["torch_grad_t2"].tolist())
+        self.assertEqual(results["whale_grad_t3"].tolist()[0], results["torch_grad_t3"].tolist())
+        self.assertEqual(results["whale_grad_t4"].tolist()[0], results["torch_grad_t4"].tolist())
+        self.assertEqual(results["whale_grad_t5"].tolist()[0], results["torch_grad_t5"].tolist())
 
 if __name__ == "__main__":
     unittest.main()
