@@ -1,4 +1,4 @@
-from ctypes import CDLL, byref, cast, c_void_p, c_int, c_uint, c_float, sizeof
+from ctypes import CDLL, byref, cast, c_void_p, c_int, c_uint, c_float, sizeof, pointer
 import os
 import time
 
@@ -39,47 +39,99 @@ class Renderer(device.Renderer):
     def render_kernel(self, name, params, body):
         return f'extern "C" __global__ void {name}({", ".join([f"float* {param}" for param in params])}) {{\n    {"\n    ".join(body)}\n}}'
 
-    def render_kern_add(self):
-        return self.render_kernel(
-            "add",
-            ("l", "r", "result"),
-            [
-                "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
-                "result[idx] = l[idx] + r[idx];",
-            ],
-        )
+    def render_kernel2(self, name, params, body):
+        return f'extern "C" __global__ void {name}({", ".join(params)}) {{\n    {"\n    ".join(body)}\n}}'
 
-    def render_kern_mul(self):
-        return self.render_kernel(
-            "mul",
-            ("l", "r", "result"),
-            [
-                "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
-                "result[idx] = l[idx] * r[idx];",
-            ],
-        )
+    def render_linearized_idx_expr(self, shape):
+        match len(shape):
+            case 0 | 1:
+                return [
+                    "int x = blockIdx.x * blockDim.x + threadIdx.x;",
+                    "int idx = offset + x * stride0;",
+                ]
+            case 2:
+                return [
+                    "int x = blockIdx.x * blockDim.x + threadIdx.x;",
+                    "int y = blockIdx.y * blockDim.y + threadIdx.y;",
+                    "int idx = offset + x * stride0 + y * stride1;",
+                ]
+            case 3:
+                return [
+                    "int x = blockIdx.x * blockDim.x + threadIdx.x;",
+                    "int y = blockIdx.y * blockDim.y + threadIdx.y;",
+                    "int z = blockIdx.z * blockDim.z + threadIdx.z;",
+                    "int idx = offset + x * stride0 + y * stride1 + z * stride2;",
+                ]
 
-    def render_kern_recip(self):
-        return self.render_kernel(
-            "recip",
-            ("x", "result"),
-            [
-                "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
-                "result[idx] = 1.0f / x[idx];",
-            ],
-        )
+        # todo: support
+        raise RuntimeError("4 or more dimension tensor is not supported yet")
 
-    def render_kern_pow(self):
-        inc = "#include <cmath>"
-        kern = self.render_kernel(
-            "power",
-            ("l", "r", "result"),
-            [
-                "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
-                "result[idx] = powf(l[idx], r[idx]);",
-            ],
-        )
-        return inc + "\n\n" + kern
+    def render_kern_add(self, shape, strides, offset):
+        name = f"add_{'_'.join(map(str, shape))}"
+        match len(shape):
+            case 0 | 1:
+                params = ("int offset", "int stride0", "float* l", "float* r", "float* result")
+            case 2:
+                params = ("int offset", "int stride0", "int stride1", "float* l", "float* r", "float* result")
+            case 3:
+                params = ("int offset", "int stride0", "int stride1", "int stride2", "float* l", "float* r", "float* result")
+        body = self.render_linearized_idx_expr(shape) + ["result[idx] = l[idx] + r[idx];"]
+        kern = self.render_kernel2( name, params, body )
+        return kern, name
+
+    def render_kern_mul(self, shape, strides, offset):
+        name = f"mul_{'_'.join(map(str, shape))}"
+        match len(shape):
+            case 0 | 1:
+                params = ("int offset", "int stride0", "float* l", "float* r", "float* result")
+            case 2:
+                params = ("int offset", "int stride0", "int stride1", "float* l", "float* r", "float* result")
+            case 3:
+                params = ("int offset", "int stride0", "int stride1", "int stride2", "float* l", "float* r", "float* result")
+        body = self.render_linearized_idx_expr(shape) + ["result[idx] = l[idx] * r[idx];"]
+        return self.render_kernel2( name, params, body ), name
+
+    def render_kern_recip(self, shape, strides, offset):
+        name = f"recip_{'_'.join(map(str, shape))}"
+        match len(shape):
+            case 0 | 1:
+                params = ("int offset", "int stride0", "float* r", "float* result")
+            case 2:
+                params = ("int offset", "int stride0", "int stride1", "float* r", "float* result")
+            case 3:
+                params = ("int offset", "int stride0", "int stride1", "int stride2", "float* r", "float* result")
+        body = self.render_linearized_idx_expr(shape) + ["result[idx] = 1.0f / r[idx];"]
+        return self.render_kernel2( name, params, body ), name
+        # return self.render_kernel(
+        #     "recip",
+        #     ("x", "result"),
+        #     [
+        #         "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
+        #         "result[idx] = 1.0f / x[idx];",
+        #     ],
+        # )
+
+    def render_kern_pow(self, shape, strides, offset):
+        name = f"pow_{'_'.join(map(str, shape))}"
+        match len(shape):
+            case 0 | 1:
+                params = ("int offset", "int stride0", "float* l", "float* r", "float* result")
+            case 2:
+                params = ("int offset", "int stride0", "int stride1", "float* l", "float* r", "float* result")
+            case 3:
+                params = ("int offset", "int stride0", "int stride1", "int stride2", "float* l", "float* r", "float* result")
+        body = self.render_linearized_idx_expr(shape) + ["result[idx] = powf(l[idx], r[idx]);"]
+        return "#include <cmath>\n\n" + self.render_kernel2( name, params, body ), name
+        # inc = "#include <cmath>"
+        # kern = self.render_kernel(
+        #     "power",
+        #     ("l", "r", "result"),
+        #     [
+        #         "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
+        #         "result[idx] = powf(l[idx], r[idx]);",
+        #     ],
+        # )
+        # return inc + "\n\n" + kern
 
 
 class Allocator(device.Allocator):
@@ -168,7 +220,14 @@ class KernelManager(device.KernelManager):
 
         gridx, gridy, gridz = extract(grid)
         blockx, blocky, blockz = extract(block)
-        kernel_params = (c_void_p * len(params))(*[cast(byref(p.ptr), c_void_p) for p in params])
+        kernel_params = (c_void_p * len(params))()
+        for i, p in enumerate(params):
+            if type(p) is device.GPUBuffer:
+                kernel_params[i] = cast(byref(p.ptr), c_void_p)
+            if type(p) is int:
+                kernel_params[i] = cast(pointer(c_int(p)), c_void_p)
+
+        # kernel_params = (c_void_p * len(params))(*[cast(byref(p.ptr), c_void_p) for p in params])
         result = cuda.libcuda.cuLaunchKernel(
             self.get_kern(kern_name).func_pointer,
             gridx,
