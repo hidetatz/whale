@@ -10,6 +10,7 @@ import device
 import materialize
 from tensor_op import TensorOp
 
+
 class BackpropContext:
     def forward(self, inputs):
         self.inputs = inputs
@@ -143,7 +144,7 @@ class Tensor:
         # backprop context
         self.grad: Tensor = None
         self.generation: int = 0
-        self.creator:BackpropContext = creator
+        self.creator: BackpropContext = creator
         self.materialized: bool = materialized
 
         # view tensor params
@@ -336,7 +337,9 @@ class Tensor:
                 return f"{indent}Tensor(view: False, op:{t.op}, offset: {t.offset}, shape:{t.shape}, strides: {t.strides}){trail_comma}"
 
             input = "[\n" + "\n".join([f(depth + 1, i) for i in t.inputs]) + f"\n{indent}]"
-            return f"{indent}Tensor(view: {t.view}, op:{t.op}, offset: {t.offset}, shape:{t.shape}, strides: {t.strides}, input: {input}){trail_comma}"
+            return (
+                f"{indent}Tensor(view: {t.view}, op:{t.op}, offset: {t.offset}, shape:{t.shape}, strides: {t.strides}, input: {input}){trail_comma}"
+            )
 
         return f(0, self)
 

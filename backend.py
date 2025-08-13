@@ -1,6 +1,7 @@
 from enum import Enum, auto
 import os
 
+
 class Backend(Enum):
     PYTHON = auto()
     CUDA = auto()

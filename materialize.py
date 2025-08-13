@@ -5,10 +5,12 @@ import os
 import backend
 import cuda
 import device
+
 # from tensor import Tensor
 from tensor_op import TensorOp
 
 dbg = os.getenv("WHALE_DEBUG", "") != ""
+
 
 class Materializer:
     # materializer is singleton for caching some info
@@ -104,7 +106,7 @@ class Materializer:
                 if l.base.device_buffer is None:
                     l.base.device_buffer = allocator.allocate(l.base.size)
                     allocator.copy_to_device(l.base.python_buffer, l.base.device_buffer)
-                    
+
                 if r.base.device_buffer is None:
                     r.base.device_buffer = allocator.allocate(r.base.size)
                     allocator.copy_to_device(r.base.python_buffer, r.base.device_buffer)
@@ -112,7 +114,9 @@ class Materializer:
                 t.device_buffer = allocator.allocate(t.size)
                 kernname = f"add_{'_'.join(map(str, t.shape))}"
                 strides = t.strides if t.strides else (0,)
-                kernel_manager.invoke(kernname, 1, t.shape if t.shape else 1, [t.offset, *strides, l.base.device_buffer, r.base.device_buffer, t.device_buffer])
+                kernel_manager.invoke(
+                    kernname, 1, t.shape if t.shape else 1, [t.offset, *strides, l.base.device_buffer, r.base.device_buffer, t.device_buffer]
+                )
 
             elif t.op == TensorOp.MUL:
                 l = t.inputs[0]
@@ -120,7 +124,7 @@ class Materializer:
                 if l.base.device_buffer is None:
                     l.base.device_buffer = allocator.allocate(l.base.size)
                     allocator.copy_to_device(l.base.python_buffer, l.base.device_buffer)
-                    
+
                 if r.base.device_buffer is None:
                     r.base.device_buffer = allocator.allocate(r.base.size)
                     allocator.copy_to_device(r.base.python_buffer, r.base.device_buffer)
@@ -128,7 +132,9 @@ class Materializer:
                 t.device_buffer = allocator.allocate(t.size)
                 kernname = f"mul_{'_'.join(map(str, t.shape))}"
                 strides = t.strides if t.strides else (0,)
-                kernel_manager.invoke(kernname, 1, t.shape if t.shape else 1, [t.offset, *strides, l.base.device_buffer, r.base.device_buffer, t.device_buffer])
+                kernel_manager.invoke(
+                    kernname, 1, t.shape if t.shape else 1, [t.offset, *strides, l.base.device_buffer, r.base.device_buffer, t.device_buffer]
+                )
 
             elif t.op == TensorOp.RECIP:
                 r = t.inputs[0]
@@ -147,7 +153,7 @@ class Materializer:
                 if l.base.device_buffer is None:
                     l.base.device_buffer = allocator.allocate(l.base.size)
                     allocator.copy_to_device(l.base.python_buffer, l.base.device_buffer)
-                    
+
                 if r.base.device_buffer is None:
                     r.base.device_buffer = allocator.allocate(r.base.size)
                     allocator.copy_to_device(r.base.python_buffer, r.base.device_buffer)
@@ -155,8 +161,9 @@ class Materializer:
                 t.device_buffer = allocator.allocate(t.size)
                 kernname = f"pow_{'_'.join(map(str, t.shape))}"
                 strides = t.strides if t.strides else (0,)
-                kernel_manager.invoke(kernname, 1, t.shape if t.shape else 1, [t.offset, *strides, l.base.device_buffer, r.base.device_buffer, t.device_buffer])
-
+                kernel_manager.invoke(
+                    kernname, 1, t.shape if t.shape else 1, [t.offset, *strides, l.base.device_buffer, r.base.device_buffer, t.device_buffer]
+                )
 
             if i == len(tensors) - 1:
                 allocator.copy_from_device(t.device_buffer, t.python_buffer)

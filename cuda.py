@@ -76,7 +76,7 @@ class Renderer(device.Renderer):
             case 3:
                 params = ("int offset", "int stride0", "int stride1", "int stride2", "float* l", "float* r", "float* result")
         body = self.render_linearized_idx_expr(shape) + ["result[idx] = l[idx] + r[idx];"]
-        kern = self.render_kernel2( name, params, body )
+        kern = self.render_kernel2(name, params, body)
         return kern, name
 
     def render_kern_mul(self, shape, strides, offset):
@@ -89,7 +89,7 @@ class Renderer(device.Renderer):
             case 3:
                 params = ("int offset", "int stride0", "int stride1", "int stride2", "float* l", "float* r", "float* result")
         body = self.render_linearized_idx_expr(shape) + ["result[idx] = l[idx] * r[idx];"]
-        return self.render_kernel2( name, params, body ), name
+        return self.render_kernel2(name, params, body), name
 
     def render_kern_recip(self, shape, strides, offset):
         name = f"recip_{'_'.join(map(str, shape))}"
@@ -101,7 +101,7 @@ class Renderer(device.Renderer):
             case 3:
                 params = ("int offset", "int stride0", "int stride1", "int stride2", "float* r", "float* result")
         body = self.render_linearized_idx_expr(shape) + ["result[idx] = 1.0f / r[idx];"]
-        return self.render_kernel2( name, params, body ), name
+        return self.render_kernel2(name, params, body), name
         # return self.render_kernel(
         #     "recip",
         #     ("x", "result"),
@@ -121,7 +121,7 @@ class Renderer(device.Renderer):
             case 3:
                 params = ("int offset", "int stride0", "int stride1", "int stride2", "float* l", "float* r", "float* result")
         body = self.render_linearized_idx_expr(shape) + ["result[idx] = powf(l[idx], r[idx]);"]
-        return "#include <cmath>\n\n" + self.render_kernel2( name, params, body ), name
+        return "#include <cmath>\n\n" + self.render_kernel2(name, params, body), name
         # inc = "#include <cmath>"
         # kern = self.render_kernel(
         #     "power",
