@@ -99,6 +99,15 @@ class Materializer:
         return kerns
 
     def execute(self, tensors: list[any], allocator: device.Allocator, kernel_manager: device.KernelManager):
+        def interleave(arrs):
+            result = []
+            for i in range(len(arrs[0])):
+                inner = []
+                for arr in arrs:
+                    inner.append(arr[i])
+                result.append(inner)
+            return result
+
         for i, t in enumerate(tensors):
             if t.op == TensorOp.ADD:
                 l = t.inputs[0]
@@ -114,8 +123,18 @@ class Materializer:
                 t.device_buffer = allocator.allocate(t.size)
                 kernname = f"add_{'_'.join(map(str, t.shape))}"
                 strides = t.strides if t.strides else (0,)
+                lstrides = l.strides if l.strides else (0,)
+                rstrides = r.strides if r.strides else (0,)
+                strides_param = interleave((strides, lstrides, rstrides))
+                st = []
+                for sp in strides_param:
+                    st.extend(sp)
+
                 kernel_manager.invoke(
-                    kernname, 1, t.shape if t.shape else 1, [t.offset, *strides, l.base.device_buffer, r.base.device_buffer, t.device_buffer]
+                    kernname,
+                    1,
+                    t.shape if t.shape else 1,
+                    [t.offset, l.offset, r.offset, *st, l.base.device_buffer, r.base.device_buffer, t.device_buffer],
                 )
 
             elif t.op == TensorOp.MUL:

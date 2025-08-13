@@ -1,6 +1,7 @@
 import collections
 from dataclasses import dataclass
 from enum import Enum, auto
+import itertools
 import math
 import os
 import time
@@ -32,8 +33,8 @@ class Add(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
             shape=inputs[0].shape,
-            strides=inputs[0].strides,
-            offset=inputs[0].offset,
+            # strides=inputs[0].strides,
+            # offset=inputs[0].offset,
             op=TensorOp.ADD,
             inputs=inputs,
             dtype=inputs[0].dtype,
@@ -47,8 +48,8 @@ class Mul(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
             shape=inputs[0].shape,
-            strides=inputs[0].strides,
-            offset=inputs[0].offset,
+            # strides=inputs[0].strides,
+            # offset=inputs[0].offset,
             op=TensorOp.MUL,
             inputs=inputs,
             dtype=inputs[0].dtype,
@@ -62,8 +63,8 @@ class Recip(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
             shape=inputs[0].shape,
-            strides=inputs[0].strides,
-            offset=inputs[0].offset,
+            # strides=inputs[0].strides,
+            # offset=inputs[0].offset,
             op=TensorOp.RECIP,
             inputs=inputs,
             dtype=inputs[0].dtype,
@@ -77,8 +78,8 @@ class Pow(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
             shape=inputs[0].shape,
-            strides=inputs[0].strides,
-            offset=inputs[0].offset,
+            # strides=inputs[0].strides,
+            # offset=inputs[0].offset,
             op=TensorOp.POW,
             inputs=inputs,
             dtype=inputs[0].dtype,
@@ -101,6 +102,7 @@ class GetItem(BackpropContext):
             offset=self.newoffset,
             op=TensorOp.GETITEM,
             view=True,
+            materialized=True,
             inputs=inputs,
             dtype=inputs[0].dtype,
         )
@@ -134,7 +136,7 @@ class Tensor:
 
         # dimensions
         self.shape: list[int] = shape
-        self.strides: list[int] = strides
+        self.strides: list[int] = strides if strides else tuple([math.prod(shape[i + 1 :]) for i in range(len(shape))])
         self.offset: int = offset
 
         # tensor operation
@@ -312,21 +314,37 @@ class Tensor:
         self.backprop()
 
     def tolist(self):
-        # todo: fix
-        return self.base.data
+        if not self.materialized:
+            self.materialize()
 
-    def str_as_ndarr(self):
+        # calculate index combination by shape
+        indices = [list(c) for c in list(itertools.product(*[range(n) for n in self.shape]))]
+
+        # pick the actual value to be in the result by the index
+        vals = []
+        for idx in indices:
+            vals.append(self.base.data[self.offset + sum([st * i for st, i in zip(self.strides, idx)])])
+
+        # early return on scalar
         if len(self.shape) == 0:
-            return f"Tensor({self.data[0]})"
+            return vals[0]
 
-        if 0 in self.shape:
-            return f"Tensor([])"
+        # do reshape manually
+        def _reshape(data, dims, start):
+            if len(dims) == 1:
+                return data[start : start + dims[0]]
+            else:
+                result = []
+                curdim = dims[0]
+                remaindims = dims[1:]
+                elems = math.prod(remaindims)
 
-        if len(self.shape) == 1:
-            return f"Tensor([{', '.join(map(str, self.data))}])"
+                for i in range(curdim):
+                    result.append(_reshape(data, remaindims, start + i * elems))
 
-        # todo: implement
-        return f"Tensor(data: {self.data}, offset: {self.offset}, shape: {self.shape}, strides: {self.strides})"
+                return result
+
+        return _reshape(vals, self.shape, 0)
 
     def str_as_graph(self):
         def f(depth: int, t: Tensor):
@@ -334,20 +352,23 @@ class Tensor:
             trail_comma = "," if depth != 0 else ""
 
             if not t.inputs:
-                return f"{indent}Tensor(view: False, op:{t.op}, offset: {t.offset}, shape:{t.shape}, strides: {t.strides}){trail_comma}"
+                return f"{indent}Tensor(view: {t.view}, op:{t.op}, shape:{t.shape}, strides: {t.strides}, offset: {t.offset}){trail_comma}"
 
             input = "[\n" + "\n".join([f(depth + 1, i) for i in t.inputs]) + f"\n{indent}]"
             return (
-                f"{indent}Tensor(view: {t.view}, op:{t.op}, offset: {t.offset}, shape:{t.shape}, strides: {t.strides}, input: {input}){trail_comma}"
+                f"{indent}Tensor(view: {t.view}, op:{t.op}, shape:{t.shape}, strides: {t.strides}, offset: {t.offset}, input: {input}){trail_comma}"
             )
 
         return f(0, self)
 
     def str_as_oneline(self):
-        return f"Tensor(op:{self.op}, shape:{self.shape}, strides:{self.strides} offset:{self.offset})"
+        return f"Tensor(view: {self.view}, op:{self.op}, shape:{self.shape}, strides:{self.strides} offset:{self.offset})"
 
     def __str__(self):
-        return self.str_as_ndarr() if self.materialized or self.view else self.str_as_graph()
+        if self.materialized:
+            return f"Tensor({self.tolist()})"
+
+        return self.str_as_graph()
 
     def __repr__(self):
         return self.__str__()
@@ -422,18 +443,22 @@ def zeros_like(t):
 
 
 if __name__ == "__main__":
-    # t1 = array([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
-    # t2 = array([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
-    # t3 = t1[0, 1]
-    # t4 = t2[1, 2]
-    # t5 = t3 + t4
-    # t5.materialize()
+    t1 = array([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
+    t2 = array([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
+    t3 = t1[0, 1]
+    t4 = t2[1, 2]
+    t5 = t3 + t4
+    print(t3.tolist(), t4.tolist())
     # print(t5)
+    t5.materialize()
+    print(t5)
     # t2.materialize()
     # print(t2.tolist())
-    t1 = array([[1, 2, 3], [1, 2, 3]])
-    t2 = t1[0]
-    print(t2)
+    # t1 = array([[1, 2, 3], [1, 2, 3]])
+    # print(t1)
+    # t2 = t1[0, 1]
+    # print(t2)
+    # print(type(t2.tolist()))
     # t2 = array([[4, 5, 6], [4, 5, 6]])
     # t3 = t1 + t2
     # t4 = array([[7, 8, 9], [7, 8, 9]])

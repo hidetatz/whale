@@ -48,12 +48,16 @@ class Renderer(device.Renderer):
                 return [
                     "int x = blockIdx.x * blockDim.x + threadIdx.x;",
                     "int idx = offset + x * stride0;",
+                    "int lidx = loffset + x * lstride0;",
+                    "int ridx = roffset + x * rstride0;",
                 ]
             case 2:
                 return [
                     "int x = blockIdx.x * blockDim.x + threadIdx.x;",
                     "int y = blockIdx.y * blockDim.y + threadIdx.y;",
                     "int idx = offset + x * stride0 + y * stride1;",
+                    "int lidx = loffset + x * lstride0 + y * lstride1;",
+                    "int ridx = roffset + x * rstride0 + y * rstride1;",
                 ]
             case 3:
                 return [
@@ -61,6 +65,8 @@ class Renderer(device.Renderer):
                     "int y = blockIdx.y * blockDim.y + threadIdx.y;",
                     "int z = blockIdx.z * blockDim.z + threadIdx.z;",
                     "int idx = offset + x * stride0 + y * stride1 + z * stride2;",
+                    "int lidx = loffset + x * lstride0 + y * lstride1 + z * lstride2;",
+                    "int ridx = roffset + x * rstride0 + y * rstride1 + z * rstride2;",
                 ]
 
         # todo: support
@@ -70,12 +76,51 @@ class Renderer(device.Renderer):
         name = f"add_{'_'.join(map(str, shape))}"
         match len(shape):
             case 0 | 1:
-                params = ("int offset", "int stride0", "float* l", "float* r", "float* result")
+                params = (
+                    "int offset",
+                    "int loffset",
+                    "int roffset",
+                    "int stride0",
+                    "int lstride0",
+                    "int rstride0",
+                    "float* l",
+                    "float* r",
+                    "float* result",
+                )
             case 2:
-                params = ("int offset", "int stride0", "int stride1", "float* l", "float* r", "float* result")
+                params = (
+                    "int offset",
+                    "int loffset",
+                    "int roffset",
+                    "int stride0",
+                    "int lstride0",
+                    "int rstride0",
+                    "int stride1",
+                    "int lstride1",
+                    "int rstride1",
+                    "float* l",
+                    "float* r",
+                    "float* result",
+                )
             case 3:
-                params = ("int offset", "int stride0", "int stride1", "int stride2", "float* l", "float* r", "float* result")
-        body = self.render_linearized_idx_expr(shape) + ["result[idx] = l[idx] + r[idx];"]
+                params = (
+                    "int offset",
+                    "int loffset",
+                    "int roffset",
+                    "int stride0",
+                    "int lstride0",
+                    "int rstride0",
+                    "int stride1",
+                    "int lstride1",
+                    "int rstride1",
+                    "int stride2",
+                    "int lstride2",
+                    "int rstride2",
+                    "float* l",
+                    "float* r",
+                    "float* result",
+                )
+        body = self.render_linearized_idx_expr(shape) + ["result[idx] = l[lidx] + r[ridx];"]
         kern = self.render_kernel2(name, params, body)
         return kern, name
 
@@ -83,55 +128,126 @@ class Renderer(device.Renderer):
         name = f"mul_{'_'.join(map(str, shape))}"
         match len(shape):
             case 0 | 1:
-                params = ("int offset", "int stride0", "float* l", "float* r", "float* result")
+                params = (
+                    "int offset",
+                    "int loffset",
+                    "int roffset",
+                    "int stride0",
+                    "int lstride0",
+                    "int rstride0",
+                    "float* l",
+                    "float* r",
+                    "float* result",
+                )
             case 2:
-                params = ("int offset", "int stride0", "int stride1", "float* l", "float* r", "float* result")
+                params = (
+                    "int offset",
+                    "int loffset",
+                    "int roffset",
+                    "int stride0",
+                    "int lstride0",
+                    "int rstride0",
+                    "int stride1",
+                    "int lstride1",
+                    "int rstride1",
+                    "float* l",
+                    "float* r",
+                    "float* result",
+                )
             case 3:
-                params = ("int offset", "int stride0", "int stride1", "int stride2", "float* l", "float* r", "float* result")
-        body = self.render_linearized_idx_expr(shape) + ["result[idx] = l[idx] * r[idx];"]
+                params = (
+                    "int offset",
+                    "int loffset",
+                    "int roffset",
+                    "int stride0",
+                    "int lstride0",
+                    "int rstride0",
+                    "int stride1",
+                    "int lstride1",
+                    "int rstride1",
+                    "int stride2",
+                    "int lstride2",
+                    "int rstride2",
+                    "float* l",
+                    "float* r",
+                    "float* result",
+                )
+        body = self.render_linearized_idx_expr(shape) + ["result[idx] = l[lidx] * r[ridx];"]
         return self.render_kernel2(name, params, body), name
 
     def render_kern_recip(self, shape, strides, offset):
         name = f"recip_{'_'.join(map(str, shape))}"
         match len(shape):
             case 0 | 1:
-                params = ("int offset", "int stride0", "float* r", "float* result")
+                params = ("int offset", "int roffset", "int stride0", "int rstride0", "float* l", "float* result")
             case 2:
-                params = ("int offset", "int stride0", "int stride1", "float* r", "float* result")
+                params = ("int offset", "int roffset", "int stride0", "int rstride0", "int stride1", "int rstride1", "float* r", "float* result")
             case 3:
-                params = ("int offset", "int stride0", "int stride1", "int stride2", "float* r", "float* result")
-        body = self.render_linearized_idx_expr(shape) + ["result[idx] = 1.0f / r[idx];"]
+                params = (
+                    "int offset",
+                    "int roffset",
+                    "int stride0",
+                    "int rstride0",
+                    "int stride1",
+                    "int rstride1",
+                    "int stride2",
+                    "int rstride2",
+                    "float* r",
+                    "float* result",
+                )
+        body = self.render_linearized_idx_expr(shape) + ["result[idx] = 1.0f / r[ridx];"]
         return self.render_kernel2(name, params, body), name
-        # return self.render_kernel(
-        #     "recip",
-        #     ("x", "result"),
-        #     [
-        #         "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
-        #         "result[idx] = 1.0f / x[idx];",
-        #     ],
-        # )
 
     def render_kern_pow(self, shape, strides, offset):
         name = f"pow_{'_'.join(map(str, shape))}"
         match len(shape):
             case 0 | 1:
-                params = ("int offset", "int stride0", "float* l", "float* r", "float* result")
+                params = (
+                    "int offset",
+                    "int loffset",
+                    "int roffset",
+                    "int stride0",
+                    "int lstride0",
+                    "int rstride0",
+                    "float* l",
+                    "float* r",
+                    "float* result",
+                )
             case 2:
-                params = ("int offset", "int stride0", "int stride1", "float* l", "float* r", "float* result")
+                params = (
+                    "int offset",
+                    "int loffset",
+                    "int roffset",
+                    "int stride0",
+                    "int lstride0",
+                    "int rstride0",
+                    "int stride1",
+                    "int lstride1",
+                    "int rstride1",
+                    "float* l",
+                    "float* r",
+                    "float* result",
+                )
             case 3:
-                params = ("int offset", "int stride0", "int stride1", "int stride2", "float* l", "float* r", "float* result")
-        body = self.render_linearized_idx_expr(shape) + ["result[idx] = powf(l[idx], r[idx]);"]
+                params = (
+                    "int offset",
+                    "int loffset",
+                    "int roffset",
+                    "int stride0",
+                    "int lstride0",
+                    "int rstride0",
+                    "int stride1",
+                    "int lstride1",
+                    "int rstride1",
+                    "int stride2",
+                    "int lstride2",
+                    "int rstride2",
+                    "float* l",
+                    "float* r",
+                    "float* result",
+                )
+        body = self.render_linearized_idx_expr(shape) + ["result[idx] = powf(l[lidx], r[ridx]);"]
         return "#include <cmath>\n\n" + self.render_kernel2(name, params, body), name
-        # inc = "#include <cmath>"
-        # kern = self.render_kernel(
-        #     "power",
-        #     ("l", "r", "result"),
-        #     [
-        #         "int idx = blockIdx.x * blockDim.x + threadIdx.x;",
-        #         "result[idx] = powf(l[idx], r[idx]);",
-        #     ],
-        # )
-        # return inc + "\n\n" + kern
 
 
 class Allocator(device.Allocator):
