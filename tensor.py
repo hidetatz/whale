@@ -33,8 +33,6 @@ class Add(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
             shape=inputs[0].shape,
-            # strides=inputs[0].strides,
-            # offset=inputs[0].offset,
             op=TensorOp.ADD,
             inputs=inputs,
             dtype=inputs[0].dtype,
@@ -48,8 +46,6 @@ class Mul(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
             shape=inputs[0].shape,
-            # strides=inputs[0].strides,
-            # offset=inputs[0].offset,
             op=TensorOp.MUL,
             inputs=inputs,
             dtype=inputs[0].dtype,
@@ -63,8 +59,6 @@ class Recip(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
             shape=inputs[0].shape,
-            # strides=inputs[0].strides,
-            # offset=inputs[0].offset,
             op=TensorOp.RECIP,
             inputs=inputs,
             dtype=inputs[0].dtype,
@@ -78,8 +72,6 @@ class Pow(BackpropContext):
     def _forward(self, inputs):
         return Tensor(
             shape=inputs[0].shape,
-            # strides=inputs[0].strides,
-            # offset=inputs[0].offset,
             op=TensorOp.POW,
             inputs=inputs,
             dtype=inputs[0].dtype,
