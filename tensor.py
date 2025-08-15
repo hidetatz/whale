@@ -36,11 +36,11 @@ class Tensor:
 
     @classmethod
     def full(cls, shape: tuple[int], val: float):
-        return Tensor(TensorOp.new_buffer_op([value] * math.prod(shape), shape=shape))
+        return Tensor(TensorOp.new_buffer_op([val] * math.prod(shape), shape=shape))
 
     @classmethod
     def full_like(cls, t: Tensor, val: float):
-        return full(t.shape, val)
+        return Tensor.full(t.shape, val)
 
     #
     # properties
