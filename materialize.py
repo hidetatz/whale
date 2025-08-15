@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
 import os
@@ -5,12 +6,45 @@ import os
 import backend
 import cuda
 import device
-
-# from tensor import Tensor
-from tensor_op import TensorOp
+import kernel
+from tensor_op import TensorOp,TensorOpCode
 
 dbg = os.getenv("WHALE_DEBUG", "") != ""
 
+class Instruction:
+    def __str__(self):
+        params = ", ".join(f"{k}={v}" for k, v in self.__dict__.items() if k != "instid")
+        return f"<{self.__class__.__name__}({params})>"
+
+@dataclass
+class AllocateDeviceMemory(Instruction):
+    t: TensorOp
+
+@dataclass
+class CopyBufferPythonToDevice(Instruction):
+    t: TensorOp
+
+@dataclass
+class CopyBufferDeviceToPython(Instruction):
+    t: TensorOp
+
+@dataclass
+class CopyDevicePointer(Instruction):
+    src: TensorOp
+    dst: TensorOp
+
+@dataclass
+class InvokeUnaryKernel(Instruction):
+    kern_name: str
+    dst: TensorOp
+    src: TensorOp
+
+@dataclass
+class InvokeBinaryKernel(Instruction):
+    kern_name: str
+    dst: TensorOp
+    srcl: TensorOp
+    srcr: TensorOp
 
 class Materializer:
     # materializer is singleton for caching some info
@@ -25,14 +59,13 @@ class Materializer:
 
         self.backend = backend.Backend.detect()
         if self.backend == backend.Backend.CUDA:
-            self.renderer = cuda.Renderer()
-            self.allocator = cuda.Allocator()
+            self.kernel_generator = cuda.CodeGenerator()
             self.kernel_manager = cuda.KernelManager()
 
         self.initialized = True
 
     @classmethod
-    def materialize(cls, t):
+    def materialize(cls, op: TensorOp) -> None:
         self = cls()  # get materializer singleton instance
 
         if dbg:
@@ -41,148 +74,110 @@ class Materializer:
             print(self.backend)
 
             print("=== tensor graph")
-            print(t.str_as_graph())
+            print(op)
 
-        tensors = self.linearize(t)
+        ops = self.linearize(op)
 
         if dbg:
-            print("=== linearized tensors")
-            print("\n".join([f"{t.str_as_oneline()}" for t in tensors]))
+            print("=== linearized tensor ops")
+            print("\n".join([f"{op.str_oneline()}" for op in ops]))
 
         # generate and load kernels
-        kernel_srcs = self.generate_kernels(tensors)
+        kerns = self.generate_kernels(ops)
 
         if dbg:
             print("=== kernels")
-            print("\n\n".join([f"{src}" for name, src in kernel_srcs.items()]))
+            print("\n\n".join([f"{kern.src}" for kern in kerns]))
 
-        self.kernel_manager.load([src for _, src in kernel_srcs.items()])
-        self.execute(tensors, self.allocator, self.kernel_manager)
+        self.kernel_manager.load(kerns)
+        insts = self.generate_instructions(ops)
+        if dbg:
+            print("=== instructions")
+            print("\n".join([f"{inst}" for inst in insts]))
+
+        self.execute(insts)
 
         if dbg:
+            print("=== materialized tensor")
+            print(op.str_oneline())
             print("=== materialization successfully finished ===")
 
-    def linearize(self, t):
-        tensors = []
+    def linearize(self, op: TensorOp):
+        ops = []
         seen = []
 
-        def dfs(_t):
-            if _t in seen:
+        def dfs(_op: TensorOp):
+            if _op in seen:
                 return
 
-            seen.append(_t)
-            tensors.append(_t)
+            seen.append(_op)
+            ops.append(_op)
 
-            for i in _t.inputs:
+            for i in _op.inputs:
                 dfs(i)
 
-        dfs(t)
-        tensors.reverse()
-        return tensors
+        dfs(op)
+        ops.reverse()
+        return ops
 
-    def generate_kernels(self, tensors):
-        kerns = {}
-        for t in tensors:
-            if t.op == TensorOp.ADD:
-                kern_src, kern_name = self.renderer.render_kern_add(t.shape, t.strides, t.offset)
-            elif t.op == TensorOp.MUL:
-                kern_src, kern_name = self.renderer.render_kern_mul(t.shape, t.strides, t.offset)
-            elif t.op == TensorOp.RECIP:
-                kern_src, kern_name = self.renderer.render_kern_recip(t.shape, t.strides, t.offset)
-            elif t.op == TensorOp.POW:
-                kern_src, kern_name = self.renderer.render_kern_pow(t.shape, t.strides, t.offset)
+    def generate_kernels(self, ops: list[TensorOp]) -> list[kernel.Kernel]:
+        code_map: dict[TensorOpCode, kernel.OpCode] = {
+            TensorOpCode.RECIP: kernel.OpCode.RECIP,
+            TensorOpCode.ADD: kernel.OpCode.ADD,
+            TensorOpCode.MUL: kernel.OpCode.MUL,
+            TensorOpCode.POW: kernel.OpCode.POW,
+        }
+        kerns: list[kernel.Kernel] = []
+        for op in ops:
+            if op.code.is_unary_op():
+                name, src = self.kernel_generator.generate_unary_kernel(code_map[op.code], op.ndim)
+
+            elif op.code.is_binary_op():
+                name, src = self.kernel_generator.generate_binary_kernel(code_map[op.code], op.ndim)
+
             else:
                 continue
 
-            kerns[kern_name] = device.KernelSrc(kern_src, kern_name)
+            kerns.append(kernel.Kernel(name, src, None))
 
         return kerns
 
-    def execute(self, tensors: list[any], allocator: device.Allocator, kernel_manager: device.KernelManager):
-        def interleave(arrs):
-            result = []
-            for i in range(len(arrs[0])):
-                inner = []
-                for arr in arrs:
-                    inner.append(arr[i])
-                result.append(inner)
-            return result
+    def generate_instructions(self, ops: list[TensorOp]) -> list[Instruction]:
+        insts: list[Instruction] = []
+        for op in ops:
+            if op.code.is_buffer_op():
+                insts.append(AllocateDeviceMemory(op))
+                insts.append(CopyBufferPythonToDevice(op))
 
-        for i, t in enumerate(tensors):
-            if t.op == TensorOp.ADD:
-                l = t.inputs[0]
-                r = t.inputs[1]
-                if l.base.device_buffer is None:
-                    l.base.device_buffer = allocator.allocate(l.base.size)
-                    allocator.copy_to_device(l.base.python_buffer, l.base.device_buffer)
+            elif op.code.is_unary_op():
+                insts.append(AllocateDeviceMemory(op))
+                insts.append(InvokeUnaryKernel(kernel.to_kern_name(op.code, op.ndim), op, op.inputs[0]))
 
-                if r.base.device_buffer is None:
-                    r.base.device_buffer = allocator.allocate(r.base.size)
-                    allocator.copy_to_device(r.base.python_buffer, r.base.device_buffer)
+            elif op.code.is_binary_op():
+                insts.append(AllocateDeviceMemory(op))
+                insts.append(InvokeBinaryKernel(kernel.to_kern_name(op.code, op.ndim), op, op.inputs[0], op.inputs[1]))
 
-                t.device_buffer = allocator.allocate(t.size)
-                kernname = f"add_{'_'.join(map(str, t.shape))}"
-                strides = t.strides if t.strides else (0,)
-                lstrides = l.strides if l.strides else (0,)
-                rstrides = r.strides if r.strides else (0,)
-                strides_param = interleave((strides, lstrides, rstrides))
-                st = []
-                for sp in strides_param:
-                    st.extend(sp)
+        return insts
 
-                kernel_manager.invoke(
-                    kernname,
-                    1,
-                    t.shape if t.shape else 1,
-                    [t.offset, l.offset, r.offset, *st, l.base.device_buffer, r.base.device_buffer, t.device_buffer],
-                )
-
-            elif t.op == TensorOp.MUL:
-                l = t.inputs[0]
-                r = t.inputs[1]
-                if l.base.device_buffer is None:
-                    l.base.device_buffer = allocator.allocate(l.base.size)
-                    allocator.copy_to_device(l.base.python_buffer, l.base.device_buffer)
-
-                if r.base.device_buffer is None:
-                    r.base.device_buffer = allocator.allocate(r.base.size)
-                    allocator.copy_to_device(r.base.python_buffer, r.base.device_buffer)
-
-                t.device_buffer = allocator.allocate(t.size)
-                kernname = f"mul_{'_'.join(map(str, t.shape))}"
-                strides = t.strides if t.strides else (0,)
-                kernel_manager.invoke(
-                    kernname, 1, t.shape if t.shape else 1, [t.offset, *strides, l.base.device_buffer, r.base.device_buffer, t.device_buffer]
-                )
-
-            elif t.op == TensorOp.RECIP:
-                r = t.inputs[0]
-                if r.base.device_buffer is None:
-                    r.base.device_buffer = allocator.allocate(r.base.size)
-                    allocator.copy_to_device(r.base.python_buffer, r.base.device_buffer)
-
-                t.device_buffer = allocator.allocate(t.size)
-                kernname = f"recip_{'_'.join(map(str, t.shape))}"
-                strides = t.strides if t.strides else (0,)
-                kernel_manager.invoke(kernname, 1, t.shape if t.shape else 1, [t.offset, *strides, r.base.device_buffer, t.device_buffer])
-
-            elif t.op == TensorOp.POW:
-                l = t.inputs[0]
-                r = t.inputs[1]
-                if l.base.device_buffer is None:
-                    l.base.device_buffer = allocator.allocate(l.base.size)
-                    allocator.copy_to_device(l.base.python_buffer, l.base.device_buffer)
-
-                if r.base.device_buffer is None:
-                    r.base.device_buffer = allocator.allocate(r.base.size)
-                    allocator.copy_to_device(r.base.python_buffer, r.base.device_buffer)
-
-                t.device_buffer = allocator.allocate(t.size)
-                kernname = f"pow_{'_'.join(map(str, t.shape))}"
-                strides = t.strides if t.strides else (0,)
-                kernel_manager.invoke(
-                    kernname, 1, t.shape if t.shape else 1, [t.offset, *strides, l.base.device_buffer, r.base.device_buffer, t.device_buffer]
-                )
-
-            if i == len(tensors) - 1:
-                allocator.copy_from_device(t.device_buffer, t.python_buffer)
+    def execute(self, insts: list[Instruction]) -> None:
+        for inst in insts:
+            # if type(inst) is AllocateDeviceMemory:
+            if type(inst) is AllocateDeviceMemory:
+                inst.t.dev_buffer = inst.t.dev.allocate(inst.t.size)
+            
+            elif type(inst) is CopyBufferPythonToDevice:
+                inst.t.dev.copy_to_device(inst.t.cpu_buffer, inst.t.dev_buffer)
+                
+            elif type(inst) is CopyBufferDeviceToPython:
+                inst.t.dev.copy_to_device(inst.t.dev_buffer, inst.t.cpu_buffer)
+                
+            elif type(inst) is CopyDevicePointer:
+                pass
+                
+            elif type(inst) is InvokeUnaryKernel:
+                params = (inst.src.offset, inst.dst.offset, *inst.src.strides, *inst.dst.strides, inst.src.dev_buffer, inst.dst.dev_buffer)
+                self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)
+                
+            elif type(inst) is InvokeBinaryKernel:
+                params = (inst.srcl.offset, inst.srcr.offset, inst.dst.offset, *inst.srcl.strides, *inst.srcr.strides, *inst.dst.strides, inst.srcl.dev_buffer, inst.srcr.dev_buffer, inst.dst.dev_buffer)
+                self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)

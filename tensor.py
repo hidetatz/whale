@@ -1,3 +1,4 @@
+from __future__ import annotations
 import collections
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -7,242 +8,136 @@ import os
 import time
 
 import backend
+import cuda
 import device
 import materialize
 from tensor_op import TensorOp
 
-
-class BackpropContext:
-    def forward(self, inputs):
-        self.inputs = inputs
-        self.generation = max([i.generation for i in inputs])
-        self.output = self._forward(inputs)
-        return self.output
-
-    def backward(self, grad):
-        return self._backward(grad)
-
-    def _forward(self, inputs):
-        raise NotImplementedError()
-
-    def _backward(self, grad):
-        raise NotImplementedError()
-
-
-class Add(BackpropContext):
-    def _forward(self, inputs):
-        return Tensor(
-            shape=inputs[0].shape,
-            op=TensorOp.ADD,
-            inputs=inputs,
-            dtype=inputs[0].dtype,
-        )
-
-    def _backward(self, grad):
-        return grad, grad
-
-
-class Mul(BackpropContext):
-    def _forward(self, inputs):
-        return Tensor(
-            shape=inputs[0].shape,
-            op=TensorOp.MUL,
-            inputs=inputs,
-            dtype=inputs[0].dtype,
-        )
-
-    def _backward(self, grad):
-        return grad * self.inputs[1], grad * self.inputs[0]
-
-
-class Recip(BackpropContext):
-    def _forward(self, inputs):
-        return Tensor(
-            shape=inputs[0].shape,
-            op=TensorOp.RECIP,
-            inputs=inputs,
-            dtype=inputs[0].dtype,
-        )
-
-    def _backward(self, grad):
-        return grad * (full(self.inputs[0].shape, -1.0) / (self.inputs[0] * self.inputs[0]))
-
-
-class Pow(BackpropContext):
-    def _forward(self, inputs):
-        return Tensor(
-            shape=inputs[0].shape,
-            op=TensorOp.POW,
-            inputs=inputs,
-            dtype=inputs[0].dtype,
-        )
-
-    def _backward(self, grad):
-        raise NotImplementedError()
-
-
-class GetItem(BackpropContext):
-    def __init__(self, newshape, newstrides, newoffset):
-        self.newshape = newshape
-        self.newstrides = newstrides
-        self.newoffset = newoffset
-
-    def _forward(self, inputs):
-        return Tensor(
-            shape=self.newshape,
-            strides=self.newstrides,
-            offset=self.newoffset,
-            op=TensorOp.GETITEM,
-            view=True,
-            materialized=True,
-            inputs=inputs,
-            dtype=inputs[0].dtype,
-        )
-
-    def _backward(self, grad):
-        raise NotImplementedError()
-
-
-class DType(Enum):
-    I32 = auto()
-    F32 = auto()
-
-    @classmethod
-    def from_type(cls, typ):
-        if typ == int:
-            return cls.I32
-        if typ == float:
-            return cls.F32
-
-
 class Tensor:
-    def __init__(self, data=[], shape=[], strides=[], offset=0, op=None, creator=None, inputs=[], materialized=False, view=False, dtype=None):
-        # actual data on python
-        self.python_buffer: device.PythonBuffer = device.PythonBuffer(data if data else None)
+    #
+    # constructors
+    # 
 
-        # actual data on gpu. Loaded when needed
-        self.device_buffer: device.GPUBuffer = None
-
-        # data type
-        self.dtype: DType = dtype
-
-        # dimensions
-        self.shape: list[int] = shape
-        self.strides: list[int] = strides if strides else tuple([math.prod(shape[i + 1 :]) for i in range(len(shape))])
-        self.offset: int = offset
-
-        # tensor operation
-        self.op: TensorOp = op
-        self.inputs: list[Tensor] = inputs
-
-        # backprop context
+    def __init__(self, arg: any):
         self.grad: Tensor = None
-        self.generation: int = 0
-        self.creator: BackpropContext = creator
-        self.materialized: bool = materialized
-
-        # view tensor params
-        self.view: bool = view
-
-    @property
-    def data(self):
-        return self.base.python_buffer.value
-
-    @property
-    def size(self):
-        return math.prod(self.shape)
-
-    @property
-    def ndim(self):
-        return len(self.shape)
-
-    @property
-    def base(self):
-        return self.inputs[0].base if self.view else self
-
-    def materialize(self):
-        if self.view:
-            self.base.materialize()
-            return
-
-        if not self.materialized:
-            materialize.Materializer.materialize(self)
+        self.materialized = False
+        
+        if type(arg) == int or type(arg) == float or type(arg) == list:
+            self.op = TensorOp.new_buffer_op(arg)
             self.materialized = True
 
-    def add(self, r):
-        return _from_calc(Add(), [self, r])
+        elif type(arg) == TensorOp:
+            self.op = arg
 
-    def sub(self, r):
-        # l-r is l+(-1*r)
-        return _from_calc(Add(), [self, _from_calc(Mul(), [full(r.shape, -1.0), r])])
+        else:
+            raise TypeError(f"cannot handle {type(arg)} to initialize Tensor")
 
-    def mul(self, r):
-        return _from_calc(Mul(), [self, r])
+    @classmethod
+    def full(cls, shape: tuple[int], val: float):
+        return Tensor(TensorOp.new_buffer_op([value] * math.prod(shape), shape=shape))
 
-    def div(self, r):
+    @classmethod
+    def full_like(cls, t: Tensor, val: float):
+        return full(t.shape, val)
+
+    #
+    # properties
+    # 
+
+    @property
+    def shape(self): return self.op.shape
+    @property
+    def strides(self): return self.op.strides
+    @property
+    def offset(self): return self.op.offset
+    @property
+    def size(self): return self.op.size
+    @property
+    def ndim(self): return self.op.ndim
+
+    def _is_scalar(self): return self.ndim == 0
+
+    #
+    # operators
+    # 
+
+    def add(self, r: Tensor):
+        return Tensor(self.op + r.op)
+
+    def sub(self, r: Tensor):
+        # l-r = l + (r*-1)
+        return self + (r * Tensor.full_like(r, -1))
+
+    def mul(self, r: Tensor):
+        return Tensor(self.op * r.op)
+
+    def div(self, r: Tensor):
         # l/r = l * (1/r)
-        return _from_calc(Mul(), [self, _from_calc(Recip(), [r])])
+        return self.op * r.recip()
 
-    def pow(self, r):
-        return _from_calc(Pow(), [self, r])
+    def recip(self):
+        return Tensor(self.op.recip())
 
-    def _getitem(self, indices):
-        if type(indices) != tuple:
-            indices = (indices,)
+    def pow(self, r: Tensor):
+        return Tensor(self.op ** r.op)
 
-        if self._is_scalar():
-            raise ValueError(f"cannot index on scalar: {self}")
+    # def _getitem(self, indices):
+    #     if type(indices) != tuple:
+    #         indices = (indices,)
 
-        if self.ndim < len(indices):
-            raise ValueError(f"too many index accessors specified")
+    #     if self._is_scalar():
+    #         raise ValueError(f"cannot index on scalar: {self}")
 
-        if Tensor in [type(i) for i in indices]:
-            return self._get_item__advanced(indices)
+    #     if self.ndim < len(indices):
+    #         raise ValueError(f"too many index accessors specified")
 
-        return self._get_item_basic(indices)
+    #     if Tensor in [type(i) for i in indices]:
+    #         return self._get_item__advanced(indices)
 
-    # numpy basic index
-    # https://numpy.org/doc/stable/user/basics.indexing.html#basic-indexing
-    def _get_item_basic(self, indices):
-        for i in range(self.ndim - len(indices)):
-            indices = indices + (slice(None, None, None),)
+    #     return self._get_item_basic(indices)
 
-        newshape = [0] * len(self.shape)
-        newstrides = [0] * len(self.strides)
-        newoffset = self.offset
+    # # numpy basic index
+    # # https://numpy.org/doc/stable/user/basics.indexing.html#basic-indexing
+    # def _get_item_basic(self, indices):
+    #     for i in range(self.ndim - len(indices)):
+    #         indices = indices + (slice(None, None, None),)
 
-        for i, idx in enumerate(indices):
-            if type(idx) == int:
-                if self.shape[i] - 1 < idx:
-                    raise ValueError(f"index out of bounds for axis {i} with size {self.shape[i]}")
+    #     newshape = [0] * len(self.shape)
+    #     newstrides = [0] * len(self.strides)
+    #     newoffset = self.offset
 
-                newoffset += idx * self.strides[i]
-                newshape[i] = -1  # dummy
-                newstrides[i] = -1  # dummy
+    #     for i, idx in enumerate(indices):
+    #         if type(idx) == int:
+    #             if self.shape[i] - 1 < idx:
+    #                 raise ValueError(f"index out of bounds for axis {i} with size {self.shape[i]}")
 
-            elif type(idx) == slice:
-                start = 0 if idx.start is None else idx.start
-                stop = self.shape[i] if idx.stop is None else idx.stop
-                step = 1 if idx.step is None else idx.step
-                if step == 0:
-                    raise ValueError(f"step in slice index must not be 0: {idx}")
+    #             newoffset += idx * self.strides[i]
+    #             newshape[i] = -1  # dummy
+    #             newstrides[i] = -1  # dummy
 
-                if self.shape[i] < start or stop < start:
-                    newshape[i] = 0
-                else:
-                    newshape[i] = (stop - start + step - 1) // step
+    #         elif type(idx) == slice:
+    #             start = 0 if idx.start is None else idx.start
+    #             stop = self.shape[i] if idx.stop is None else idx.stop
+    #             step = 1 if idx.step is None else idx.step
+    #             if step == 0:
+    #                 raise ValueError(f"step in slice index must not be 0: {idx}")
 
-                newstrides[i] = self.strides[i] * step
+    #             if self.shape[i] < start or stop < start:
+    #                 newshape[i] = 0
+    #             else:
+    #                 newshape[i] = (stop - start + step - 1) // step
 
-                if newshape[i] != 0:
-                    newoffset += start * self.strides[i]
+    #             newstrides[i] = self.strides[i] * step
 
-            else:
-                raise RuntimeError(f"unhandled index in basic index: {type(idx)}")
+    #             if newshape[i] != 0:
+    #                 newoffset += start * self.strides[i]
 
-        newshape = tuple([s for s in newshape if s != -1])
-        newstrides = tuple([s for s in newstrides if s != -1])
-        return _from_calc(GetItem(newshape, newstrides, newoffset), [self])
+    #         else:
+    #             raise RuntimeError(f"unhandled index in basic index: {type(idx)}")
+
+    #     newshape = tuple([s for s in newshape if s != -1])
+    #     newstrides = tuple([s for s in newstrides if s != -1])
+    #     return _from_calc(GetItem(newshape, newstrides, newoffset), [self])
 
     def __add__(self, r):
         return self.add(r)
@@ -259,19 +154,69 @@ class Tensor:
     def __pow__(self, r):
         return self.pow(r)
 
-    def __getitem__(self, indices):
-        return self._getitem(indices)
+    # def __getitem__(self, indices):
+    #     return self._getitem(indices)
 
-    def __matmul__(self, r):
-        return _from_calc(MATMUL, [self, r])
+    def __str__(self):
+        return f"Tensor({self.op})"
 
-    def _is_scalar(self):
-        return self.ndim == 0
+    def __repr__(self):
+        return self.__str__()
+
+    def __del__(self):
+        self.op.__del__()
+
+    #
+    # materialization
+    # 
+    
+    def materialize(self):
+        if not self.materialized:
+            materialize.Materializer.materialize(self.op)
+            self.materialized = True
+
+    def tolist(self):
+        if not self.materialized:
+            self.materialize()
+
+        if self.op.cpu_buffer is None:
+            self.op.cpu_buffer = device.CPUMemoryBuffer(None)
+        self.op.dev.copy_from_device(self.op.dev_buffer, self.op.cpu_buffer)
+
+        # calculate index combination by shape
+        indices = [list(c) for c in list(itertools.product(*[range(n) for n in self.shape]))]
+
+        # pick the actual value to be in the result by the index
+        vals = []
+        for idx in indices:
+            vals.append(self.op.cpu_buffer.raw[self.offset + sum([st * i for st, i in zip(self.strides, idx)])])
+
+        # early return on scalar
+        if len(self.shape) == 0:
+            return vals[0]
+
+        # do reshape manually
+        def _reshape(data, dims, start):
+            if len(dims) == 1:
+                return data[start : start + dims[0]]
+            else:
+                result = []
+                curdim = dims[0]
+                remaindims = dims[1:]
+                elems = math.prod(remaindims)
+
+                for i in range(curdim):
+                    result.append(_reshape(data, remaindims, start + i * elems))
+
+                return result
+
+        return _reshape(vals, self.shape, 0)
+
+    #
+    # back propagation
+    #
 
     def backprop(self):
-        if self.view:
-            self.base.backprop()
-
         if self.grad is None:
             self.grad = ones_like(self)
 
@@ -305,158 +250,34 @@ class Tensor:
     def backward(self):
         self.backprop()
 
-    def tolist(self):
-        if not self.materialized:
-            self.materialize()
-
-        # calculate index combination by shape
-        indices = [list(c) for c in list(itertools.product(*[range(n) for n in self.shape]))]
-
-        # pick the actual value to be in the result by the index
-        vals = []
-        for idx in indices:
-            vals.append(self.base.data[self.offset + sum([st * i for st, i in zip(self.strides, idx)])])
-
-        # early return on scalar
-        if len(self.shape) == 0:
-            return vals[0]
-
-        # do reshape manually
-        def _reshape(data, dims, start):
-            if len(dims) == 1:
-                return data[start : start + dims[0]]
-            else:
-                result = []
-                curdim = dims[0]
-                remaindims = dims[1:]
-                elems = math.prod(remaindims)
-
-                for i in range(curdim):
-                    result.append(_reshape(data, remaindims, start + i * elems))
-
-                return result
-
-        return _reshape(vals, self.shape, 0)
-
-    def str_as_graph(self):
-        def f(depth: int, t: Tensor):
-            indent = "    " * depth
-            trail_comma = "," if depth != 0 else ""
-
-            if not t.inputs:
-                return f"{indent}Tensor(view: {t.view}, op:{t.op}, shape:{t.shape}, strides: {t.strides}, offset: {t.offset}){trail_comma}"
-
-            input = "[\n" + "\n".join([f(depth + 1, i) for i in t.inputs]) + f"\n{indent}]"
-            return (
-                f"{indent}Tensor(view: {t.view}, op:{t.op}, shape:{t.shape}, strides: {t.strides}, offset: {t.offset}, input: {input}){trail_comma}"
-            )
-
-        return f(0, self)
-
-    def str_as_oneline(self):
-        return f"Tensor(view: {self.view}, op:{self.op}, shape:{self.shape}, strides:{self.strides} offset:{self.offset})"
-
-    def __str__(self):
-        if self.materialized:
-            return f"Tensor({self.tolist()})"
-
-        return self.str_as_graph()
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __del__(self):
-        if self.device_buffer:
-            # todo: free device_buffer
-            pass
-
-
-def _from_calc(calc, inputs):
-    t = calc.forward(inputs)
-    t.creator = calc
-    t.generation = calc.generation + 1
-    return t
-
-
-def tensor_with_shape(arr, shape):
-    strides = tuple([math.prod(shape[i + 1 :]) for i in range(len(shape))])
-    return Tensor(
-        data=arr,
-        shape=shape,
-        strides=strides,
-        offset=0,
-        op=TensorOp.CONST,
-        materialized=True,
-        dtype=DType.from_type(type(arr[0])),
-    )
-
-
-def array(arr):
-    if type(arr) == int or type(arr) == float:
-        return Tensor(data=[arr], op=TensorOp.CONST, materialized=True, dtype=DType.from_type(type(arr)))
-
-    elif type(arr) == list:
-        data = []
-        shape = []
-
-        def f(d, dim):
-            if type(d) != int and type(d) != float and type(d) != list:
-                raise ValueError(f"array must be a multi-dimensional array of int or float: {arr}")
-
-            if type(d) == int or type(d) == float:
-                data.append(d)
-                return
-
-            # d must be list here
-            length = len(d)
-            if len(shape) == dim:
-                shape.append(length)
-            else:
-                if length != shape[dim]:
-                    raise ValueError(f"array must be homogeneous: {arr}")
-
-            for elem in d:
-                f(elem, dim + 1)
-
-        f(arr, 0)
-        return tensor_with_shape(data, tuple(shape))
-
-
-def full(shape, value):
-    return tensor_with_shape([value] * math.prod(shape), shape)
-
-
-def ones_like(t):
-    return full(t.shape, 1.0)
-
-
-def zeros_like(t):
-    return full(t.shape, 0.0)
-
 
 if __name__ == "__main__":
-    t1 = array([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
-    t2 = array([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
-    t3 = t1[0, 1]
-    t4 = t2[1, 2]
-    t5 = t3 + t4
-    print(t3.tolist(), t4.tolist())
+    # t1 = array([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
+    # t2 = array([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
+    # t3 = t1[0, 1]
+    # t4 = t2[1, 2]
+    # t5 = t3 + t4
+    # print(t3.tolist(), t4.tolist())
     # print(t5)
-    t5.materialize()
-    print(t5)
+    # t5.materialize()
+    # print(t5)
     # t2.materialize()
     # print(t2.tolist())
-    # t1 = array([[1, 2, 3], [1, 2, 3]])
+    t1 = Tensor([[1, 2, 3], [1, 2, 3]])
+    t2 = Tensor([[4, 5, 6], [4, 5, 6]])
+    t3 = t1 + t2
+    t3.materialize()
+    print(t3.tolist())
     # print(t1)
     # t2 = t1[0, 1]
     # print(t2)
     # print(type(t2.tolist()))
-    # t2 = array([[4, 5, 6], [4, 5, 6]])
+    # t2 = Tensor([[4, 5, 6], [4, 5, 6]])
     # t3 = t1 + t2
-    # t4 = array([[7, 8, 9], [7, 8, 9]])
-    # t5 = t3 * t4
-    # t5.materialize()
-    # print(t5)
+    # # t4 = array([[7, 8, 9], [7, 8, 9]])
+    # # t5 = t3 * t4
+    # t3.materialize()
+    # print(t3)
 
     # t5.backprop()
     # t1.grad.materialize()
