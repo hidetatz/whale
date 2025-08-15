@@ -3,8 +3,10 @@ from ctypes import c_void_p
 from dataclasses import dataclass
 from enum import IntEnum, auto
 
+
 def to_kern_name(code: OpCode, dim: int) -> str:
     return f"{code.__str__().lower()}_dim{dim}"
+
 
 class OpCode(IntEnum):
     RECIP = auto()
@@ -15,11 +17,13 @@ class OpCode(IntEnum):
     def __str__(self):
         return self.name
 
+
 @dataclass
 class Kernel:
     name: str
     src: str
     func_pointer: c_void_p  # on C side
+
 
 class CodeGenerator:
     def generate_unary_kernel(self, code: OpCode, ndim: int):
@@ -57,6 +61,7 @@ class CodeGenerator:
         kern_body_lines = self.thread_idx_expr(ndim, param_cnt)
         kern_body_lines += self.kern_body(code, ndim)
         return kern_name, f"{kern_qual} {kern_name}({', '.join(param_exprs)}) {{\n{indent}{f"\n{indent}".join(kern_body_lines)}\n}}"
+
 
 class KernelManager:
     def __init__(self):

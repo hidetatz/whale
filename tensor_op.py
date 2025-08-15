@@ -6,8 +6,10 @@ import math
 import cuda
 import device
 
+
 def shape_to_strides(shape: list[int]):
     return tuple([math.prod(shape[i + 1 :]) for i in range(len(shape))])
+
 
 class TensorOpCode(IntEnum):
     _buffer_op_start = auto()
@@ -39,9 +41,13 @@ class TensorOpCode(IntEnum):
     def __str__(self):
         return self.name
 
+
 cuda_device = cuda.Device()
+
+
 def get_device():
     return cuda_device
+
 
 @dataclass
 class TensorOp:
@@ -57,7 +63,7 @@ class TensorOp:
     dev: device.Device
 
     @classmethod
-    def new_buffer_op(cls, data: any, shape: tuple(int)=None):
+    def new_buffer_op(cls, data: any, shape: tuple(int) = None):
         code = TensorOpCode.BUFFER
 
         # scalar
@@ -104,20 +110,30 @@ class TensorOp:
         # # t.creator = d
         # # t.generation = calc.generation + 1
         # return t
+
     @classmethod
     def new_unary_op(cls, d: DifferentiableUnaryCalc, src: TensorOp):
         return d.forward((src,))
 
     @property
-    def size(self): return math.prod(self.shape)
-    @property
-    def ndim(self): return len(self.shape)
-        
-    def recip(self): return TensorOp.new_unary_op(Recip(), self)
+    def size(self):
+        return math.prod(self.shape)
 
-    def __add__(self, r: TensorOp): return TensorOp.new_binary_op(Add(), self, r)
-    def __mul__(self, r: TensorOp): return TensorOp.new_binary_op(Mul(), self, r)
-    def __pow__(self, r: TensorOp): return TensorOp.new_binary_op(Pow(), self, r)
+    @property
+    def ndim(self):
+        return len(self.shape)
+
+    def recip(self):
+        return TensorOp.new_unary_op(Recip(), self)
+
+    def __add__(self, r: TensorOp):
+        return TensorOp.new_binary_op(Add(), self, r)
+
+    def __mul__(self, r: TensorOp):
+        return TensorOp.new_binary_op(Mul(), self, r)
+
+    def __pow__(self, r: TensorOp):
+        return TensorOp.new_binary_op(Pow(), self, r)
 
     def __str__(self):
         def f(depth: int, op: TensorOp):
@@ -129,7 +145,6 @@ class TensorOp:
 
             inputs = "[\n" + "\n".join([f(depth + 1, i) for i in op.inputs]) + f"\n{indent}]"
             return f"{indent}{op.str_oneline().rstrip(')')} inputs: {inputs}{trail_comma}"
-            
 
         return f(0, self)
 
@@ -143,6 +158,7 @@ class TensorOp:
         # todo: free the device buffer
         pass
 
+
 class Differentiable:
     def forward(self, inputs: tuple(TensorOp)):
         self.inputs = inputs
@@ -150,9 +166,15 @@ class Differentiable:
         self.output = self._forward(*inputs)
         return self.output
 
-    def backward(self, grad): return self._backward(grad)
-    def _forward(self, inputs): raise NotImplementedError()
-    def _backward(self, grad): raise NotImplementedError()
+    def backward(self, grad):
+        return self._backward(grad)
+
+    def _forward(self, inputs):
+        raise NotImplementedError()
+
+    def _backward(self, grad):
+        raise NotImplementedError()
+
 
 # unary
 class DifferentiableUnaryCalc(Differentiable):
@@ -160,33 +182,53 @@ class DifferentiableUnaryCalc(Differentiable):
         self.op = op
         return TensorOp(self._forward_code(), op.shape, shape_to_strides(op.shape), 0, (op,), None, None, self, op.generation, get_device())
 
-    def _backward(self, grad: TensorOp) -> tuple(TensorOp): raise NotImplementedError()
+    def _backward(self, grad: TensorOp) -> tuple(TensorOp):
+        raise NotImplementedError()
+
 
 class Recip(DifferentiableUnaryCalc):
-    def _forward_code(self): return TensorOpCode.RECIP
+    def _forward_code(self):
+        return TensorOpCode.RECIP
+
     def _backward(self, grad):
         return grad * (full(self.inputs[0].shape, -1.0) / (self.inputs[0] * self.inputs[0]))
+
 
 # binary
 class DifferentiableBinaryCalc(Differentiable):
     def _forward(self, l: TensorOp, r: TensorOp) -> TensorOp:
         self.l = l
         self.r = r
-        return TensorOp(self._forward_code(), l.shape, shape_to_strides(l.shape), 0, (l, r), None, None, self, max(l.generation, r.generation), get_device())
+        return TensorOp(
+            self._forward_code(), l.shape, shape_to_strides(l.shape), 0, (l, r), None, None, self, max(l.generation, r.generation), get_device()
+        )
 
-    def _backward(self, grad: TensorOp) -> tuple(TensorOp): raise NotImplementedError()
+    def _backward(self, grad: TensorOp) -> tuple(TensorOp):
+        raise NotImplementedError()
+
 
 class Add(DifferentiableBinaryCalc):
-    def _forward_code(self): return TensorOpCode.ADD
-    def _backward(self, grad: TensorOp): return grad, grad
+    def _forward_code(self):
+        return TensorOpCode.ADD
+
+    def _backward(self, grad: TensorOp):
+        return grad, grad
+
 
 class Mul(DifferentiableBinaryCalc):
-    def _forward_code(self): return TensorOpCode.MUL
-    def _backward(self, grad: TensorOp): return grad * self.r, grad * self.l
+    def _forward_code(self):
+        return TensorOpCode.MUL
+
+    def _backward(self, grad: TensorOp):
+        return grad * self.r, grad * self.l
+
 
 class Pow(DifferentiableBinaryCalc):
-    def _forward_code(self): return TensorOpCode.POW
-    def _backward(self, grad): raise NotImplementedError()
+    def _forward_code(self):
+        return TensorOpCode.POW
+
+    def _backward(self, grad):
+        raise NotImplementedError()
 
 
 # class GetItem(BackpropContext):
@@ -209,4 +251,3 @@ class Pow(DifferentiableBinaryCalc):
 
 #     def _backward(self, grad):
 #         raise NotImplementedError()
-

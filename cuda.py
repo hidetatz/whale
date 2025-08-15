@@ -5,6 +5,7 @@ import time
 import device
 import kernel
 
+
 class CUDA:
     def __init__(self):
         self.libcuda = CDLL("libcuda.so")
@@ -45,9 +46,10 @@ class CodeGenerator(kernel.CodeGenerator):
     def kern_qualifier(self, _) -> str:
         return 'extern "C" __global__ void'
 
-    def kern_param_ident(self, pname: str, typ=int|float, pointer=False, const=False, memory: str="host") -> str:
+    def kern_param_ident(self, pname: str, typ=int | float, pointer=False, const=False, memory: str = "host") -> str:
         tp = "int" if typ is int else "float"
-        if pointer: tp += "*"
+        if pointer:
+            tp += "*"
         return f"{tp} {pname}"
 
     def thread_idx_expr(self, ndim: int, params: int) -> list[str]:
@@ -55,7 +57,7 @@ class CodeGenerator(kernel.CodeGenerator):
             "int x = blockIdx.x * blockDim.x + threadIdx.x;",
             "int y = blockIdx.y * blockDim.y + threadIdx.y;",
             "int z = blockIdx.z * blockDim.z + threadIdx.z;",
-        ][:ndim if ndim else 1]
+        ][: ndim if ndim else 1]
 
         def toidx(ndim: int, pref: str):
             if ndim == 0 or ndim == 1:
@@ -82,6 +84,7 @@ class CodeGenerator(kernel.CodeGenerator):
             return ["dst[dst_idx] = powf(src_0[src_0_idx], src_1[src_1_idx]);"]
 
         raise RuntimeError(f"kern body is not defined on op {code}")
+
 
 class Device(device.Device):
     def allocate(self, length: int):
@@ -110,6 +113,7 @@ class Device(device.Device):
 
         cpu_buff.raw = [out[i] for i in range(dev_buff.length)]
 
+
 class PTXCompiler:
     def __init__(self, dir="/tmp"):
         self.dir = dir
@@ -133,6 +137,7 @@ class PTXCompiler:
         os.remove(ptx_path)
 
         return ptx_src
+
 
 class KernelManager(kernel.KernelManager):
     def __init__(self, dir="/tmp"):
@@ -158,8 +163,8 @@ class KernelManager(kernel.KernelManager):
 
         return fps
 
-    def invoke(self, kern_name: str, grid: int|tuple[int], block: int|tuple[int], params: tuple[any]):
-        def extract(p: int|tuple[int]):
+    def invoke(self, kern_name: str, grid: int | tuple[int], block: int | tuple[int], params: tuple[any]):
+        def extract(p: int | tuple[int]):
             if type(p) == int:
                 return (p, 1, 1)
             elif type(p) == list or type(p) == tuple:
@@ -176,7 +181,8 @@ class KernelManager(kernel.KernelManager):
 
         result = cuda.libcuda.cuLaunchKernel(
             self.get_kern(kern_name).func_pointer,
-            *extract(grid), *extract(block),
+            *extract(grid),
+            *extract(block),
             0,
             None,
             kernel_params,

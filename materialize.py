@@ -7,31 +7,37 @@ import backend
 import cuda
 import device
 import kernel
-from tensor_op import TensorOp,TensorOpCode
+from tensor_op import TensorOp, TensorOpCode
 
 dbg = os.getenv("WHALE_DEBUG", "") != ""
+
 
 class Instruction:
     def __str__(self):
         params = ", ".join(f"{k}={v}" for k, v in self.__dict__.items() if k != "instid")
         return f"<{self.__class__.__name__}({params})>"
 
+
 @dataclass
 class AllocateDeviceMemory(Instruction):
     t: TensorOp
+
 
 @dataclass
 class CopyBufferPythonToDevice(Instruction):
     t: TensorOp
 
+
 @dataclass
 class CopyBufferDeviceToPython(Instruction):
     t: TensorOp
+
 
 @dataclass
 class CopyDevicePointer(Instruction):
     src: TensorOp
     dst: TensorOp
+
 
 @dataclass
 class InvokeUnaryKernel(Instruction):
@@ -39,12 +45,14 @@ class InvokeUnaryKernel(Instruction):
     dst: TensorOp
     src: TensorOp
 
+
 @dataclass
 class InvokeBinaryKernel(Instruction):
     kern_name: str
     dst: TensorOp
     srcl: TensorOp
     srcr: TensorOp
+
 
 class Materializer:
     # materializer is singleton for caching some info
@@ -164,20 +172,30 @@ class Materializer:
             # if type(inst) is AllocateDeviceMemory:
             if type(inst) is AllocateDeviceMemory:
                 inst.t.dev_buffer = inst.t.dev.allocate(inst.t.size)
-            
+
             elif type(inst) is CopyBufferPythonToDevice:
                 inst.t.dev.copy_to_device(inst.t.cpu_buffer, inst.t.dev_buffer)
-                
+
             elif type(inst) is CopyBufferDeviceToPython:
                 inst.t.dev.copy_to_device(inst.t.dev_buffer, inst.t.cpu_buffer)
-                
+
             elif type(inst) is CopyDevicePointer:
                 pass
-                
+
             elif type(inst) is InvokeUnaryKernel:
                 params = (inst.src.offset, inst.dst.offset, *inst.src.strides, *inst.dst.strides, inst.src.dev_buffer, inst.dst.dev_buffer)
                 self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)
-                
+
             elif type(inst) is InvokeBinaryKernel:
-                params = (inst.srcl.offset, inst.srcr.offset, inst.dst.offset, *inst.srcl.strides, *inst.srcr.strides, *inst.dst.strides, inst.srcl.dev_buffer, inst.srcr.dev_buffer, inst.dst.dev_buffer)
+                params = (
+                    inst.srcl.offset,
+                    inst.srcr.offset,
+                    inst.dst.offset,
+                    *inst.srcl.strides,
+                    *inst.srcr.strides,
+                    *inst.dst.strides,
+                    inst.srcl.dev_buffer,
+                    inst.srcr.dev_buffer,
+                    inst.dst.dev_buffer,
+                )
                 self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)

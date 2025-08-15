@@ -13,15 +13,16 @@ import device
 import materialize
 from tensor_op import TensorOp
 
+
 class Tensor:
     #
     # constructors
-    # 
+    #
 
     def __init__(self, arg: any):
         self.grad: Tensor = None
         self.materialized = False
-        
+
         if type(arg) == int or type(arg) == float or type(arg) == list:
             self.op = TensorOp.new_buffer_op(arg)
             self.materialized = True
@@ -42,24 +43,34 @@ class Tensor:
 
     #
     # properties
-    # 
+    #
 
     @property
-    def shape(self): return self.op.shape
-    @property
-    def strides(self): return self.op.strides
-    @property
-    def offset(self): return self.op.offset
-    @property
-    def size(self): return self.op.size
-    @property
-    def ndim(self): return self.op.ndim
+    def shape(self):
+        return self.op.shape
 
-    def _is_scalar(self): return self.ndim == 0
+    @property
+    def strides(self):
+        return self.op.strides
+
+    @property
+    def offset(self):
+        return self.op.offset
+
+    @property
+    def size(self):
+        return self.op.size
+
+    @property
+    def ndim(self):
+        return self.op.ndim
+
+    def _is_scalar(self):
+        return self.ndim == 0
 
     #
     # operators
-    # 
+    #
 
     def add(self, r: Tensor):
         return Tensor(self.op + r.op)
@@ -79,7 +90,7 @@ class Tensor:
         return Tensor(self.op.recip())
 
     def pow(self, r: Tensor):
-        return Tensor(self.op ** r.op)
+        return Tensor(self.op**r.op)
 
     # def _getitem(self, indices):
     #     if type(indices) != tuple:
@@ -168,8 +179,8 @@ class Tensor:
 
     #
     # materialization
-    # 
-    
+    #
+
     def materialize(self):
         if not self.materialized:
             materialize.Materializer.materialize(self.op)
