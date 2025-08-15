@@ -147,7 +147,8 @@ class Materializer:
             else:
                 continue
 
-            kerns.append(kernel.Kernel(name, src, None))
+            if name not in [k.name for k in kerns]:
+                kerns.append(kernel.Kernel(name, src, None))
 
         return kerns
 

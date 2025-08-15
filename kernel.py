@@ -74,6 +74,7 @@ class KernelManager:
         if new_kerns:
             fps = self.load_kern_ptr(new_kerns)
             self.kerns.extend([Kernel(nk.name, nk.src, fp) for nk, fp in zip(new_kerns, fps)])
+        self.kerns.extend(new_kerns)
 
     def get_kern(self, name):
         for k in self.kerns:
