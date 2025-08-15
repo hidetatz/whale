@@ -87,7 +87,7 @@ class TensorOp:
                     raise ValueError(f"array must be a multi-dimensional array of int or float: {data}")
 
                 if type(d) == int or type(d) == float:
-                    flattened.append(d if type(d) == float else int(d))
+                    flattened.append(d if type(d) == float else float(d))
                     return
 
                 # d must be list here
