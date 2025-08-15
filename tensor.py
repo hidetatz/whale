@@ -83,7 +83,7 @@ class Tensor:
     def mul(self, r: Tensor):
         return Tensor(self.op * r.op)
 
-    def div(self, r: Tensor):
+    def truediv(self, r: Tensor):
         # l/r = l * (1/r)
         return self.op * r.recip()
 
@@ -161,7 +161,7 @@ class Tensor:
         return self.mul(r)
 
     def __truediv__(self, r):
-        return self.div(r)
+        return self.truediv(r)
 
     def __pow__(self, r):
         return self.pow(r)
