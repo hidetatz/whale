@@ -85,7 +85,7 @@ class Tensor:
 
     def truediv(self, r: Tensor):
         # l/r = l * (1/r)
-        return self.op * r.recip()
+        return self * r.recip()
 
     def recip(self):
         return Tensor(self.op.recip())
