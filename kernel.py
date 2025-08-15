@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from ctypes import c_void_p
 from dataclasses import dataclass
 from enum import IntEnum, auto

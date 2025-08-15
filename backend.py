@@ -1,5 +1,5 @@
-from enum import Enum, auto
 import os
+from enum import Enum, auto
 
 
 class Backend(Enum):

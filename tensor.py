@@ -1,11 +1,12 @@
 from __future__ import annotations
+
 import collections
-from dataclasses import dataclass
-from enum import Enum, auto
 import itertools
 import math
 import os
 import time
+from dataclasses import dataclass
+from enum import Enum, auto
 
 import backend
 import cuda

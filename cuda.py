@@ -1,6 +1,6 @@
-from ctypes import CDLL, byref, cast, c_void_p, c_int, c_uint, c_float, sizeof, pointer
 import os
 import time
+from ctypes import CDLL, byref, c_float, c_int, c_uint, c_void_p, cast, pointer, sizeof
 
 import device
 import kernel

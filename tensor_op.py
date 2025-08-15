@@ -1,7 +1,8 @@
 from __future__ import annotations
+
+import math
 from dataclasses import dataclass
 from enum import IntEnum, auto
-import math
 
 import cuda
 import device
