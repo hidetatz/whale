@@ -69,13 +69,13 @@ class TensorOp:
 
         # scalar
         if type(data) == float:
-            return TensorOp(code, (), (), 0, (), buffer.PythonBuffer([data]), None, None, 0, get_device())
+            return TensorOp(code, (), (), 0, (), device.CPUMemoryBuffer([data]), None, None, 0, get_device())
 
         if type(data) == int:
-            return TensorOp(code, (), (), 0, (), buffer.PythonBuffer([float(data)]), None, None, 0, get_device())
+            return TensorOp(code, (), (), 0, (), device.CPUMemoryBuffer([float(data)]), None, None, 0, get_device())
 
         if shape is not None:
-            return TensorOp(code, shape, shape_to_strides(shape), 0, (), buffer.PythonBuffer([data]), None, None, 0, get_device())
+            return TensorOp(code, shape, shape_to_strides(shape), 0, (), device.CPUMemoryBuffer(data), None, None, 0, get_device())
 
         # tensor
         if type(data) == list:
