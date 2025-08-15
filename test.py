@@ -7,7 +7,7 @@ import tensor
 
 class WhaleTest(unittest.TestCase):
     def get_tensor(self, mod, arr):
-        return tensor.array(arr) if mod == "whale" else torch.tensor(arr, requires_grad=True)
+        return tensor.Tensor(arr) if mod == "whale" else torch.tensor(arr, requires_grad=True)
 
     def backprop(self, mod, t):
         return t.backprop() if mod == "whale" else t.backward()
