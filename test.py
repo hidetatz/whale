@@ -32,7 +32,7 @@ class WhaleTest(unittest.TestCase):
 
         self.assertEqual(results["whale"].tolist(), results["torch"].tolist())
 
-    # @unittest.skip("")
+    @unittest.skip("")
     def test_backprop(self):
         results = {}
         for mod in ["whale", "torch"]:

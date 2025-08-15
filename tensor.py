@@ -275,11 +275,23 @@ if __name__ == "__main__":
     # print(t5)
     # t2.materialize()
     # print(t2.tolist())
-    t1 = Tensor([[1, 2, 3], [1, 2, 3]])
-    t2 = Tensor([[4, 5, 6], [4, 5, 6]])
-    t3 = t1 + t2
-    t3.materialize()
-    print(t3.tolist())
+    t1 = Tensor([1.0, 2.0, 3.0])
+    t2 = Tensor([4.0, 5.0, 6.0])
+    t3 = Tensor([7.0, 8.0, 9.0])
+    t4 = Tensor([10.0, 11.0, 12.0])
+    t5 = Tensor([13.0, 14.0, 15.0])
+    t6 = Tensor([0.0, 2.0, 4.0])
+    # print(t1.op.cpu_buffer)
+
+    result = t1 + t2 * t3 - t4 / t5**t6
+    # result = t1 - t2
+    result.materialize()
+    print(result.tolist())
+    # t1 = Tensor([[1, 2, 3], [1, 2, 3]])
+    # t2 = Tensor([[4, 5, 6], [4, 5, 6]])
+    # t3 = t1 + t2
+    # t3.materialize()
+    # print(t3.tolist())
     # print(t1)
     # t2 = t1[0, 1]
     # print(t2)
