@@ -80,7 +80,7 @@ class Differentiable:
 
 
 # unary
-class DifferentiableUnaryCalc(Differentiable):
+class DifferentiableUnary(Differentiable):
     def _forward(self, src: Tensor) -> Tensor:
         self.src = src
         return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self, generation=src.generation)
@@ -89,7 +89,7 @@ class DifferentiableUnaryCalc(Differentiable):
         raise NotImplementedError()
 
 
-class Recip(DifferentiableUnaryCalc):
+class Recip(DifferentiableUnary):
     def _forward_code(self):
         return TensorOpCode.RECIP
 
@@ -98,7 +98,7 @@ class Recip(DifferentiableUnaryCalc):
 
 
 # binary
-class DifferentiableBinaryCalc(Differentiable):
+class DifferentiableBinary(Differentiable):
     def _forward(self, l: TensorOp, r: TensorOp) -> TensorOp:
         self.l = l
         self.r = r
@@ -108,7 +108,7 @@ class DifferentiableBinaryCalc(Differentiable):
         raise NotImplementedError()
 
 
-class Add(DifferentiableBinaryCalc):
+class Add(DifferentiableBinary):
     def _forward_code(self):
         return TensorOpCode.ADD
 
@@ -116,7 +116,7 @@ class Add(DifferentiableBinaryCalc):
         return grad, grad
 
 
-class Mul(DifferentiableBinaryCalc):
+class Mul(DifferentiableBinary):
     def _forward_code(self):
         return TensorOpCode.MUL
 
@@ -124,7 +124,7 @@ class Mul(DifferentiableBinaryCalc):
         return grad * self.r, grad * self.l
 
 
-class Pow(DifferentiableBinaryCalc):
+class Pow(DifferentiableBinary):
     def _forward_code(self):
         return TensorOpCode.POW
 
@@ -241,11 +241,11 @@ class Tensor:
         return Tensor(data, shape=shape)
 
     @classmethod
-    def new_binary_op(cls, d: DifferentiableBinaryCalc, l: Tensor, r: Tensor):
+    def new_binary_op(cls, d: DifferentiableBinary, l: Tensor, r: Tensor):
         return d.forward((l, r))
 
     @classmethod
-    def new_unary_op(cls, d: DifferentiableUnaryCalc, src: TensorOp):
+    def new_unary_op(cls, d: DifferentiableUnary, src: TensorOp):
         return d.forward((src,))
 
     @classmethod
