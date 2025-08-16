@@ -78,6 +78,8 @@ class CodeGenerator(kernel.CodeGenerator):
     def kern_body(self, code: kernel.OpCode, ndim: int) -> list[str]:
         if code == kernel.OpCode.RECIP:
             return ["dst[dst_idx] = 1.0f / src_0[src_0_idx];"]
+        if code == kernel.OpCode.LOG:
+            return ["dst[dst_idx] = log(src_0[src_0_idx]);"]
         if code == kernel.OpCode.ADD:
             return ["dst[dst_idx] = src_0[src_0_idx] + src_1[src_1_idx];"]
         if code == kernel.OpCode.MUL:

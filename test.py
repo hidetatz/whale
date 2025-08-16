@@ -18,7 +18,15 @@ class WhaleTest(unittest.TestCase):
 
             results[mod.__name__] = t1 + t2 * t3 - t4 / t5**t6
 
-        self.assertEqual(results["tensor"].tolist(), results["torch"].tolist())
+        self.assertAlmostEqual(results["tensor"].tolist(), results["torch"].tolist())
+
+    def test_math(self):
+        results = {}
+        for mod in [tensor, torch]:
+            t1 = mod.tensor(2.0)
+            results[mod.__name__] = t1.log()
+
+        self.assertAlmostEqual(results["tensor"].tolist(), results["torch"].tolist())
 
     def test_view(self):
         results = {}

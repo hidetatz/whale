@@ -14,6 +14,7 @@ class OpCode(IntEnum):
     ADD = auto()
     MUL = auto()
     POW = auto()
+    LOG = auto()
 
     def __str__(self):
         return self.name

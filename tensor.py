@@ -38,6 +38,7 @@ class TensorOpCode(IntEnum):
 
     _unary_op_start = auto()
     RECIP = auto()
+    LOG = auto()
     _unary_op_end = auto()
 
     _binary_op_start = auto()
@@ -103,6 +104,12 @@ class Recip(DifferentiableUnary):
     def _backward(self, grad):
         return grad * (Tensor.full_like(self.src, -1.0) / (self.src * self.src))
 
+class Log(DifferentiableUnary):
+    def _forward_code(self):
+        return TensorOpCode.LOG
+
+    def _backward(self, grad):
+        return grad / self.src
 
 # binary
 class DifferentiableBinary(Differentiable):
@@ -323,6 +330,9 @@ class Tensor:
 
     def recip(self):
         return Tensor.new_unary_op(Recip(), self)
+
+    def log(self):
+        return Tensor.new_unary_op(Log(), self)
 
     def pow(self, r: Tensor):
         return Tensor.new_binary_op(Pow(), self, r)
@@ -641,6 +651,7 @@ class Materializer:
             TensorOpCode.ADD: kernel.OpCode.ADD,
             TensorOpCode.MUL: kernel.OpCode.MUL,
             TensorOpCode.POW: kernel.OpCode.POW,
+            TensorOpCode.LOG: kernel.OpCode.LOG,
         }
         kerns: list[kernel.Kernel] = []
         for t in tensors:
