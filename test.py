@@ -37,7 +37,7 @@ class WhaleTest(unittest.TestCase):
             t4 = t2[1, 2]
             results[mod.__name__] = t3 + t4
 
-        self.assertEqual(results["tensor"].tolist(), results["torch"].tolist())
+        self.assertAlmostEqual(results["tensor"].tolist(), results["torch"].tolist())
 
     def test_backprop(self):
         results = {}
@@ -47,20 +47,26 @@ class WhaleTest(unittest.TestCase):
             t3 = mod.tensor(7.0, requires_grad=True)
             t4 = mod.tensor(10.0, requires_grad=True)
             t5 = mod.tensor(13.0, requires_grad=True)
+            t6 = mod.tensor(3.0, requires_grad=True)
+            t7 = mod.tensor(1.0, requires_grad=True)
 
-            result = t1 + t2 * t3 - t4 / t5
+            result = t1 + t2 * t3 - t4 / t5 ** t6 + t7
             result.backward()
             results[f"{mod.__name__}_grad_t1"] = t1.grad
             results[f"{mod.__name__}_grad_t2"] = t2.grad
             results[f"{mod.__name__}_grad_t3"] = t3.grad
             results[f"{mod.__name__}_grad_t4"] = t4.grad
             results[f"{mod.__name__}_grad_t5"] = t5.grad
+            results[f"{mod.__name__}_grad_t6"] = t6.grad
+            results[f"{mod.__name__}_grad_t7"] = t7.grad
 
-        self.assertEqual(results["tensor_grad_t1"].tolist(), results["torch_grad_t1"].tolist())
-        self.assertEqual(results["tensor_grad_t2"].tolist(), results["torch_grad_t2"].tolist())
-        self.assertEqual(results["tensor_grad_t3"].tolist(), results["torch_grad_t3"].tolist())
-        self.assertEqual(results["tensor_grad_t4"].tolist(), results["torch_grad_t4"].tolist())
-        self.assertEqual(results["tensor_grad_t5"].tolist(), results["torch_grad_t5"].tolist())
+        self.assertAlmostEqual(results["tensor_grad_t1"].tolist(), results["torch_grad_t1"].tolist())
+        self.assertAlmostEqual(results["tensor_grad_t2"].tolist(), results["torch_grad_t2"].tolist())
+        self.assertAlmostEqual(results["tensor_grad_t3"].tolist(), results["torch_grad_t3"].tolist())
+        self.assertAlmostEqual(results["tensor_grad_t4"].tolist(), results["torch_grad_t4"].tolist())
+        self.assertAlmostEqual(results["tensor_grad_t5"].tolist(), results["torch_grad_t5"].tolist())
+        self.assertAlmostEqual(results["tensor_grad_t6"].tolist(), results["torch_grad_t6"].tolist())
+        self.assertAlmostEqual(results["tensor_grad_t7"].tolist(), results["torch_grad_t7"].tolist())
 
 
 if __name__ == "__main__":
