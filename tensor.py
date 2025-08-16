@@ -142,8 +142,10 @@ class Pow(DifferentiableBinary):
     def _forward_code(self):
         return TensorOpCode.POW
 
-    def _backward(self, grad):
-        raise NotImplementedError()
+    def _backward(self, grad: Tensor) -> Tensor:
+        lgrad = grad * self.r * (self.l ** (self.r - Tensor.full_like(self.r, 1)))
+        rgrad = grad * (self.l ** self.r) * self.l.log()
+        return lgrad, rgrad
 
 # view
 class DifferentiableView(Differentiable):
