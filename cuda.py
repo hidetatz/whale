@@ -100,7 +100,6 @@ class Device(device.Device):
 
     def free(self, dev_buff: device.DeviceMemoryBuffer):
         cuda.libcuda.cuMemFree(dev_buff.ptr)
-        del gpu_buff
 
     def copy_to_device(self, cpu_buff: device.CPUMemoryBuffer, dev_buff: device.DeviceMemoryBuffer):
         result = cuda.libcuda.cuMemcpyHtoD(dev_buff.ptr, (c_float * dev_buff.length)(*cpu_buff.raw), dev_buff.size)
