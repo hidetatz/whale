@@ -615,20 +615,20 @@ class Materializer:
 
     def linearize(self, t: Tensor):
         tensors = []
-        seen = []
+        seen = set()
 
         def dfs(_t: Tensor):
             if _t in seen:
                 return
 
-            seen.append(_t)
-            tensors.append(_t)
+            seen.add(_t)
 
             for i in _t.inputs:
                 dfs(i)
 
+            tensors.append(_t)
+
         dfs(t)
-        tensors.reverse()
         return tensors
 
     def generate_kernels(self, tensors: list[Tensor]) -> list[kernel.Kernel]:
@@ -714,12 +714,10 @@ def tensor(arr, requires_grad=False):
     return Tensor(arr)
 
 if __name__ == "__main__":
-    t1 = Tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
-    t2 = Tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
-    t3 = t1[0, 1]
-    t4 = t2[1, 2]
-    t5 = t3 + t4
-    print(t5.tolist())
+    # t1 = Tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
+    # t2 = Tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
+    t3 = Tensor([0.1])
+    print(t3.shape)
     # print(t5)
     # t5.materialize()
     # print(t5)
