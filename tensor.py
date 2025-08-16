@@ -70,7 +70,7 @@ class TensorOpCode(IntEnum):
 
 
 class Differentiable:
-    def forward(self, inputs: tuple(TensorOp)):
+    def forward(self, inputs: tuple(Tensor)):
         self.inputs = inputs
         self.generation = max([i.generation for i in inputs])
         self.output = self._forward(*inputs)
@@ -270,11 +270,11 @@ class Tensor:
         return d.forward((l, r))
 
     @classmethod
-    def new_unary_op(cls, d: DifferentiableUnary, src: TensorOp) -> Tensor:
+    def new_unary_op(cls, d: DifferentiableUnary, src: Tensor) -> Tensor:
         return d.forward((src,))
 
     @classmethod
-    def new_view_op(cls, d: DifferentiableView, src: TensorOp) -> Tensor:
+    def new_view_op(cls, d: DifferentiableView, src: Tensor) -> Tensor:
         return d.forward((src))
 
     @classmethod
