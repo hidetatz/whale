@@ -197,7 +197,7 @@ class Tensor:
 
         if self.op.cpu_buffer is None:
             self.op.cpu_buffer = device.CPUMemoryBuffer(None)
-        self.op.dev.copy_from_device(self.op.dev_buffer, self.op.cpu_buffer)
+            self.op.dev.copy_from_device(self.op.dev_buffer, self.op.cpu_buffer)
 
         # calculate index combination by shape
         indices = [list(c) for c in list(itertools.product(*[range(n) for n in self.shape]))]
