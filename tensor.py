@@ -42,6 +42,10 @@ class Tensor:
     def full_like(cls, t: Tensor, val: float):
         return Tensor.full(t.shape, val)
 
+    @classmethod
+    def ones_like(cls, t: Tensor):
+        return Tensor.full_like(t, 1.0)
+
     #
     # properties
     #
