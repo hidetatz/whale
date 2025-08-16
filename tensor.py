@@ -419,7 +419,7 @@ class Tensor:
         return f(0, self)
 
     def str_oneline(self):
-        return f"Tensor(code: {self.code} {self.shape}_{self.strides}_{self.offset} py_buff:{'o' if self.cpu_buffer else 'x'} dev_buff:{'o' if self.dev_buffer else 'x'})"
+        return f"Tensor(code: {self.code} {self.shape}_{self.strides}_{self.offset} cpu_buff:{self.cpu_buffer.raw if self.cpu_buffer else 'x'} dev_buff:{'o' if self.dev_buffer else 'x'})"
 
     def __repr__(self):
         return self.__str__()
