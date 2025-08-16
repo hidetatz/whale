@@ -50,7 +50,7 @@ class WhaleTest(unittest.TestCase):
             t6 = mod.tensor(3.0, requires_grad=True)
             t7 = mod.tensor(1.0, requires_grad=True)
 
-            result = t1 + t2 * t3 - t4 / t5 ** t6 + t7
+            result = t1 + t2 * t3 - t4 / t5**t6 + t7
             result.backward()
             results[f"{mod.__name__}_grad_t1"] = t1.grad
             results[f"{mod.__name__}_grad_t2"] = t2.grad

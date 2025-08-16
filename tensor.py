@@ -104,12 +104,14 @@ class Recip(DifferentiableUnary):
     def _backward(self, grad):
         return grad * (Tensor.full_like(self.src, -1.0) / (self.src * self.src))
 
+
 class Log(DifferentiableUnary):
     def _forward_code(self):
         return TensorOpCode.LOG
 
     def _backward(self, grad):
         return grad / self.src
+
 
 # binary
 class DifferentiableBinary(Differentiable):
@@ -144,13 +146,15 @@ class Pow(DifferentiableBinary):
 
     def _backward(self, grad: Tensor) -> Tensor:
         lgrad = grad * self.r * (self.l ** (self.r - Tensor.full_like(self.r, 1)))
-        rgrad = grad * (self.l ** self.r) * self.l.log()
+        rgrad = grad * (self.l**self.r) * self.l.log()
         return lgrad, rgrad
+
 
 # view
 class DifferentiableView(Differentiable):
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         raise NotImplementedError()
+
 
 class ViewAs(Differentiable):
     def __init__(self, shape: tuple[int], strides: tuple[int], offset: int):
@@ -161,10 +165,19 @@ class ViewAs(Differentiable):
 
     def _forward(self, src: Tensor) -> Tensor:
         self.src = src
-        return Tensor(TensorOpCode.VIEW_AS, shape=self.shape, strides=self.strides, offset=self.offset, inputs=(src,), backprop_ctx=self, generation=src.generation)
+        return Tensor(
+            TensorOpCode.VIEW_AS,
+            shape=self.shape,
+            strides=self.strides,
+            offset=self.offset,
+            inputs=(src,),
+            backprop_ctx=self,
+            generation=src.generation,
+        )
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         raise NotImplementedError()
+
 
 class Tensor:
     #
@@ -710,8 +723,10 @@ class Materializer:
             if dbg:
                 print(f"executed: {inst}")
 
+
 def tensor(arr, requires_grad=False):
     return Tensor(arr)
+
 
 if __name__ == "__main__":
     # t1 = Tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
