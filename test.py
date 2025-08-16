@@ -20,6 +20,17 @@ class WhaleTest(unittest.TestCase):
 
         self.assertEqual(results["tensor"].tolist(), results["torch"].tolist())
 
+    def test_view(self):
+        results = {}
+        for mod in [tensor, torch]:
+            t1 = mod.tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
+            t2 = mod.tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
+            t3 = t1[0, 1]
+            t4 = t2[1, 2]
+            results[mod.__name__] = t3 + t4
+
+        self.assertEqual(results["tensor"].tolist(), results["torch"].tolist())
+
     def test_backprop(self):
         results = {}
         for mod in [tensor, torch]:
