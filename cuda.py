@@ -60,7 +60,9 @@ class CodeGenerator(kernel.CodeGenerator):
         ][: ndim if ndim else 1]
 
         def toidx(ndim: int, pref: str):
-            if ndim == 0 or ndim == 1:
+            if ndim == 0:
+                return f"int {pref}_idx = {pref}_offset + x * 1;"
+            elif ndim == 1:
                 return f"int {pref}_idx = {pref}_offset + x * {pref}_stride0;"
             elif ndim == 2:
                 return f"int {pref}_idx = {pref}_offset + x * {pref}_stride0 + y * {pref}_stride1;"
@@ -168,7 +170,7 @@ class KernelManager(kernel.KernelManager):
             if type(p) == int:
                 return (p, 1, 1)
             elif type(p) == list or type(p) == tuple:
-                return (p[0], p[1] if 1 < len(p) else 1, p[2] if 2 < len(p) else 1)
+                return (p[0] if 0 < len(p) else 1, p[1] if 1 < len(p) else 1, p[2] if 2 < len(p) else 1)
 
         kernel_params = (c_void_p * len(params))()
         for i, p in enumerate(params):
