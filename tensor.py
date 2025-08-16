@@ -247,24 +247,8 @@ class Tensor:
 
             f(data, 0)
 
-            if len(flattened) == 1:
-                self.shape = ()
-                self.strides = ()
-                self.cpu_buffer = device.CPUMemoryBuffer(flattened)
-                return
-
-            # if data is vector and shape is passed, use the shape
-            if len(actual_shape) == 1 and shape is not None and isinstance(shape, list):
-                if math.prod(shape) != len(flattened):
-                    raise RuntimeError(f"shape unmatch: got {shape} for size {len(flattened)}")
-
-                self.shape = shape
-                self.strides = shape_to_strides(shape)
-                self.cpu_buffer = device.CPUMemoryBuffer(flattened)
-                return
-
-            self.shape = tuple(actual_shape)
-            self.strides = shape_to_strides(actual_shape)
+            self.shape = shape if shape is not None else tuple(actual_shape)
+            self.strides = shape_to_strides(self.shape)
             self.cpu_buffer = device.CPUMemoryBuffer(flattened)
             return
 
