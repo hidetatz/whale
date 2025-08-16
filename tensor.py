@@ -85,7 +85,7 @@ class DifferentiableUnary(Differentiable):
         self.src = src
         return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self, generation=src.generation)
 
-    def _backward(self, grad: TensorOp) -> tuple(TensorOp):
+    def _backward(self, grad: Tensor) -> tuple(Tensor):
         raise NotImplementedError()
 
 
@@ -99,12 +99,12 @@ class Recip(DifferentiableUnary):
 
 # binary
 class DifferentiableBinary(Differentiable):
-    def _forward(self, l: TensorOp, r: TensorOp) -> TensorOp:
+    def _forward(self, l: Tensor, r: Tensor) -> Tensor:
         self.l = l
         self.r = r
         return Tensor(self._forward_code(), shape=l.shape, inputs=(l, r), backprop_ctx=self, generation=max(l.generation, r.generation))
 
-    def _backward(self, grad: TensorOp) -> tuple(TensorOp):
+    def _backward(self, grad: Tensor) -> tuple(Tensor):
         raise NotImplementedError()
 
 
