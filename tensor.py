@@ -165,7 +165,7 @@ class DifferentiableView(Differentiable):
             shape=self.shape,
             strides=self.strides,
             offset=self.offset,
-            valid_area=self.valid_area, 
+            valid_area=self.valid_area,
             inputs=(src,),
             backprop_ctx=self,
             generation=src.generation,
@@ -179,18 +179,18 @@ class Crop(DifferentiableView):
     def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], crop_area: tuple[tuple[int, int]]):
         self.crop_area = crop_area
         super().__init__(shape, strides, offset, valid_area)
-        
+
     def _backward(self, grad: Tensor) -> tuple(Tensor):
-        return grad.pad(tuple([(c[0], s-c[1]) for s, c in zip(self.src.shape, self.crop_area)]))
+        return grad.pad(tuple([(c[0], s - c[1]) for s, c in zip(self.src.shape, self.crop_area)]))
 
 
 class Pad(DifferentiableView):
     def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], padding: tuple[tuple[int, int]]):
         self.padding = padding
         super().__init__(shape, strides, offset, valid_area)
-        
+
     def _backward(self, grad: Tensor) -> tuple(Tensor):
-        return grad.crop(tuple([(p[0], s+p[1]) for s, p in zip(self.src.shape, self.padding)]))
+        return grad.crop(tuple([(p[0], s + p[1]) for s, p in zip(self.src.shape, self.padding)]))
 
 
 class Tensor:
@@ -204,7 +204,7 @@ class Tensor:
         shape: tuple[int] = None,
         strides: tuple[int] = None,
         offset: int = 0,
-        valid_area: tuple[tuple[int, int]]=None,
+        valid_area: tuple[tuple[int, int]] = None,
         inputs: tuple[Tensor] = [],
         backprop_ctx=None,
         generation: int = 0,
@@ -377,9 +377,9 @@ class Tensor:
         newoffset = 0
         newvalidarea = []
         for pd, sp, st in zip(padding, self.shape, self.strides):
-            newshape.append(sp+pd[0]+pd[1])
+            newshape.append(sp + pd[0] + pd[1])
             newoffset -= pd[0] * st
-            newvalidarea.append((pd[0], pd[0]+sp))
+            newvalidarea.append((pd[0], pd[0] + sp))
 
         return Tensor.new_view_op(Pad(tuple(newshape), self.strides, newoffset, newvalidarea, arg), self)
 
