@@ -152,16 +152,11 @@ class Pow(DifferentiableBinary):
 
 # view
 class DifferentiableView(Differentiable):
-    def _backward(self, grad: Tensor) -> tuple(Tensor):
-        raise NotImplementedError()
-
-
-class ViewAs(Differentiable):
-    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int):
+    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]]):
         self.shape = shape
         self.strides = strides
         self.offset = offset
-        super().__init__()
+        self.valid_area = valid_area
 
     def _forward(self, src: Tensor) -> Tensor:
         self.src = src
@@ -170,6 +165,7 @@ class ViewAs(Differentiable):
             shape=self.shape,
             strides=self.strides,
             offset=self.offset,
+            valid_area=self.valid_area, 
             inputs=(src,),
             backprop_ctx=self,
             generation=src.generation,
@@ -177,6 +173,24 @@ class ViewAs(Differentiable):
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         raise NotImplementedError()
+
+
+class Crop(DifferentiableView):
+    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], crop_area: tuple[tuple[int, int]]):
+        self.crop_area = crop_area
+        super().__init__(shape, strides, offset, valid_area)
+        
+    def _backward(self, grad: Tensor) -> tuple(Tensor):
+        return grad.pad(tuple([(c[0], s-c[1]) for s, c in zip(self.src.shape, self.crop_area)]))
+
+
+class Pad(DifferentiableView):
+    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], padding: tuple[tuple[int, int]]):
+        self.padding = padding
+        super().__init__(shape, strides, offset, valid_area)
+        
+    def _backward(self, grad: Tensor) -> tuple(Tensor):
+        return grad.crop(tuple([(p[0], s+p[1]) for s, p in zip(self.src.shape, self.padding)]))
 
 
 class Tensor:
@@ -190,6 +204,7 @@ class Tensor:
         shape: tuple[int] = None,
         strides: tuple[int] = None,
         offset: int = 0,
+        valid_area: tuple[tuple[int, int]]=None,
         inputs: tuple[Tensor] = [],
         backprop_ctx=None,
         generation: int = 0,
@@ -202,6 +217,7 @@ class Tensor:
             self.shape: tuple[int] = shape
             self.strides: tuple[int] = strides if strides is not None else shape_to_strides(shape)
             self.offset: int = offset
+            self.valid_area = tuple([(0, s) for s in self.shape]) if valid_area is None else valid_area
             self.inputs: list[Tensor] = inputs
             self.backprop_ctx: Differentiable = backprop_ctx
             self.generation: int = generation
@@ -232,6 +248,7 @@ class Tensor:
                 raise RuntimeError(f"shape {shape} must not be passed to scalar initialization")
             self.shape = ()
             self.strides = ()
+            self.valid_area = ()
             self.cpu_buffer = device.CPUMemoryBuffer([data] if isinstance(data, float) else [float(data)])
             return
 
@@ -262,6 +279,7 @@ class Tensor:
 
             self.shape = shape if shape is not None else tuple(actual_shape)
             self.strides = shape_to_strides(self.shape)
+            self.valid_area = tuple([(0, s) for s in self.shape])
             self.cpu_buffer = device.CPUMemoryBuffer(flattened)
             return
 
@@ -281,7 +299,7 @@ class Tensor:
 
     @classmethod
     def new_view_op(cls, d: DifferentiableView, src: Tensor) -> Tensor:
-        return d.forward((src))
+        return d.forward((src,))
 
     @classmethod
     def full(cls, shape: tuple[int], val: float):
@@ -339,6 +357,32 @@ class Tensor:
     def neg(self):
         return self * Tensor.full_like(self, -1)
 
+    def crop(self, areas: tuple[tuple[int, int]]):
+        if len(areas) != self.ndim:
+            raise ValueError("crop area size must be the same with ndim")
+
+        arg = [(0, s) if area is None else (area[0], area[1]) for s, area in zip(self.shape, areas)]
+        newshape = []
+        newstrides = []
+        newoffset = self.offset
+        for i, a in enumerate(arg):
+            newshape.append(max(0, (a[1] - a[0])))
+            newoffset += a[0] * self.strides[i]
+
+        return Tensor.new_view_op(Crop(tuple(newshape), self.strides, newoffset, None, arg), self)
+
+    def pad(self, padding: tuple[tuple[int, int]]):
+        arg = [(0, 0) if p is None else (p[0], p[1]) for p in padding]
+        newshape = []
+        newoffset = 0
+        newvalidarea = []
+        for pd, sp, st in zip(padding, self.shape, self.strides):
+            newshape.append(sp+pd[0]+pd[1])
+            newoffset -= pd[0] * st
+            newvalidarea.append((pd[0], pd[0]+sp))
+
+        return Tensor.new_view_op(Pad(tuple(newshape), self.strides, newoffset, newvalidarea, arg), self)
+
     def _getitem(self, indices):
         if type(indices) != tuple:
             indices = (indices,)
@@ -395,7 +439,7 @@ class Tensor:
 
         newshape = tuple([s for s in newshape if s != -1])
         newstrides = tuple([s for s in newstrides if s != -1])
-        return Tensor.new_view_op(ViewAs(newshape, newstrides, newoffset), [self])
+        # return Tensor.new_view_op(ViewAs(newshape, newstrides, newoffset), [self])
 
     def __add__(self, r):
         return self.add(r)
@@ -432,7 +476,7 @@ class Tensor:
         return f(0, self)
 
     def str_oneline(self):
-        return f"Tensor(code: {self.code} {self.shape}_{self.strides}_{self.offset} cpu_buff:{self.cpu_buffer.raw if self.cpu_buffer else 'x'} dev_buff:{'o' if self.dev_buffer else 'x'})"
+        return f"Tensor(code: {self.code} {self.shape}_{self.strides}_{self.offset}_{self.valid_area} cpu_buff:{self.cpu_buffer.raw if self.cpu_buffer else 'x'} dev_buff:{'o' if self.dev_buffer else 'x'})"
 
     def __repr__(self):
         return self.__str__()
@@ -465,7 +509,11 @@ class Tensor:
         # pick the actual value to be in the result by the index
         vals = []
         for idx in indices:
-            vals.append(self.cpu_buffer.raw[self.offset + sum([st * i for st, i in zip(self.strides, idx)])])
+            if all([area_dim[0] <= i_dim and i_dim < area_dim[1] for i_dim, area_dim in zip(idx, self.valid_area)]):
+                vals.append(self.cpu_buffer.raw[self.offset + sum([st * i for st, i in zip(self.strides, idx)])])
+            else:
+                # if ids is not in valid area, use invalid value
+                vals.append(0.0)
 
         # early return on scalar
         if len(self.shape) == 0:
@@ -730,9 +778,13 @@ def tensor(arr, requires_grad=False):
 
 
 if __name__ == "__main__":
-    t1 = Tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[11, 12, 13], [14, 15, 16], [17, 18, 19], [20, 21, 22]]])
-    t2 = t1[0, 0, 1, 1]
-    print(t2.materialize())
+    t1 = Tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[13, 14, 15], [16, 17, 18], [19, 20, 21], [22, 23, 24]]])
+    t2 = t1.crop(((1, 2), (1, 3), (2, 3)))
+    t2.backprop()
+    t1.grad.materialize()
+    print(t1.grad.tolist())
+    # print(t2)
+    # print(t2.materialize())
     # print(t5)
     # t5.materialize()
     # print(t5)
