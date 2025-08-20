@@ -39,6 +39,7 @@ class TensorOpCode(IntEnum):
     _unary_op_start = auto()
     RECIP = auto()
     LOG = auto()
+    COPY = auto()
     _unary_op_end = auto()
 
     _binary_op_start = auto()
@@ -86,6 +87,19 @@ class Differentiable:
     def _backward(self, grad):
         raise NotImplementedError()
 
+
+# data
+class DifferentiableData(Differentiable):
+    def _forward(self, src: Tensor) -> Tensor:
+        self.src = src
+        return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self, generation=src.generation)
+
+    def _backward(self, grad: Tensor) -> tuple(Tensor):
+        return grad
+
+class Copy(DifferentiableData):
+    def _forward_code(self):
+        return TensorOpCode.COPY
 
 # unary
 class DifferentiableUnary(Differentiable):
@@ -152,11 +166,12 @@ class Pow(DifferentiableBinary):
 
 # view
 class DifferentiableView(Differentiable):
-    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]]):
+    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], contiguous: bool):
         self.shape = shape
         self.strides = strides
         self.offset = offset
         self.valid_area = valid_area
+        self.contiguous = contiguous
 
     def _forward(self, src: Tensor) -> Tensor:
         self.src = src
@@ -166,6 +181,7 @@ class DifferentiableView(Differentiable):
             strides=self.strides,
             offset=self.offset,
             valid_area=self.valid_area,
+            contiguous=self.contiguous,
             inputs=(src,),
             backprop_ctx=self,
             generation=src.generation,
@@ -176,21 +192,26 @@ class DifferentiableView(Differentiable):
 
 
 class Crop(DifferentiableView):
-    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], crop_area: tuple[tuple[int, int]]):
+    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], contiguous: bool, crop_area: tuple[tuple[int, int]]):
         self.crop_area = crop_area
-        super().__init__(shape, strides, offset, valid_area)
+        super().__init__(shape, strides, offset, valid_area, contiguous)
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         return grad.pad(tuple([(c[0], s - c[1]) for s, c in zip(self.src.shape, self.crop_area)]))
 
 
 class Pad(DifferentiableView):
-    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], padding: tuple[tuple[int, int]]):
+    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], contiguous: bool, padding: tuple[tuple[int, int]]):
         self.padding = padding
-        super().__init__(shape, strides, offset, valid_area)
+        super().__init__(shape, strides, offset, valid_area, contiguous)
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         return grad.crop(tuple([(p[0], s + p[1]) for s, p in zip(self.src.shape, self.padding)]))
+
+
+class Reshape(DifferentiableView):
+    def _backward(self, grad: Tensor) -> tuple(Tensor):
+        return grad.reshape(self.src.shape)
 
 
 class Tensor:
@@ -205,6 +226,7 @@ class Tensor:
         strides: tuple[int] = None,
         offset: int = 0,
         valid_area: tuple[tuple[int, int]] = None,
+        contiguous: bool = True,
         inputs: tuple[Tensor] = [],
         backprop_ctx=None,
         generation: int = 0,
@@ -218,6 +240,7 @@ class Tensor:
             self.strides: tuple[int] = strides if strides is not None else shape_to_strides(shape)
             self.offset: int = offset
             self.valid_area = tuple([(0, s) for s in self.shape]) if valid_area is None else valid_area
+            self.contiguous = contiguous
             self.inputs: list[Tensor] = inputs
             self.backprop_ctx: Differentiable = backprop_ctx
             self.generation: int = generation
@@ -236,6 +259,7 @@ class Tensor:
     def init_from_data(self, data: int | float | list, shape=None):
         self.code = TensorOpCode.BUFFER
         self.offset = 0
+        self.contiguous = True
         self.inputs = []
         self.dev_buffer = None
         self.backprop_ctx = None
@@ -369,7 +393,7 @@ class Tensor:
             newshape.append(max(0, (a[1] - a[0])))
             newoffset += a[0] * self.strides[i]
 
-        return Tensor.new_view_op(Crop(tuple(newshape), self.strides, newoffset, None, arg), self)
+        return Tensor.new_view_op(Crop(tuple(newshape), self.strides, newoffset, None, False, arg), self)
 
     def pad(self, padding: tuple[tuple[int, int]]):
         arg = [(0, 0) if p is None else (p[0], p[1]) for p in padding]
@@ -381,7 +405,16 @@ class Tensor:
             newoffset -= pd[0] * st
             newvalidarea.append((pd[0], pd[0] + sp))
 
-        return Tensor.new_view_op(Pad(tuple(newshape), self.strides, newoffset, newvalidarea, arg), self)
+        return Tensor.new_view_op(Pad(tuple(newshape), self.strides, newoffset, newvalidarea, False, arg), self)
+
+    def reshape(self, *shape: int) -> Tensor:
+        if math.prod(shape) != self.size:
+            raise ValueError(f"invalid reshape {shape} for size {self.size} tensor")
+
+        return Tensor.new_view_op(Reshape(tuple(shape), shape_to_strides(shape), 0, None, True), self if self.contiguous else self.copy())
+
+    def copy(self):
+        return Tensor.new_unary_op(Copy(), self)
 
     def _getitem(self, indices):
         if type(indices) != tuple:
@@ -700,6 +733,7 @@ class Materializer:
             TensorOpCode.MUL: kernel.OpCode.MUL,
             TensorOpCode.POW: kernel.OpCode.POW,
             TensorOpCode.LOG: kernel.OpCode.LOG,
+            TensorOpCode.COPY: kernel.OpCode.COPY,
         }
         kerns: list[kernel.Kernel] = []
         for t in tensors:
@@ -753,11 +787,13 @@ class Materializer:
                     inst.dst.dev_buffer = inst.src.dev_buffer
 
                 case InvokeUnaryKernel():
-                    params = (inst.src.offset, inst.dst.offset, *inst.src.strides, *inst.dst.strides, inst.src.dev_buffer, inst.dst.dev_buffer)
+                    params = (*sum(inst.src.valid_area, ()), inst.src.offset, inst.dst.offset, *inst.src.strides, *inst.dst.strides, inst.src.dev_buffer, inst.dst.dev_buffer)
                     self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)
 
                 case InvokeBinaryKernel():
                     params = (
+                        *sum(inst.srcl.valid_area, ()),
+                        *sum(inst.srcr.valid_area, ()),
                         inst.srcl.offset,
                         inst.srcr.offset,
                         inst.dst.offset,
@@ -778,11 +814,11 @@ def tensor(arr, requires_grad=False):
 
 
 if __name__ == "__main__":
-    t1 = Tensor([[[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[13, 14, 15], [16, 17, 18], [19, 20, 21], [22, 23, 24]]])
-    t2 = t1.crop(((1, 2), (1, 3), (2, 3)))
-    t2.backprop()
-    t1.grad.materialize()
-    print(t1.grad.tolist())
+    t1 = Tensor([[0, 1, 2], [3, 4, 5]])
+    t2 = t1.pad(((1, 2), (2, 1)))
+    t3 = t2.reshape(6, 5)
+    t3.materialize()
+    print(t3.tolist())
     # print(t2)
     # print(t2.materialize())
     # print(t5)

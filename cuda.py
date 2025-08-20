@@ -69,23 +69,42 @@ class CodeGenerator(kernel.CodeGenerator):
             elif ndim == 3:
                 return f"int {pref}_idx = {pref}_offset + x * {pref}_stride0 + y * {pref}_stride1 + z * {pref}_stride2;"
 
+        def idx_valid(ndim: int, pref: str):
+            if ndim == 0:
+                return f"int {pref}_idx_valid == 1;"
+            elif ndim == 1:
+                return f"int {pref}_idx_valid = {pref}_valid_area_0 <= x && x < {pref}_valid_area_1;"
+            elif ndim == 2:
+                return f"int {pref}_idx_valid = {pref}_valid_area_0 <= x && x < {pref}_valid_area_1 && {pref}_valid_area_2 <= y && y < {pref}_valid_area_3;"
+            elif ndim == 3:
+                return f"int {pref}_idx_valid = {pref}_valid_area_0 <= x && x < {pref}_valid_area_1 && {pref}_valid_area_2 <= y && y < {pref}_valid_area_3 && {pref}_valid_area_4 <= z && z < {pref}_valid_area_5;"
+
+        def idx_val(pref: str):
+            return f"float {pref}_val = {pref}_idx_valid ? {pref}[{pref}_idx] : 0.0f;"
+
         idxs = [toidx(ndim, "dst")]
         for i in range(params):
             idxs.append(toidx(ndim, f"src_{i}"))
+        for i in range(params):
+            idxs.append(idx_valid(ndim, f"src_{i}"))
+        for i in range(params):
+            idxs.append(idx_val(f"src_{i}"))
 
         return xyz + idxs
 
     def kern_body(self, code: kernel.OpCode, ndim: int) -> list[str]:
         if code == kernel.OpCode.RECIP:
-            return ["dst[dst_idx] = 1.0f / src_0[src_0_idx];"]
+            return ["dst[dst_idx] = 1.0f / src_0_valid ? src_0_val : 1e-6;"]
         if code == kernel.OpCode.LOG:
-            return ["dst[dst_idx] = log(src_0[src_0_idx]);"]
+            return ["dst[dst_idx] = log(src_0_valid ? src_0_val : 1e-6);"]
+        if code == kernel.OpCode.COPY:
+            return ["dst[dst_idx] = src_0_val;"]
         if code == kernel.OpCode.ADD:
-            return ["dst[dst_idx] = src_0[src_0_idx] + src_1[src_1_idx];"]
+            return ["dst[dst_idx] = src_0_val + src_1_val;"]
         if code == kernel.OpCode.MUL:
-            return ["dst[dst_idx] = src_0[src_0_idx] * src_1[src_1_idx];"]
+            return ["dst[dst_idx] = src_0_val * src_1_val;"]
         if code == kernel.OpCode.POW:
-            return ["dst[dst_idx] = powf(src_0[src_0_idx], src_1[src_1_idx]);"]
+            return ["dst[dst_idx] = powf(src_0_val, src_1_val);"]
 
         raise RuntimeError(f"kern body is not defined on op {code}")
 
