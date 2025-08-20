@@ -97,9 +97,11 @@ class DifferentiableData(Differentiable):
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         return grad
 
+
 class Copy(DifferentiableData):
     def _forward_code(self):
         return TensorOpCode.COPY
+
 
 # unary
 class DifferentiableUnary(Differentiable):
@@ -192,7 +194,15 @@ class DifferentiableView(Differentiable):
 
 
 class Crop(DifferentiableView):
-    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], contiguous: bool, crop_area: tuple[tuple[int, int]]):
+    def __init__(
+        self,
+        shape: tuple[int],
+        strides: tuple[int],
+        offset: int,
+        valid_area: tuple[tuple[int, int]],
+        contiguous: bool,
+        crop_area: tuple[tuple[int, int]],
+    ):
         self.crop_area = crop_area
         super().__init__(shape, strides, offset, valid_area, contiguous)
 
@@ -201,7 +211,15 @@ class Crop(DifferentiableView):
 
 
 class Pad(DifferentiableView):
-    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], contiguous: bool, padding: tuple[tuple[int, int]]):
+    def __init__(
+        self,
+        shape: tuple[int],
+        strides: tuple[int],
+        offset: int,
+        valid_area: tuple[tuple[int, int]],
+        contiguous: bool,
+        padding: tuple[tuple[int, int]],
+    ):
         self.padding = padding
         super().__init__(shape, strides, offset, valid_area, contiguous)
 
@@ -211,7 +229,7 @@ class Pad(DifferentiableView):
 
 class Reshape(DifferentiableView):
     def _backward(self, grad: Tensor) -> tuple(Tensor):
-        return grad.reshape(self.src.shape)
+        return grad.reshape(*self.src.shape)
 
 
 class Tensor:
@@ -420,9 +438,6 @@ class Tensor:
         if type(indices) != tuple:
             indices = (indices,)
 
-        if self._is_scalar():
-            raise ValueError(f"cannot index on scalar: {self}")
-
         if self.ndim < len(indices):
             raise ValueError(f"too many index accessors specified")
 
@@ -437,42 +452,30 @@ class Tensor:
         for i in range(self.ndim - len(indices)):
             indices = indices + (slice(None, None, None),)
 
-        newshape = [0] * len(self.shape)
-        newstrides = [0] * len(self.strides)
-        newoffset = self.offset
-
-        for i, idx in enumerate(indices):
+        t = self
+        curdim = 0
+        for idx in indices:
             if type(idx) == int:
-                if self.shape[i] - 1 < idx:
-                    raise ValueError(f"index out of bounds for axis {i} with size {self.shape[i]}")
-
-                newoffset += idx * self.strides[i]
-                newshape[i] = -1  # dummy
-                newstrides[i] = -1  # dummy
-
+                if t.shape[curdim] - 1 < idx:
+                    raise ValueError(f"index out of bounds for axis {curdim} with size {t.shape[curdim]}")
+                idx = idx if 0 <= idx else t.shape[curdim] + idx
+                start, stop = idx, idx + 1
             elif type(idx) == slice:
-                start = 0 if idx.start is None else idx.start
-                stop = self.shape[i] if idx.stop is None else idx.stop
-                step = 1 if idx.step is None else idx.step
-                if step == 0:
-                    raise ValueError(f"step in slice index must not be 0: {idx}")
-
-                if self.shape[i] < start or stop < start:
-                    newshape[i] = 0
-                else:
-                    newshape[i] = (stop - start + step - 1) // step
-
-                newstrides[i] = self.strides[i] * step
-
-                if newshape[i] != 0:
-                    newoffset += start * self.strides[i]
-
+                start = 0 if idx.start is None else t.shape[curdim] + idx.start if idx.start < 0 else idx.start
+                stop = t.shape[curdim] if idx.stop is None else t.shape[curdim] + idx.stop if idx.stop < 0 else idx.stop
+                stop = min(t.shape[curdim], stop)
+                # todo: support step
             else:
                 raise RuntimeError(f"unhandled index in basic index: {type(idx)}")
 
-        newshape = tuple([s for s in newshape if s != -1])
-        newstrides = tuple([s for s in newstrides if s != -1])
-        # return Tensor.new_view_op(ViewAs(newshape, newstrides, newoffset), [self])
+            t = t.crop(tuple([(start, stop) if i == curdim else None for i in range(t.ndim)]))
+
+            if type(idx) == int:
+                t = t.reshape(*t.shape[:curdim], *t.shape[curdim + 1 :])
+            else:
+                curdim += 1
+
+        return t
 
     def __add__(self, r):
         return self.add(r)
@@ -787,7 +790,15 @@ class Materializer:
                     inst.dst.dev_buffer = inst.src.dev_buffer
 
                 case InvokeUnaryKernel():
-                    params = (*sum(inst.src.valid_area, ()), inst.src.offset, inst.dst.offset, *inst.src.strides, *inst.dst.strides, inst.src.dev_buffer, inst.dst.dev_buffer)
+                    params = (
+                        *sum(inst.src.valid_area, ()),
+                        inst.src.offset,
+                        inst.dst.offset,
+                        *inst.src.strides,
+                        *inst.dst.strides,
+                        inst.src.dev_buffer,
+                        inst.dst.dev_buffer,
+                    )
                     self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)
 
                 case InvokeBinaryKernel():
@@ -814,12 +825,12 @@ def tensor(arr, requires_grad=False):
 
 
 if __name__ == "__main__":
-    t1 = Tensor([[0, 1, 2], [3, 4, 5]])
-    t2 = t1.pad(((1, 2), (2, 1)))
-    t3 = t2.reshape(6, 5)
-    t3.materialize()
-    print(t3.tolist())
-    # print(t2)
+    t1 = Tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+    t2 = t1[1, 1:3, 0:2]
+    print(t2)
+    t2.backward()
+    print(t1.grad)
+    print(t1.grad.tolist())
     # print(t2.materialize())
     # print(t5)
     # t5.materialize()

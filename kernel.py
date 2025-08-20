@@ -32,7 +32,7 @@ class CodeGenerator:
     def generate_unary_kernel(self, code: OpCode, ndim: int):
         stride_params = [self.kern_param_ident(f"src_0_stride{i}", typ=int, const=True, memory="host") for i in range(ndim)]
         stride_params += [self.kern_param_ident(f"dst_stride{i}", typ=int, const=True, memory="host") for i in range(ndim)]
-        valid_area_params = [self.kern_param_ident(f"src_0_valid_area_{i}", typ=int, const=True, memory="host") for i in range(ndim*2)]
+        valid_area_params = [self.kern_param_ident(f"src_0_valid_area_{i}", typ=int, const=True, memory="host") for i in range(ndim * 2)]
         params = (
             *valid_area_params,
             self.kern_param_ident("src_0_offset", typ=int, pointer=False, const=True, memory="host"),
@@ -47,8 +47,8 @@ class CodeGenerator:
         stride_params = [self.kern_param_ident(f"src_0_stride{i}", typ=int, const=True, memory="host") for i in range(ndim)]
         stride_params += [self.kern_param_ident(f"src_1_stride{i}", typ=int, const=True, memory="host") for i in range(ndim)]
         stride_params += [self.kern_param_ident(f"dst_stride{i}", typ=int, const=True, memory="host") for i in range(ndim)]
-        valid_area_params = [self.kern_param_ident(f"src_0_valid_area_{i}", typ=int, const=True, memory="host") for i in range(ndim*2)]
-        valid_area_params += [self.kern_param_ident(f"src_1_valid_area_{i}", typ=int, const=True, memory="host") for i in range(ndim*2)]
+        valid_area_params = [self.kern_param_ident(f"src_0_valid_area_{i}", typ=int, const=True, memory="host") for i in range(ndim * 2)]
+        valid_area_params += [self.kern_param_ident(f"src_1_valid_area_{i}", typ=int, const=True, memory="host") for i in range(ndim * 2)]
         params = (
             *valid_area_params,
             self.kern_param_ident("src_0_offset", typ=int, pointer=False, const=True, memory="host"),
