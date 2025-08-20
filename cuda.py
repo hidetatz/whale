@@ -71,7 +71,7 @@ class CodeGenerator(kernel.CodeGenerator):
 
         def idx_valid(ndim: int, pref: str):
             if ndim == 0:
-                return f"int {pref}_idx_valid == 1;"
+                return f"int {pref}_idx_valid = 1;"
             elif ndim == 1:
                 return f"int {pref}_idx_valid = {pref}_valid_area_0 <= x && x < {pref}_valid_area_1;"
             elif ndim == 2:
@@ -94,9 +94,9 @@ class CodeGenerator(kernel.CodeGenerator):
 
     def kern_body(self, code: kernel.OpCode, ndim: int) -> list[str]:
         if code == kernel.OpCode.RECIP:
-            return ["dst[dst_idx] = 1.0f / src_0_valid ? src_0_val : 1e-6;"]
+            return ["dst[dst_idx] = 1.0f / (src_0_idx_valid ? src_0_val : 1e-6);"]
         if code == kernel.OpCode.LOG:
-            return ["dst[dst_idx] = log(src_0_valid ? src_0_val : 1e-6);"]
+            return ["dst[dst_idx] = log(src_0_idx_valid ? src_0_val : 1e-6);"]
         if code == kernel.OpCode.COPY:
             return ["dst[dst_idx] = src_0_val;"]
         if code == kernel.OpCode.ADD:
