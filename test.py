@@ -40,46 +40,218 @@ class WhaleTest(unittest.TestCase):
         self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist())
 
     def test_crop(self):
-        # crop and backprop
-        t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-        t1 = t.crop((None, None, None))
-        self.assert_almost_eq(t.tolist(), t1.tolist())
-        t1.backward()
-        self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]])
+        with self.subTest("Nones"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.crop((None, None, None))
+            self.assert_almost_eq(t.tolist(), t1.tolist())
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]])
 
-        t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-        t1 = t.crop(((0, 1), None, None))
-        self.assert_almost_eq(t1.tolist(), [[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]])
-        t1.backward()
-        self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+        with self.subTest("simple 1"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.crop(((0, 1), None, None))
+            self.assert_almost_eq(t1.tolist(), [[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]])
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
 
-        t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-        t1 = t.crop(((0, 1), (1, 3), None))
-        self.assert_almost_eq(t1.tolist(), [[[3, 4, 5], [6, 7, 8]]])
-        t1.backward()
-        self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+        with self.subTest("simple 2"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.crop(((0, 1), (1, 3), None))
+            self.assert_almost_eq(t1.tolist(), [[[3, 4, 5], [6, 7, 8]]])
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
 
-        t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-        t1 = t.crop(((1, 2), (1, 3), (1, 3)))
-        self.assert_almost_eq(t1.tolist(), [[[16, 17], [19, 20]]])
-        t1.backward()
-        self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 1, 1], [0, 1, 1], [0, 0, 0]]])
+        with self.subTest("simple 3"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.crop(((1, 2), (1, 3), (1, 3)))
+            self.assert_almost_eq(t1.tolist(), [[[16, 17], [19, 20]]])
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 1, 1], [0, 1, 1], [0, 0, 0]]])
+
+        with self.subTest("crop on cropped"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.crop(((0, 1), None, None))
+            self.assert_almost_eq(t1.tolist(), [[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]])
+            t2 = t1.crop(((0, 1), (1, 3), (0, 2)))
+            self.assert_almost_eq(t2.tolist(), [[[3, 4], [6, 7]]])
+            t2.backward()
+            self.assert_almost_eq(t1.grad.tolist(), [[[0, 0, 0], [1, 1, 0], [1, 1, 0], [0, 0, 0]]])
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 0], [1, 1, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
 
         # validation
-        t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-        self.assertRaises(RuntimeError, t.crop, (None, None))
+        with self.subTest("too less args"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            self.assertRaises(RuntimeError, t.crop, (None, None))
 
-        t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-        self.assertRaises(RuntimeError, t.crop, ((2, 3), None, None))
+        with self.subTest("too big"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            self.assertRaises(RuntimeError, t.crop, ((2, 3), None, None))
 
-        t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-        self.assertRaises(RuntimeError, t.crop, (None, (-1, 2), None))
+        with self.subTest("negative is not allowd"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            self.assertRaises(RuntimeError, t.crop, (None, (-1, 2), None))
 
-        t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-        self.assertRaises(RuntimeError, t.crop, (None, (1, 5), None))
+        with self.subTest("too big"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            self.assertRaises(RuntimeError, t.crop, (None, (1, 5), None))
 
-        t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-        self.assertRaises(RuntimeError, t.crop, ((1, 0), None, None))
+        with self.subTest("r < l is not allowed"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            self.assertRaises(RuntimeError, t.crop, ((1, 0), None, None))
+
+    def test_pad(self):
+        with self.subTest("Nones"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t1 = t.pad((None, None))
+            self.assert_almost_eq(t.tolist(), t1.tolist())
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[1, 1, 1], [1, 1, 1]])
+
+        with self.subTest("simple"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t1 = t.pad(((0, 1), (1, 2)))
+            self.assert_almost_eq(t1.tolist(), [[0, 0, 1, 2, 0, 0], [0, 3, 4, 5, 0, 0], [0, 0, 0, 0, 0, 0]])
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[1, 1, 1], [1, 1, 1]])
+
+        with self.subTest("pad on padded"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t1 = t.pad(((0, 1), (1, 2)))
+            self.assert_almost_eq(t1.tolist(), [[0, 0, 1, 2, 0, 0], [0, 3, 4, 5, 0, 0], [0, 0, 0, 0, 0, 0]])
+            t2 = t1.pad(((1, 2), (2, 1)))
+            self.assert_almost_eq(t2.tolist(), [[0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 1, 2, 0, 0, 0], [0, 0, 0, 3, 4, 5, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0]])
+            t2.backward()
+            self.assert_almost_eq(t1.grad.tolist(), [[1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1]])
+            self.assert_almost_eq(t.grad.tolist(), [[1, 1, 1], [1, 1, 1]])
+
+        # validation
+        with self.subTest("too many pads"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            self.assertRaises(RuntimeError, t.pad, ((0, 0), (0, 0), (0, 0)))
+
+        with self.subTest("too less pads"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            self.assertRaises(RuntimeError, t.pad, ((-1, 0),))
+
+        with self.subTest("(start, stop) needed"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            self.assertRaises(RuntimeError, t.pad, ((0, 0), (0,)))
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            self.assertRaises(RuntimeError, t.pad, ((0, 0), (0, 0, 0)))
+
+    def test_reshape(self):
+        with self.subTest("2, 3 -> 1, 6"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t1 = t.reshape(1, 6)
+            self.assert_almost_eq(t1.tolist(), [[0, 1, 2, 3, 4, 5]])
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[1, 1, 1], [1, 1, 1]])
+
+        with self.subTest("2, 3 -> 3, 2"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t1 = t.reshape(3, 2)
+            self.assert_almost_eq(t1.tolist(), [[0, 1], [2, 3], [4, 5]])
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[1, 1, 1], [1, 1, 1]])
+
+        with self.subTest("reshape on reshaped"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t1 = t.reshape(3, 2)
+            self.assert_almost_eq(t1.tolist(), [[0, 1], [2, 3], [4, 5]])
+            t2 = t1.reshape(6, 1)
+            self.assert_almost_eq(t2.tolist(), [[0], [1], [2], [3], [4], [5]])
+            t2.backward()
+            self.assert_almost_eq(t1.grad.tolist(), [[1, 1], [1, 1], [1, 1]])
+            self.assert_almost_eq(t.grad.tolist(), [[1, 1, 1], [1, 1, 1]])
+
+        # validation
+        with self.subTest("length incompatible"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            self.assertRaises(RuntimeError, t.reshape, (2, 4))
+
+        with self.subTest("empty is not allowed"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            self.assertRaises(RuntimeError, t.reshape, ())
+
+    def test_getitem(self):
+        with self.subTest("basic: int indexing 1"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t[0]
+            self.assert_almost_eq(t1.tolist(), [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]])
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+
+        with self.subTest("basic: int indexing 2"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t[1, 2]
+            self.assert_almost_eq(t1.tolist(), [18, 19, 20])
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [1, 1, 1], [0, 0, 0]]])
+
+        with self.subTest("basic: int indexing 3"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t[0, 1, 2]
+            self.assert_almost_eq(t1.tolist(), 5)
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 1], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+
+        with self.subTest("basic: slice indexing 1"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t[0:1]
+            self.assert_almost_eq(t1.tolist(), [[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]])  # dimension is not reduced
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+
+        with self.subTest("basic: slice indexing 2"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t[0:1, 1:3]
+            self.assert_almost_eq(t1.tolist(), [[[3, 4, 5], [6, 7, 8]]])  # dimension is not reduced
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+
+        with self.subTest("basic: slice indexing 3"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t[0:1, 1:3, 0:2]
+            self.assert_almost_eq(t1.tolist(), [[[3, 4], [6, 7]]])  # dimension is not reduced
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 0], [1, 1, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+
+        with self.subTest("basic: slice default processing"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t[:1, 1:, :]
+            self.assert_almost_eq(t1.tolist(), [[[3, 4, 5], [6, 7, 8], [9, 10, 11]]])  # dimension is not reduced
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+
+        with self.subTest("basic: int and slice mixed indexing"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t[1, 1:3]
+            self.assert_almost_eq(t1.tolist(), [[15, 16, 17], [18, 19, 20]])
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0]]])
+
+        with self.subTest("basic: index on index"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t[1, :3]
+            self.assert_almost_eq(t1.tolist(), [[12, 13, 14], [15, 16, 17], [18, 19, 20]])
+            t2 = t1[1:, 2]
+            self.assert_almost_eq(t2.tolist(), [17, 20])
+            t2.backward()
+            self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 0], [0, 0, 1], [0, 0, 1]])
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 1], [0, 0, 1], [0, 0, 0]]])
+
+        with self.subTest("basic: index * index"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t[1, :, 1:]
+            self.assert_almost_eq(t1.tolist(), [[13, 14], [16, 17], [19, 20], [22, 23]])
+            t2 = tensor.tensor([[0, 1], [2, 3], [4, 5], [6, 7]])
+            t3 = t1 * t2
+            self.assert_almost_eq(t3.tolist(), [[0, 14], [32, 51], [76, 100], [132, 161]])
+            t3.backward()
+            self.assert_almost_eq(t3.grad.tolist(), [[1, 1], [1, 1], [1, 1], [1, 1]])
+            self.assert_almost_eq(t2.grad.tolist(), [[13, 14], [16, 17], [19, 20], [22, 23]])
+            self.assert_almost_eq(t1.grad.tolist(), [[0, 1], [2, 3], [4, 5], [6, 7]])
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 1], [0, 2, 3], [0, 4, 5], [0, 6, 7]]])
 
     def test_backprop(self):
         results = {}
