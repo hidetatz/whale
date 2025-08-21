@@ -224,7 +224,7 @@ class Pad(DifferentiableView):
         super().__init__(shape, strides, offset, valid_area, contiguous)
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
-        return grad.crop(tuple([(p[0], s + p[1]) for s, p in zip(self.src.shape, self.padding)]))
+        return grad.crop(tuple([(p[0], s + p[0]) for s, p in zip(self.src.shape, self.padding)]))
 
 
 class Reshape(DifferentiableView):
@@ -416,20 +416,28 @@ class Tensor:
         return Tensor.new_view_op(Crop(tuple(newshape), self.strides, newoffset, None, False, arg), self)
 
     def pad(self, padding: tuple[tuple[int, int]]):
-        arg = [(0, 0) if p is None else (p[0], p[1]) for p in padding]
+        if len(padding) != self.ndim:
+            raise RuntimeError("padding size must be the same with ndim")
+
+        arg = [(0, 0) if p is None else p for p in padding]
         newshape = []
-        newoffset = 0
+        newoffset = self.offset
         newvalidarea = []
-        for pd, sp, st in zip(padding, self.shape, self.strides):
+        for pd, sp, st, va in zip(arg, self.shape, self.strides, self.valid_area):
+            if len(pd) != 2:
+                raise RuntimeError(f"padding must be (start, stop), got {pd}")
+
+            if pd[0] < 0 or pd[1] < 0:
+                raise RuntimeError("padding must not be negative")
             newshape.append(sp + pd[0] + pd[1])
             newoffset -= pd[0] * st
-            newvalidarea.append((pd[0], pd[0] + sp))
+            newvalidarea.append((va[0] + pd[0], va[1] + pd[0]))
 
         return Tensor.new_view_op(Pad(tuple(newshape), self.strides, newoffset, newvalidarea, False, arg), self)
 
     def reshape(self, *shape: int) -> Tensor:
         if math.prod(shape) != self.size:
-            raise ValueError(f"invalid reshape {shape} for size {self.size} tensor")
+            raise RuntimeError(f"invalid reshape {shape} for size {self.size} tensor")
 
         return Tensor.new_view_op(Reshape(tuple(shape), shape_to_strides(shape), 0, None, True), self if self.contiguous else self.copy())
 
