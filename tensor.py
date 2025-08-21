@@ -370,6 +370,10 @@ class Tensor:
     def arange(cls, n: int):
         return Tensor([i for i in range(n)])
 
+    @classmethod
+    def wrap(cls, x: any):
+        return x if isinstance(x, Tensor) else Tensor(x)
+
     #
     # properties
     #
@@ -388,19 +392,18 @@ class Tensor:
     #
     # operators
     #
-
     def add(self, r: Tensor):
-        return Tensor.new_binary_op(Add(), self, r)
+        return Tensor.new_binary_op(Add(), self, Tensor.wrap(r))
 
     def sub(self, r: Tensor):
-        return self + (-r)
+        return self + (-Tensor.wrap(r))
 
     def mul(self, r: Tensor):
-        return Tensor.new_binary_op(Mul(), self, r)
+        return Tensor.new_binary_op(Mul(), self, Tensor.wrap(r))
 
     def truediv(self, r: Tensor):
         # l/r = l * (1/r)
-        return self * r.recip()
+        return self * Tensor.wrap(r).recip()
 
     def recip(self):
         return Tensor.new_unary_op(Recip(), self)
@@ -409,7 +412,7 @@ class Tensor:
         return Tensor.new_unary_op(Log(), self)
 
     def pow(self, r: Tensor):
-        return Tensor.new_binary_op(Pow(), self, r)
+        return Tensor.new_binary_op(Pow(), self, Tensor.wrap(r))
 
     def neg(self):
         return self * Tensor.full_like(self, -1)
@@ -502,19 +505,34 @@ class Tensor:
         return t
 
     def __add__(self, r):
-        return self.add(r)
+        return self.add(Tensor.wrap(r))
+
+    def __radd__(self, l):
+        return Tensor.wrap(l).add(self)
 
     def __sub__(self, r):
-        return self.sub(r)
+        return self.sub(Tensor.wrap(r))
+
+    def __rsub__(self, l):
+        return Tensor.wrap(l).sub(self)
 
     def __mul__(self, r):
         return self.mul(r)
 
+    def __rmul__(self, l):
+        return Tensor.wrap(l).mul(self)
+
     def __truediv__(self, r):
         return self.truediv(r)
 
+    def __rtruediv__(self, l):
+        return Tensor.wrap(l).truediv(self)
+
     def __pow__(self, r):
         return self.pow(r)
+
+    def __rpow__(self, r):
+        return Tensor.wrap(l).pow(self)
 
     def __neg__(self):
         return self.neg()
@@ -849,12 +867,25 @@ def tensor(arr, requires_grad=False):
 
 
 if __name__ == "__main__":
-    t1 = Tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-    t2 = t1[1, 1:3, 0:2]
-    print(t2)
-    t2.backward()
-    print(t1.grad)
-    print(t1.grad.tolist())
+
+    def gs(x, y):
+        z = (1 + (x + y + 1) ** 2 * (19 - 14 * x + 3 * x**2 - 14 * y + 6 * x * y + 3 * y**2)) * (
+            30 + (2 * x - 3 * y) ** 2 * (18 - 32 * x + 12 * x**2 + 48 * y - 36 * x * y + 27 * y**2)
+        )
+        return z
+
+    x = Tensor(1)
+    y = Tensor(1)
+    z = gs(x, y)
+    z.backprop()
+    print(x.grad.tolist())
+    print(y.grad.tolist())
+    # t1 = Tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+    # t2 = t1[1, 1:3, 0:2]
+    # print(t2)
+    # t2.backward()
+    # print(t1.grad)
+    # print(t1.grad.tolist())
     # print(t2.materialize())
     # print(t5)
     # t5.materialize()
