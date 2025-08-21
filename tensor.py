@@ -401,13 +401,15 @@ class Tensor:
 
     def crop(self, areas: tuple[tuple[int, int]]):
         if len(areas) != self.ndim:
-            raise ValueError("crop area size must be the same with ndim")
+            raise RuntimeError("crop area size must be the same with ndim")
 
         arg = [(0, s) if area is None else (area[0], area[1]) for s, area in zip(self.shape, areas)]
         newshape = []
         newstrides = []
         newoffset = self.offset
         for i, a in enumerate(arg):
+            if a[1] <= a[0] or a[0] < 0 or self.shape[i] < a[1]:
+                raise RuntimeError(f"invalid crop arg {a} for axis {i}, dim is {self.shape[i]}")
             newshape.append(max(0, (a[1] - a[0])))
             newoffset += a[0] * self.strides[i]
 
