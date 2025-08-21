@@ -6,6 +6,9 @@ import tensor
 
 
 class WhaleTest(unittest.TestCase):
+    #
+    # helpers
+    #
     def assert_almost_eq(self, l, r):
         if isinstance(l, int) or isinstance(l, float):
             assert isinstance(r, int) or isinstance(r, float), f"l and r type difference: {l=}, {r=}"
@@ -16,6 +19,22 @@ class WhaleTest(unittest.TestCase):
         assert len(l) == len(r), f"l and r length difference: {l=}, {r=}"
         for i in range(len(l)):
             self.assert_almost_eq(l[i], r[i])
+
+    #
+    # tests
+    #
+    def test_constructors(self):
+        t = tensor.Tensor.arange(6)
+        self.assert_almost_eq(t.tolist(), [0, 1, 2, 3, 4, 5])
+
+        t2 = tensor.Tensor.ones_like(t)
+        self.assert_almost_eq(t2.tolist(), [1, 1, 1, 1, 1, 1])
+
+        t3 = tensor.Tensor.full_like(t2, 3)
+        self.assert_almost_eq(t3.tolist(), [3, 3, 3, 3, 3, 3])
+
+        t4 = tensor.Tensor.full((1, 2, 3), 5)
+        self.assert_almost_eq(t4.tolist(), [[[5, 5, 5], [5, 5, 5]]])
 
     def test_arith(self):
         results = {}
