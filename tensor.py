@@ -49,7 +49,9 @@ class TensorOpCode(IntEnum):
     _binary_op_end = auto()
 
     _view_op_start = auto()
-    VIEW_AS = auto()
+    CROP = auto()
+    PAD = auto()
+    RESHAPE = auto()
     _view_op_end = auto()
 
     def _in(self, start, end):
@@ -178,7 +180,7 @@ class DifferentiableView(Differentiable):
     def _forward(self, src: Tensor) -> Tensor:
         self.src = src
         return Tensor(
-            TensorOpCode.VIEW_AS,
+            self._forward_code(),
             shape=self.shape,
             strides=self.strides,
             offset=self.offset,
@@ -206,6 +208,9 @@ class Crop(DifferentiableView):
         self.crop_area = crop_area
         super().__init__(shape, strides, offset, valid_area, contiguous)
 
+    def _forward_code(self):
+        return TensorOpCode.CROP
+
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         return grad.pad(tuple([(c[0], s - c[1]) for s, c in zip(self.src.shape, self.crop_area)]))
 
@@ -223,11 +228,17 @@ class Pad(DifferentiableView):
         self.padding = padding
         super().__init__(shape, strides, offset, valid_area, contiguous)
 
+    def _forward_code(self):
+        return TensorOpCode.PAD
+
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         return grad.crop(tuple([(p[0], s + p[0]) for s, p in zip(self.src.shape, self.padding)]))
 
 
 class Reshape(DifferentiableView):
+    def _forward_code(self):
+        return TensorOpCode.RESHAPE
+
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         return grad.reshape(*self.src.shape)
 
