@@ -366,6 +366,10 @@ class Tensor:
     def ones_like(cls, t: Tensor):
         return Tensor.full_like(t, 1.0)
 
+    @classmethod
+    def arange(cls, n: int):
+        return Tensor([i for i in range(n)])
+
     #
     # properties
     #
