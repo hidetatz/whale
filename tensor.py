@@ -420,7 +420,6 @@ class Tensor:
 
         arg = [(0, s) if area is None else (area[0], area[1]) for s, area in zip(self.shape, areas)]
         newshape = []
-        newstrides = []
         newoffset = self.offset
         for i, a in enumerate(arg):
             if a[1] <= a[0] or a[0] < 0 or self.shape[i] < a[1]:
