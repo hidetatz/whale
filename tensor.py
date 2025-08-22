@@ -76,7 +76,6 @@ class TensorOpCode(IntEnum):
 class Differentiable:
     def forward(self, inputs: tuple(Tensor)):
         self.inputs = inputs
-        self.generation = max([i.generation for i in inputs])
         self.output = self._forward(*inputs)
         return self.output
 
@@ -94,7 +93,7 @@ class Differentiable:
 class DifferentiableData(Differentiable):
     def _forward(self, src: Tensor) -> Tensor:
         self.src = src
-        return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self, generation=src.generation)
+        return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self)
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         return grad
@@ -109,7 +108,7 @@ class Copy(DifferentiableData):
 class DifferentiableUnary(Differentiable):
     def _forward(self, src: Tensor) -> Tensor:
         self.src = src
-        return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self, generation=src.generation)
+        return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self)
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         raise NotImplementedError()
@@ -136,7 +135,7 @@ class DifferentiableBinary(Differentiable):
     def _forward(self, l: Tensor, r: Tensor) -> Tensor:
         self.l = l
         self.r = r
-        return Tensor(self._forward_code(), shape=l.shape, inputs=(l, r), backprop_ctx=self, generation=max(l.generation, r.generation))
+        return Tensor(self._forward_code(), shape=l.shape, inputs=(l, r), backprop_ctx=self)
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         raise NotImplementedError()
@@ -188,7 +187,6 @@ class DifferentiableView(Differentiable):
             contiguous=self.contiguous,
             inputs=(src,),
             backprop_ctx=self,
-            generation=src.generation,
         )
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
@@ -258,7 +256,6 @@ class Tensor:
         contiguous: bool = True,
         inputs: tuple[Tensor] = [],
         backprop_ctx=None,
-        generation: int = 0,
     ):
         self.dev = get_device()
         self.grad: Tensor = None
@@ -272,7 +269,6 @@ class Tensor:
             self.contiguous = contiguous
             self.inputs: list[Tensor] = inputs
             self.backprop_ctx: Differentiable = backprop_ctx
-            self.generation: int = generation
 
             self.cpu_buffer: device.CPUMemoryBuffer = None
             self.dev_buffer: device.DeviceMemoryBuffer = None
@@ -292,7 +288,6 @@ class Tensor:
         self.inputs = []
         self.dev_buffer = None
         self.backprop_ctx = None
-        self.generation = 0
         self.materialized = True
 
         # scalar
@@ -635,29 +630,26 @@ class Tensor:
         differentiables = []
         seen = set()
 
-        def f(d: Differentiable):
-            if d not in seen:
-                differentiables.append(d)
-                seen.add(d)
-                differentiables.sort(key=lambda x: x.generation)
+        def dfs(_t: Tensor):
+            if _t.backprop_ctx is None or _t in seen:
+                return
 
-        f(self.backprop_ctx)
+            seen.add(_t)
+            for i in _t.inputs:
+                dfs(i)
+            differentiables.append(_t.backprop_ctx)
 
-        while differentiables:
-            d = differentiables.pop()
+        dfs(self)
+        differentiables.reverse()
+
+        for d in differentiables:
             gy = d.output.grad
             gxs = d.backward(gy)
             if not isinstance(gxs, tuple):
                 gxs = (gxs,)
 
             for x, gx in zip(d.inputs, gxs):
-                if x.grad is None:
-                    x.grad = gx
-                else:
-                    x.grad = x.grad + gx
-
-                if x.backprop_ctx is not None:
-                    f(x.backprop_ctx)
+                x.grad = gx if x.grad is None else x.grad + gx
 
     def backward(self):
         self.backprop()
