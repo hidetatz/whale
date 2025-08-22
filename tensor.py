@@ -390,8 +390,9 @@ class Tensor:
         return self.ndim == 0
 
     #
-    # operators
+    # methods
     #
+
     def add(self, r: Tensor):
         return Tensor.new_binary_op(Add(), self, Tensor.wrap(r))
 
@@ -416,6 +417,10 @@ class Tensor:
 
     def neg(self):
         return self * Tensor.full_like(self, -1)
+
+    #
+    # shape movement
+    #
 
     def crop(self, areas: tuple[tuple[int, int]]):
         if len(areas) != self.ndim:
@@ -503,6 +508,10 @@ class Tensor:
                 curdim += 1
 
         return t
+
+    #
+    # operators
+    #
 
     def __add__(self, r):
         return self.add(Tensor.wrap(r))
