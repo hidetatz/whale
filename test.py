@@ -50,6 +50,13 @@ class WhaleTest(unittest.TestCase):
 
         self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist())
 
+        with self.subTest("neg"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t1 = -t
+            self.assert_almost_eq(t1.tolist(), [[0, -1, -2], [-3, -4, -5]])
+            t1.backward()
+            self.assert_almost_eq(t.grad.tolist(), [[-1, -1, -1], [-1, -1, -1]])
+
     def test_math(self):
         results = {}
         for mod in [tensor, torch]:
