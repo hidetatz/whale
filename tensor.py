@@ -460,9 +460,6 @@ class Tensor:
 
         return Tensor.new_view_op(Reshape(tuple(shape), shape_to_strides(shape), 0, None, True), self if self.contiguous else self.copy())
 
-    def copy(self):
-        return Tensor.new_unary_op(Copy(), self)
-
     def _getitem(self, indices):
         if type(indices) != tuple:
             indices = (indices,)
@@ -505,6 +502,13 @@ class Tensor:
                 curdim += 1
 
         return t
+
+    #
+    # data operation
+    #
+
+    def copy(self):
+        return Tensor.new_unary_op(Copy(), self)
 
     #
     # operators
