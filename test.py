@@ -69,6 +69,91 @@ class WhaleTest(unittest.TestCase):
 
         self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist())
 
+    def test_broadcast_to(self):
+        with self.subTest("1, 1, 3 -> 1, 2, 3"):
+            t = tensor.tensor([[[0, 1, 2]]])
+            t1 = t.broadcast_to(1, 2, 3)
+            self.assert_almost_eq(t1.tolist(), [[[0, 1, 2], [0, 1, 2]]])
+
+        with self.subTest("1, 1, 3 -> 2, 1, 3"):
+            t = tensor.tensor([[[0, 1, 2]]])
+            t1 = t.broadcast_to(2, 1, 3)
+            self.assert_almost_eq(t1.tolist(), [[[0, 1, 2]], [[0, 1, 2]]])
+
+        with self.subTest("1, 1, 3 -> 2, 2, 3"):
+            t = tensor.tensor([[[0, 1, 2]]])
+            t1 = t.broadcast_to(2, 2, 3)
+            self.assert_almost_eq(t1.tolist(), [[[0, 1, 2], [0, 1, 2]], [[0, 1, 2], [0, 1, 2]]])
+
+        with self.subTest("1, 1, 3 -> 2, 1, 1, 3"):
+            t = tensor.tensor([[[0, 1, 2]]])
+            t1 = t.broadcast_to(2, 1, 1, 3)
+            self.assert_almost_eq(t1.tolist(), [[[[0, 1, 2]]], [[[0, 1, 2]]]])
+
+        with self.subTest("1, 1, 3 -> 2, 1, 2, 3"):
+            t = tensor.tensor([[[0, 1, 2]]])
+            t1 = t.broadcast_to(2, 1, 2, 3)
+            self.assert_almost_eq(t1.tolist(), [[[[0, 1, 2], [0, 1, 2]]], [[[0, 1, 2], [0, 1, 2]]]])
+
+        with self.subTest("1, 1, 3 -> 2, 2, 2, 3"):
+            t = tensor.tensor([[[0, 1, 2]]])
+            t1 = t.broadcast_to(2, 2, 2, 3)
+            self.assert_almost_eq(t1.tolist(), [[[[0, 1, 2], [0, 1, 2]], [[0, 1, 2], [0, 1, 2]]], [[[0, 1, 2], [0, 1, 2]], [[0, 1, 2], [0, 1, 2]]]])
+
+        with self.subTest("broadcast cropped tensor"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.crop(((1, 2), (1, 3), (0, 2)))  # (1, 2, 2), [15, 16, 18, 19]
+            t2 = t1.broadcast_to(2, 2, 2)
+            self.assert_almost_eq(t2.tolist(), [[[15, 16], [18, 19]], [[15, 16], [18, 19]]])
+
+        with self.subTest("broadcast cropped tensor 2"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.crop(((1, 2), (1, 3), (0, 2)))  # (1, 2, 2), [15, 16, 18, 19]
+            t2 = t1.broadcast_to(2, 2, 2, 2)
+            self.assert_almost_eq(t2.tolist(), [[[[15, 16], [18, 19]], [[15, 16], [18, 19]]], [[[15, 16], [18, 19]], [[15, 16], [18, 19]]]])
+
+        with self.subTest("broadcast padded tensor"):
+            t = tensor.tensor([[0, 1], [2, 3]])  # (2, 2)
+            t1 = t.pad(((1, 2), (2, 1)))  # (5, 5)
+            t2 = t1.broadcast_to(2, 2, 5, 5)
+            self.assert_almost_eq(
+                t2.tolist(),
+                [
+                    [
+                        [
+                            [0, 0, 0, 0, 0],
+                            [0, 0, 0, 1, 0],
+                            [0, 0, 2, 3, 0],
+                            [0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0],
+                        ],
+                        [
+                            [0, 0, 0, 0, 0],
+                            [0, 0, 0, 1, 0],
+                            [0, 0, 2, 3, 0],
+                            [0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0],
+                        ],
+                    ],
+                    [
+                        [
+                            [0, 0, 0, 0, 0],
+                            [0, 0, 0, 1, 0],
+                            [0, 0, 2, 3, 0],
+                            [0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0],
+                        ],
+                        [
+                            [0, 0, 0, 0, 0],
+                            [0, 0, 0, 1, 0],
+                            [0, 0, 2, 3, 0],
+                            [0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0],
+                        ],
+                    ],
+                ],
+            )
+
     def test_crop(self):
         with self.subTest("Nones"):
             t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])

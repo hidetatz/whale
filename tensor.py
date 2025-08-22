@@ -49,6 +49,7 @@ class TensorOpCode(IntEnum):
     _binary_op_end = auto()
 
     _view_op_start = auto()
+    EXPAND = auto()
     CROP = auto()
     PAD = auto()
     RESHAPE = auto()
@@ -188,6 +189,14 @@ class DifferentiableView(Differentiable):
             inputs=(src,),
             backprop_ctx=self,
         )
+
+    def _backward(self, grad: Tensor) -> tuple(Tensor):
+        raise NotImplementedError()
+
+
+class Expand(DifferentiableView):
+    def _forward_code(self):
+        return TensorOpCode.EXPAND
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         raise NotImplementedError()
@@ -413,6 +422,45 @@ class Tensor:
     #
     # shape movement
     #
+
+    def _broadcasted_shape(self, s2: tuple[int]) -> tuple[int]:
+        s1 = list(self.shape[:])
+        maxlen = max(len(s1), len(s2))
+        s1 = [1] * (maxlen - len(s1)) + s1
+        s2 = [1] * (maxlen - len(s2)) + s2
+
+        shape = []
+        for d1, d2 in zip(s1, s2):
+            if d1 == d2:
+                shape.append(d1)
+                continue
+
+            if d1 == 1:
+                shape.append(d2)
+                continue
+
+            if d2 == 1:
+                shape.append(d1)
+                continue
+
+            raise RuntimeError(f"shapes are not broadcastable: {self.shape} and {s2}")
+
+        return tuple(shape)
+
+    def broadcast_to(self, *shape: int) -> Tensor:
+        newshape = self._broadcasted_shape(list(shape[:]))
+
+        if len(self.shape) > len(newshape):
+            raise RuntimeError(f"broadcasting {self.shape} to {newshape} is impossible")
+
+        delta = len(newshape) - len(self.shape)
+        expanded_shape = [1] * delta + list(self.shape[:])
+        expanded_strides = [0] * delta + list(self.strides[:])
+        expanded_valid_area = [(0, 1)] * delta + list(self.valid_area[:])
+
+        newstrides = tuple([st if newshape[i] == expanded_shape[i] else 0 for i, st in enumerate(expanded_strides)])
+        newvalidarea = tuple([va if newshape[i] == expanded_shape[i] else (0, newshape[i]) for i, va in enumerate(expanded_valid_area)])
+        return Tensor.new_view_op(Expand(newshape, newstrides, self.offset, newvalidarea, False), self)
 
     def crop(self, areas: tuple[tuple[int, int]]):
         if len(areas) != self.ndim:
@@ -869,19 +917,22 @@ def tensor(arr, requires_grad=False):
 
 
 if __name__ == "__main__":
+    t1 = Tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
 
-    def gs(x, y):
-        z = (1 + (x + y + 1) ** 2 * (19 - 14 * x + 3 * x**2 - 14 * y + 6 * x * y + 3 * y**2)) * (
-            30 + (2 * x - 3 * y) ** 2 * (18 - 32 * x + 12 * x**2 + 48 * y - 36 * x * y + 27 * y**2)
-        )
-        return z
+    t2 = t1.broadcast_to(2, 2, 4, 3)
+    print(t2.tolist())
+    # def gs(x, y):
+    #     z = (1 + (x + y + 1) ** 2 * (19 - 14 * x + 3 * x**2 - 14 * y + 6 * x * y + 3 * y**2)) * (
+    #         30 + (2 * x - 3 * y) ** 2 * (18 - 32 * x + 12 * x**2 + 48 * y - 36 * x * y + 27 * y**2)
+    #     )
+    #     return z
 
-    x = Tensor(1)
-    y = Tensor(1)
-    z = gs(x, y)
-    z.backprop()
-    print(x.grad.tolist())
-    print(y.grad.tolist())
+    # x = Tensor(1)
+    # y = Tensor(1)
+    # z = gs(x, y)
+    # z.backprop()
+    # print(x.grad.tolist())
+    # print(y.grad.tolist())
     # t1 = Tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
     # t2 = t1[1, 1:3, 0:2]
     # print(t2)
