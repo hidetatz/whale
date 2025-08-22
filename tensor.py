@@ -386,9 +386,6 @@ class Tensor:
     def ndim(self):
         return len(self.shape)
 
-    def _is_scalar(self):
-        return self.ndim == 0
-
     #
     # methods
     #
