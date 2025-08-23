@@ -108,6 +108,53 @@ class CodeGenerator(kernel.CodeGenerator):
 
         raise RuntimeError(f"kern body is not defined on op {code}")
 
+    # todo: this must be abstracted
+    def reduce_kern_body(self, code: kernel.OpCode, ndim: int, axis: int) -> list[str]:
+        if ndim == 1:
+            return [
+                "float sum = 0.0f;",
+                f"for (int x = 0; x < dim{axis}; x++) {{",
+                "    int src_0_idx = src_0_offset + x * src_0_stride0;",
+                "    int src_0_idx_valid = src_0_valid_area_0 <= x && x < src_0_valid_area_1;",
+                "    float src_0_val = src_0_idx_valid ? src_0[src_0_idx] : 0.0f;",
+                "    sum += src_0_val;",
+                "}",
+                "dst[dst_offset] = sum;",
+            ]
+
+        if ndim == 2:
+            v = "y" if axis == 0 else "x"
+            v2 = "x" if axis == 0 else "y"
+            return [
+                f"int {v} = blockIdx.x * blockDim.x + threadIdx.x;",
+                f"float sum = 0.0f;",
+                f"for (int {v2} = 0; {v2} < dim{axis}; {v2}++) {{",
+                "    int src_0_idx = src_0_offset + x * src_0_stride0 + y * src_0_stride1;",
+                "    int src_0_idx_valid = src_0_valid_area_0 <= x && x < src_0_valid_area_1 && src_0_valid_area_2 <= y && y < src_0_valid_area_3;",
+                "    float src_0_val = src_0_idx_valid ? src_0[src_0_idx] : 0.0f;",
+                "    sum += src_0_val;",
+                "}",
+                f"dst[dst_offset + {v} * dst_stride0] = sum;",
+            ]
+
+        if ndim == 3:
+            vs = ["y", "z"] if axis == 0 else ["x", "z"] if axis == 1 else ["x", "y"]
+            v2 = "x" if axis == 0 else "y" if axis == 1 else "z"
+            return [
+                f"int {vs[0]} = blockIdx.x * blockDim.x + threadIdx.x;",
+                f"int {vs[1]} = blockIdx.y * blockDim.y + threadIdx.y;",
+                f"float sum = 0.0f;",
+                f"for (int {v2} = 0; {v2} < dim{axis}; {v2}++) {{",
+                "    int src_0_idx = src_0_offset + x * src_0_stride0 + y * src_0_stride1 + z * src_0_stride2;",
+                "    int src_0_idx_valid = src_0_valid_area_0 <= x && x < src_0_valid_area_1 && src_0_valid_area_2 <= y && y < src_0_valid_area_3 && src_0_valid_area_4 <= z && z < src_0_valid_area_5;",
+                "    float src_0_val = src_0_idx_valid ? src_0[src_0_idx] : 0.0f;",
+                "    sum += src_0_val;",
+                "}",
+                f"dst[dst_offset + {vs[0]} * dst_stride0 + {vs[1]} * dst_stride1] = sum;",
+            ]
+
+        raise RuntimeError(f"kern body is not defined on op {code}")
+
 
 class Device(device.Device):
     def allocate(self, length: int):

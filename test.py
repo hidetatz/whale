@@ -69,6 +69,122 @@ class WhaleTest(unittest.TestCase):
 
         self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist())
 
+    def test_sum(self):
+        with self.subTest("2, 4, 3 -> sum(axis=0)"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.sum(axis=0)
+            self.assert_almost_eq(t1.tolist(), [[12, 14, 16], [18, 20, 22], [24, 26, 28], [30, 32, 34]])
+
+            t2 = t.sum(axis=0, keepdims=True)
+            self.assert_almost_eq(t2.tolist(), [[[12, 14, 16], [18, 20, 22], [24, 26, 28], [30, 32, 34]]])
+
+        with self.subTest("2, 4, 3 -> sum(axis=1)"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.sum(axis=1)
+            self.assert_almost_eq(t1.tolist(), [[18, 22, 26], [66, 70, 74]])
+
+            t2 = t.sum(axis=1, keepdims=True)
+            self.assert_almost_eq(t2.tolist(), [[[18, 22, 26], [66, 70, 74]]])
+
+        with self.subTest("2, 4, 3 -> sum(axis=2)"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.sum(axis=2)
+            self.assert_almost_eq(t1.tolist(), [[3, 12, 21, 30], [39, 48, 57, 66]])
+
+            t2 = t.sum(axis=2, keepdims=True)
+            self.assert_almost_eq(t2.tolist(), [[[3, 12, 21, 30], [39, 48, 57, 66]]])
+
+        with self.subTest("2, 4, 3 -> sum(axis=(0, 1))"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.sum(axis=(0, 1))
+            self.assert_almost_eq(t1.tolist(), [84, 92, 100])
+
+            t2 = t.sum(axis=(1, 0), keepdims=True)
+            self.assert_almost_eq(t2.tolist(), [[[84, 92, 100]]])
+
+        with self.subTest("2, 4, 3 -> sum(axis=(0, 2))"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.sum(axis=(0, 2))
+            self.assert_almost_eq(t1.tolist(), [42, 60, 78, 96])
+
+            t2 = t.sum(axis=(2, 0), keepdims=True)
+            self.assert_almost_eq(t2.tolist(), [[[42, 60, 78, 96]]])
+
+        with self.subTest("2, 4, 3 -> sum(axis=(1, 2))"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.sum(axis=(1, 2))
+            self.assert_almost_eq(t1.tolist(), [66, 210])
+
+            t2 = t.sum(axis=(2, 1), keepdims=True)
+            self.assert_almost_eq(t2.tolist(), [[[66, 210]]])
+
+        with self.subTest("2, 4, 3 -> sum(axis=(0, 1, 2))"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.sum(axis=(0, 1, 2))
+            self.assert_almost_eq(t1.tolist(), 276)
+
+            t2 = t.sum(axis=(2, 1, 0), keepdims=True)
+            self.assert_almost_eq(t2.tolist(), [[[276]]])
+
+        with self.subTest("2, 4, 3 -> no axis"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.sum()
+            self.assert_almost_eq(t1.tolist(), 276)
+
+            t2 = t.sum(keepdims=True)
+            self.assert_almost_eq(t2.tolist(), [[[276]]])
+
+        with self.subTest("sum on cropped"):
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.crop(((1, 2), (1, 4), (1, 3)))
+            self.assert_almost_eq(t1.tolist(), [[[16, 17], [19, 20], [22, 23]]])  # (1, 3, 2)
+
+            t2 = t1.sum(axis=0)
+            self.assert_almost_eq(t2.tolist(), [[16, 17], [19, 20], [22, 23]])
+
+            t3 = t1.sum(axis=0, keepdims=True)
+            self.assert_almost_eq(t3.tolist(), [[[16, 17], [19, 20], [22, 23]]])
+
+            t4 = t1.sum(axis=(1,))
+            self.assert_almost_eq(t4.tolist(), [[57, 60]])
+
+            t5 = t1.sum(axis=(2,))
+            self.assert_almost_eq(t5.tolist(), [[33, 39, 45]])
+
+            t5 = t1.sum(axis=(2, 0))
+            self.assert_almost_eq(t5.tolist(), [33, 39, 45])
+
+            t5 = t1.sum()
+            self.assert_almost_eq(t5.tolist(), 117)
+
+            t5 = t1.sum(keepdims=True)
+            self.assert_almost_eq(t5.tolist(), [[[117]]])
+
+        with self.subTest("sum on padded"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])  # (2, 3)
+            t1 = t.pad(((1, 2), (2, 1)))
+            self.assert_almost_eq(
+                t1.tolist(), [[0, 0, 0, 0, 0, 0], [0, 0, 0, 1, 2, 0], [0, 0, 3, 4, 5, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]]
+            )  # (5, 6)
+
+            t2 = t1.sum(axis=0)
+            self.assert_almost_eq(t2.tolist(), [0, 0, 3, 5, 7, 0])
+
+            t3 = t1.sum(axis=0, keepdims=True)
+            self.assert_almost_eq(t3.tolist(), [[0, 0, 3, 5, 7, 0]])
+
+            t4 = t1.sum(axis=(1,))
+            self.assert_almost_eq(t4.tolist(), [0, 3, 12, 0, 0])
+
+            t5 = t1.sum(axis=(1, 0))
+            self.assert_almost_eq(t5.tolist(), 15)
+
+            t5 = t1.sum()
+            self.assert_almost_eq(t5.tolist(), 15)
+
+            t5 = t1.sum(keepdims=True)
+            self.assert_almost_eq(t5.tolist(), [[15]])
+
     def test_broadcast_to(self):
         with self.subTest("1, 1, 3 -> 1, 2, 3"):
             t = tensor.tensor([[[0, 1, 2]]])

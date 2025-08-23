@@ -48,6 +48,10 @@ class TensorOpCode(IntEnum):
     POW = auto()
     _binary_op_end = auto()
 
+    _reduce_op_start = auto()
+    SUM = auto()
+    _reduce_op_end = auto()
+
     _view_op_start = auto()
     EXPAND = auto()
     CROP = auto()
@@ -66,6 +70,9 @@ class TensorOpCode(IntEnum):
 
     def is_binary_op(self):
         return self._in(TensorOpCode._binary_op_start, TensorOpCode._binary_op_end)
+
+    def is_reduce_op(self):
+        return self._in(TensorOpCode._reduce_op_start, TensorOpCode._reduce_op_end)
 
     def is_view_op(self):
         return self._in(TensorOpCode._view_op_start, TensorOpCode._view_op_end)
@@ -166,6 +173,28 @@ class Pow(DifferentiableBinary):
         lgrad = grad * self.r * (self.l ** (self.r - Tensor.full_like(self.r, 1)))
         rgrad = grad * (self.l**self.r) * self.l.log()
         return lgrad, rgrad
+
+
+# reduce
+class DifferentiableReduce(Differentiable):
+    def _forward(self, src: Tensor) -> Tensor:
+        self.src = src
+        newshape = tuple(self.src.shape[: self.axis] + self.src.shape[self.axis + 1 :])  # reduces the axis
+        return Tensor(self._forward_code(), shape=newshape, inputs=(src,), backprop_ctx=self)
+
+    def _backward(self, grad: Tensor) -> tuple(Tensor):
+        raise NotImplementedError()
+
+
+class Sum(DifferentiableReduce):
+    def __init__(self, axis: int):
+        self.axis = axis
+
+    def _forward_code(self):
+        return TensorOpCode.SUM
+
+    def _backward(self, grad: Tensor):
+        raise NotImplementedError()
 
 
 # view
@@ -355,6 +384,10 @@ class Tensor:
         return d.forward((src,))
 
     @classmethod
+    def new_reduce_op(cls, d: DifferentiableReduce, src: Tensor) -> Tensor:
+        return d.forward((src,))
+
+    @classmethod
     def new_view_op(cls, d: DifferentiableView, src: Tensor) -> Tensor:
         return d.forward((src,))
 
@@ -418,6 +451,41 @@ class Tensor:
 
     def neg(self):
         return self * Tensor.full_like(self, -1)
+
+    def sum(self, axis: int | tuple[int] = None, keepdims: bool = False):
+        # this parallel reduction should be optimized
+        if axis is None:
+            axis = tuple(list(range(self.ndim)))
+
+        if isinstance(axis, tuple):
+            if self.ndim < len(axis):
+                raise RuntimeError(f"too many axis {axis} for shape {self.shape}")
+
+            if len(axis) == 0:
+                return self
+
+            laxis = list(axis)
+            laxis.sort()
+            t = self
+            for i in range(len(laxis)):
+                t = t.sum(axis=laxis[i])
+                laxis = [la - 1 for la in laxis]
+
+            if not keepdims:
+                return t
+
+            newshape = [1] * len(axis) + list(t.shape)
+            return t.reshape(*newshape)
+
+        if axis < 0 or self.ndim - 1 < axis:
+            raise RuntimeError(f"invalid axis {axis} for shape {self.shape}")
+
+        t = Tensor.new_reduce_op(Sum(axis), self)
+        if not keepdims:
+            return t
+
+        newshape = [1] + list(t.shape)
+        return t.reshape(*newshape)
 
     #
     # shape movement
@@ -745,6 +813,14 @@ class InvokeBinaryKernel(Instruction):
     srcr: Tensor
 
 
+@dataclass
+class InvokeReduceKernel(Instruction):
+    kern_name: str
+    dst: Tensor
+    src: Tensor
+    axis: int
+
+
 class Materializer:
     # materializer is singleton for caching some info
     def __new__(cls):
@@ -829,6 +905,7 @@ class Materializer:
             TensorOpCode.POW: kernel.OpCode.POW,
             TensorOpCode.LOG: kernel.OpCode.LOG,
             TensorOpCode.COPY: kernel.OpCode.COPY,
+            TensorOpCode.SUM: kernel.OpCode.SUM,
         }
         kerns: list[kernel.Kernel] = []
         for t in tensors:
@@ -837,6 +914,9 @@ class Materializer:
 
             elif t.code.is_binary_op():
                 name, src = self.kernel_generator.generate_binary_kernel(code_map[t.code], t.ndim)
+
+            elif t.code.is_reduce_op():
+                name, src = self.kernel_generator.generate_reduce_kernel(code_map[t.code], t.ndim + 1, t.backprop_ctx.axis)
 
             else:
                 continue
@@ -860,6 +940,11 @@ class Materializer:
             elif t.code.is_binary_op():
                 insts.append(AllocateDeviceMemory(t))
                 insts.append(InvokeBinaryKernel(kernel.to_kern_name(t.code, t.ndim), t, t.inputs[0], t.inputs[1]))
+
+            elif t.code.is_reduce_op():
+                insts.append(AllocateDeviceMemory(t))
+                axis = t.backprop_ctx.axis
+                insts.append(InvokeReduceKernel(kernel.to_reduce_kern_name(t.code, t.ndim + 1, axis), t, t.inputs[0], axis))
 
             elif t.code.is_view_op():
                 insts.append(CopyDevicePointer(t.inputs[0], t))
@@ -908,6 +993,21 @@ class Materializer:
                         inst.dst.dev_buffer,
                     )
                     self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)
+
+                case InvokeReduceKernel():
+                    axis = inst.axis
+                    d = inst.src.shape[axis]
+                    params = (
+                        d,
+                        *inst.src.strides,
+                        *inst.dst.strides,
+                        *sum(inst.src.valid_area, ()),
+                        inst.src.offset,
+                        inst.dst.offset,
+                        inst.src.dev_buffer,
+                        inst.dst.dev_buffer,
+                    )
+                    self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)
             if dbg:
                 print(f"executed: {inst}")
 
@@ -919,7 +1019,7 @@ def tensor(arr, requires_grad=False):
 if __name__ == "__main__":
     t1 = Tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
 
-    t2 = t1.broadcast_to(2, 2, 4, 3)
+    t2 = t1.sum(axis=(0, 2, 1), keepdims=True)
     print(t2.tolist())
     # def gs(x, y):
     #     z = (1 + (x + y + 1) ** 2 * (19 - 14 * x + 3 * x**2 - 14 * y + 6 * x * y + 3 * y**2)) * (
