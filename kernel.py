@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import typing
 from ctypes import c_void_p
 from dataclasses import dataclass
 from enum import IntEnum, auto
@@ -34,18 +35,41 @@ class Kernel:
 
 
 class CodeGenerator:
+    def kern_param_ident(
+        self, ident_name: str, typ: type[int | float] = int, const: bool = False, pointer: bool = False, memory: str = "host"
+    ) -> str:
+        raise NotImplementedError()
+
+    def indent(self) -> str:
+        raise NotImplementedError()
+
+    def header(self, code: OpCode) -> list[str]:
+        raise NotImplementedError()
+
+    def kern_qualifier(self, code: OpCode) -> str:
+        raise NotImplementedError()
+
+    def thread_idx_expr(self, ndim: int, param_cnt: int) -> list[str]:
+        raise NotImplementedError()
+
+    def kern_body(self, code: OpCode, ndim: int) -> list[str]:
+        raise NotImplementedError()
+
+    def reduce_kern_body(self, code: OpCode, ndim: int, axis: int) -> list[str]:
+        raise NotImplementedError()
+
     def generate_unary_kernel(self, code: OpCode, ndim: int):
         stride_params = [self.kern_param_ident(f"src_0_stride{i}", typ=int, const=True, memory="host") for i in range(ndim)]
         stride_params += [self.kern_param_ident(f"dst_stride{i}", typ=int, const=True, memory="host") for i in range(ndim)]
         valid_area_params = [self.kern_param_ident(f"src_0_valid_area_{i}", typ=int, const=True, memory="host") for i in range(ndim * 2)]
-        params = (
+        params = [
             *valid_area_params,
             self.kern_param_ident("src_0_offset", typ=int, pointer=False, const=True, memory="host"),
             self.kern_param_ident("dst_offset", typ=int, pointer=False, const=True, memory="host"),
             *stride_params,
             self.kern_param_ident("src_0", typ=float, pointer=True, const=True, memory="device"),
             self.kern_param_ident("dst", typ=float, pointer=True, const=True, memory="device"),
-        )
+        ]
         return self.generate_kernel(code, ndim, 1, params)
 
     def generate_binary_kernel(self, code: OpCode, ndim: int):
@@ -54,7 +78,7 @@ class CodeGenerator:
         stride_params += [self.kern_param_ident(f"dst_stride{i}", typ=int, const=True, memory="host") for i in range(ndim)]
         valid_area_params = [self.kern_param_ident(f"src_0_valid_area_{i}", typ=int, const=True, memory="host") for i in range(ndim * 2)]
         valid_area_params += [self.kern_param_ident(f"src_1_valid_area_{i}", typ=int, const=True, memory="host") for i in range(ndim * 2)]
-        params = (
+        params = [
             *valid_area_params,
             self.kern_param_ident("src_0_offset", typ=int, pointer=False, const=True, memory="host"),
             self.kern_param_ident("src_1_offset", typ=int, pointer=False, const=True, memory="host"),
@@ -63,10 +87,10 @@ class CodeGenerator:
             self.kern_param_ident("src_0", typ=float, pointer=True, const=True, memory="device"),
             self.kern_param_ident("src_1", typ=float, pointer=True, const=True, memory="device"),
             self.kern_param_ident("dst", typ=float, pointer=True, const=True, memory="device"),
-        )
+        ]
         return self.generate_kernel(code, ndim, 2, params)
 
-    def generate_kernel(self, code: OpCode, ndim: int, param_cnt: int, param_exprs: tuple[str]):
+    def generate_kernel(self, code: OpCode, ndim: int, param_cnt: int, param_exprs: list[str]):
         indent = self.indent()
         header = self.header(code)
         kern_qual = self.kern_qualifier(code)
@@ -98,7 +122,7 @@ class KernelManager:
     def __init__(self):
         self.kerns: list[Kernel] = []
 
-    def load(self, kerns: Kernel):
+    def load(self, kerns: list[Kernel]) -> None:
         # kern cache
         new_kerns = [kern for kern in kerns if kern.name not in [k.name for k in self.kerns]]
         if new_kerns:
@@ -106,13 +130,14 @@ class KernelManager:
             self.kerns.extend([Kernel(nk.name, nk.src, fp) for nk, fp in zip(new_kerns, fps)])
         self.kerns.extend(new_kerns)
 
-    def get_kern(self, name):
+    def get_kern(self, name) -> Kernel | None:
         for k in self.kerns:
             if k.name == name:
                 return k
+        return None
 
-    def load_kern_ptr(self, *params):
+    def load_kern_ptr(self, kerns: list[Kernel]) -> list[c_void_p]:
         raise NotImplementedError()
 
-    def invoke(self, kern_name, grid, block, params):
+    def invoke(self, kern_name: str, grid: int | tuple[int], block: int | tuple[int], params: tuple[typing.Any]):
         raise NotImplementedError()

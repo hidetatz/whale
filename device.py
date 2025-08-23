@@ -24,5 +24,5 @@ class Device:
     def copy_to_device(self, cpu_buff: CPUMemoryBuffer, dev_buff: DeviceMemoryBuffer):
         raise NotImplementedError()
 
-    def copy_from_device(self, dev_buff: DeviceMemoryBuffer):
+    def copy_from_device(self, dev_buff: DeviceMemoryBuffer, cpu_buff: CPUMemoryBuffer):
         raise NotImplementedError()

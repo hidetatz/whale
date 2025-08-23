@@ -1,5 +1,6 @@
 import os
 import time
+import typing
 from ctypes import CDLL, byref, c_float, c_int, c_uint, c_void_p, cast, pointer, sizeof
 
 import device
@@ -10,7 +11,8 @@ class CUDA:
     def __init__(self):
         self.libcuda = CDLL("libcuda.so")
 
-        if self.libcuda.cuInit(0) != 0:
+        result = self.libcuda.cuInit(0)
+        if result != 0:
             raise RuntimeError(f"cuInit failed: {result}")
 
         dev = c_int()
@@ -40,17 +42,19 @@ class CodeGenerator(kernel.CodeGenerator):
     def indent(self) -> str:
         return "    "
 
-    def header(self, code: kernel.OpCode) -> str:
-        return "#include <cmath>" if code == kernel.OpCode.POW else ""
+    def header(self, code: kernel.OpCode) -> list[str]:
+        return ["#include <cmath>"] if code == kernel.OpCode.POW else []
 
     def kern_qualifier(self, _) -> str:
         return 'extern "C" __global__ void'
 
-    def kern_param_ident(self, pname: str, typ=int | float, pointer=False, const=False, memory: str = "host") -> str:
+    def kern_param_ident(
+        self, ident_name: str, typ: type[int | float] = int, const: bool = False, pointer: bool = False, memory: str = "host"
+    ) -> str:
         tp = "int" if typ is int else "float"
         if pointer:
             tp += "*"
-        return f"{tp} {pname}"
+        return f"{tp} {ident_name}"
 
     def thread_idx_expr(self, ndim: int, params: int) -> list[str]:
         xyz = [
@@ -213,7 +217,7 @@ class KernelManager(kernel.KernelManager):
         self.ptx_compiler = PTXCompiler(dir)
         super().__init__()
 
-    def load_kern_ptr(self, kerns):
+    def load_kern_ptr(self, kerns: list[kernel.Kernel]) -> list[c_void_p]:
         whole_src = "\n\n".join([k.src for k in kerns])
         ptx_src = self.ptx_compiler.compile_and_get_ptx_src(whole_src)
 
@@ -232,7 +236,7 @@ class KernelManager(kernel.KernelManager):
 
         return fps
 
-    def invoke(self, kern_name: str, grid: int | tuple[int], block: int | tuple[int], params: tuple[any]):
+    def invoke(self, kern_name: str, grid: int | tuple[int], block: int | tuple[int], params: tuple[typing.Any]):
         def extract(p: int | tuple[int]):
             if type(p) == int:
                 return (p, 1, 1)
@@ -248,8 +252,12 @@ class KernelManager(kernel.KernelManager):
             else:
                 raise TypeError(f"cannot handle {type(p)} as kernel parameter")
 
+        kern = self.get_kern(kern_name)
+        if kern is None:
+            raise RuntimeError(f"no kernel found by name: {kern_name}")
+
         result = cuda.libcuda.cuLaunchKernel(
-            self.get_kern(kern_name).func_pointer,
+            kern.func_pointer,
             *extract(grid),
             *extract(block),
             0,
