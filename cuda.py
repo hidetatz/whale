@@ -63,6 +63,21 @@ class CodeGenerator(kernel.CodeGenerator):
             "int z = blockIdx.z * blockDim.z + threadIdx.z;",
         ][: ndim if ndim else 1]
 
+        check_bound_cond = (
+            "1 <= x"
+            if ndim == 0
+            else (
+                "dst_shape_0 <= x"
+                if ndim == 1
+                else "dst_shape_0 <= x || dst_shape_1 <= y" if ndim == 2 else "dst_shape_0 <= x || dst_shape_1 <= y || dst_shape_2 <= z"
+            )
+        )
+        check_boundary = [
+            f"if ({check_bound_cond}) {{",
+            "    return;",
+            "}",
+        ]
+
         def toidx(ndim: int, pref: str):
             if ndim == 0:
                 return f"int {pref}_idx = {pref}_offset + x * 1;"
@@ -94,7 +109,7 @@ class CodeGenerator(kernel.CodeGenerator):
         for i in range(params):
             idxs.append(idx_val(f"src_{i}"))
 
-        return xyz + idxs
+        return xyz + check_boundary + idxs
 
     def kern_body(self, code: kernel.OpCode, ndim: int) -> list[str]:
         if code == kernel.OpCode.RECIP:

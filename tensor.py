@@ -196,7 +196,7 @@ class Sum(DifferentiableReduce):
 
     def _backward(self, grad: Tensor):
         lead = len(self.src.shape) - len(grad.shape)
-        return grad.reshape(*([1] * lead + list(grad.shape))).broadcast_to(*self.src.shape)
+        return grad.reshape(*([1] * lead + list(grad.shape))).broadcast_to(self.src.shape)
 
 
 # view
@@ -970,6 +970,37 @@ class Materializer:
         return insts
 
     def execute(self, insts: list[Instruction]) -> None:
+        def grid_block(shape):
+            assert len(shape) <= 3, "4 or more dim not supported now"
+            if len(shape) == 0:
+                return (1, 1, 1), (1, 1, 1)
+
+            if len(shape) == 1:
+                x = shape[0]
+                threads_per_block = 256
+                blocks_per_grid = (x + threads_per_block - 1) // threads_per_block
+                return (blocks_per_grid, 1, 1), (threads_per_block, 1, 1)
+
+            if len(shape) == 2:
+                x = shape[0]
+                y = shape[1]
+                threads_per_block_x = 16
+                threads_per_block_y = 16
+                blocks_per_grid_x = (x + threads_per_block_x - 1) // threads_per_block_x
+                blocks_per_grid_y = (y + threads_per_block_y - 1) // threads_per_block_y
+                return (blocks_per_grid_x, blocks_per_grid_y, 1), (threads_per_block_x, threads_per_block_y, 1)
+
+            x = shape[0]
+            y = shape[1]
+            z = shape[2]
+            threads_per_block_x = 16
+            threads_per_block_y = 16
+            threads_per_block_z = 4
+            blocks_per_grid_x = (x + threads_per_block_x - 1) // threads_per_block_x
+            blocks_per_grid_y = (y + threads_per_block_y - 1) // threads_per_block_y
+            blocks_per_grid_z = (z + threads_per_block_z - 1) // threads_per_block_z
+            return (blocks_per_grid_x, blocks_per_grid_y, blocks_per_grid_z), (threads_per_block_x, threads_per_block_y, threads_per_block_z)
+
         for inst in insts:
             match inst:
                 case AllocateDeviceMemory():
@@ -986,6 +1017,7 @@ class Materializer:
 
                 case InvokeUnaryKernel():
                     params = (
+                        *inst.dst.shape,
                         *sum(inst.src.valid_area, ()),
                         inst.src.offset,
                         inst.dst.offset,
@@ -994,10 +1026,14 @@ class Materializer:
                         inst.src.dev_buffer,
                         inst.dst.dev_buffer,
                     )
-                    self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)
+                    grid, block = grid_block(inst.dst.shape)
+                    if dbg:
+                        print(f"invoking kernel: {inst.kern_name=}, {grid=}, {block=}, {params=}")
+                    self.kernel_manager.invoke(inst.kern_name, grid, block, params)
 
                 case InvokeBinaryKernel():
                     params = (
+                        *inst.dst.shape,
                         *sum(inst.srcl.valid_area, ()),
                         *sum(inst.srcr.valid_area, ()),
                         inst.srcl.offset,
@@ -1010,7 +1046,10 @@ class Materializer:
                         inst.srcr.dev_buffer,
                         inst.dst.dev_buffer,
                     )
-                    self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)
+                    grid, block = grid_block(inst.dst.shape)
+                    if dbg:
+                        print(f"invoking kernel: {inst.kern_name=}, {grid=}, {block=}, {params=}")
+                    self.kernel_manager.invoke(inst.kern_name, grid, block, params)
 
                 case InvokeReduceKernel():
                     axis = inst.axis
@@ -1025,6 +1064,9 @@ class Materializer:
                         inst.src.dev_buffer,
                         inst.dst.dev_buffer,
                     )
+                    # grid, block = grid_block(inst.dst.shape)
+                    if dbg:
+                        print(f"invoking kernel: {inst.kern_name=}, {grid=}, {block=}, {params=}")
                     self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)
             if dbg:
                 print(f"executed: {inst}")
@@ -1035,9 +1077,8 @@ def tensor(arr, requires_grad=False):
 
 
 if __name__ == "__main__":
-    t = tensor([[0, 1, 2], [3, 4, 5]])
-    t1 = t.broadcast_to(2, 2, 3)
-    print(t1)
-    t1.backprop()
-    print(t.grad)
-    print(t.grad.tolist())
+    t = Tensor.arange(100000)
+    t2 = t * -1
+    print(t2.tolist())
+    # t1.backward()
+    # print(t.grad.tolist())
