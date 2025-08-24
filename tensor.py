@@ -187,14 +187,32 @@ class DifferentiableReduce(Differentiable):
 
 
 class Sum(DifferentiableReduce):
-    def __init__(self, axis: int):
+    def __init__(self, axis: int, keepdims: bool):
         self.axis = axis
+        self.keepdims= keepdims
 
     def _forward_code(self):
         return TensorOpCode.SUM
 
     def _backward(self, grad: Tensor):
-        raise NotImplementedError()
+        ndim = len(self.src.shape)
+        tupled_axis = self.axis
+        if self.axis is None:
+            tupled_axis = None
+        elif not isinstance(self.axis, tuple):
+            tupled_axis = (self.axis,)
+
+        if not (ndim == 0 or tupled_axis is None or self.keepdims):
+            actual_axis = [a if a >= 0 else a + ndim for a in tupled_axis]
+            shape = list(grad.shape)
+            for a in sorted(actual_axis):
+                shape.insert(a, 1)
+        else:
+            shape = grad.shape
+
+        grad = grad.reshape(*shape)
+
+        return grad.broadcast_to(*self.src.shape)
 
 
 # view
@@ -228,7 +246,11 @@ class Expand(DifferentiableView):
         return TensorOpCode.EXPAND
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
-        raise NotImplementedError()
+        orig_shape = self.src.shape
+        added_axis = tuple(range(grad.ndim - len(orig_shape)))
+        expanded_axis = tuple([i + len(added_axis) for i, s in enumerate(orig_shape) if s == 1])
+        y = grad.sum(axis=added_axis + expanded_axis, keepdims=True)
+        return y if not added_axis else y.reshape(*[s for i, s in enumerate(y.shape) if i not in added_axis])
 
 
 class Crop(DifferentiableView):
@@ -474,17 +496,20 @@ class Tensor:
             if not keepdims:
                 return t
 
-            newshape = [1] * len(axis) + list(t.shape)
+            newshape = list(t.shape)
+            for a in sorted(axis):
+                newshape.insert(a, 1)
             return t.reshape(*newshape)
 
         if axis < 0 or self.ndim - 1 < axis:
             raise RuntimeError(f"invalid axis {axis} for shape {self.shape}")
 
-        t = Tensor.new_reduce_op(Sum(axis), self)
+        t = Tensor.new_reduce_op(Sum(axis, keepdims), self)
         if not keepdims:
             return t
 
-        newshape = [1] + list(t.shape)
+        newshape = list(t.shape)
+        newshape.insert(axis, 1)
         return t.reshape(*newshape)
 
     #
@@ -1017,10 +1042,21 @@ def tensor(arr, requires_grad=False):
 
 
 if __name__ == "__main__":
-    t1 = Tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+    t = tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+    t1 = t.sum(axis=1, keepdims=True)
+    print(t1)
+    print(t1.tolist())
+    t1.backward()
+    print(t.grad.tolist())
+    # t1 = Tensor([[0, 1, 2], [3, 4, 5]])
+    # t2 = t1.broadcast_to(2, 2, 3)
+    # t2.backward()
+    # print(t1.grad.tolist())
 
-    t2 = t1.sum(axis=(0, 2, 1), keepdims=True)
-    print(t2.tolist())
+    # t1 = Tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+    # t2 = t1.sum(0)
+    # t2.backward()
+    # print(t1.grad.tolist())
     # def gs(x, y):
     #     z = (1 + (x + y + 1) ** 2 * (19 - 14 * x + 3 * x**2 - 14 * y + 6 * x * y + 3 * y**2)) * (
     #         30 + (2 * x - 3 * y) ** 2 * (18 - 32 * x + 12 * x**2 + 48 * y - 36 * x * y + 27 * y**2)
