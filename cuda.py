@@ -114,54 +114,57 @@ class CodeGenerator(kernel.CodeGenerator):
 
     # todo: this must be abstracted
     def reduce_kern_body(self, code: kernel.OpCode, ndim: int, axis: int) -> list[str]:
-        if ndim == 0:
-            raise RuntimeError("scalar cannot be reduced")
+        if code == kernel.OpCode.SUM:
+            if ndim == 0:
+                raise RuntimeError("scalar cannot be reduced")
 
-        if ndim == 1:
-            return [
-                "int x = blockIdx.x * blockDim.x + threadIdx.x;",
-                "float sum = 0.0f;",
-                f"for (int x = 0; x < dim{axis}; x++) {{",
-                "    int src_0_idx = src_0_offset + x * src_0_stride0;",
-                "    int src_0_idx_valid = src_0_valid_area_0 <= x && x < src_0_valid_area_1;",
-                "    float src_0_val = src_0_idx_valid ? src_0[src_0_idx] : 0.0f;",
-                "    sum += src_0_val;",
-                "}",
-                "dst[dst_offset + x * dst_stride0] = sum;",
-            ]
+            if ndim == 1:
+                return [
+                    "int x = blockIdx.x * blockDim.x + threadIdx.x;",
+                    "float sum = 0.0f;",
+                    f"for (int x = 0; x < dim{axis}; x++) {{",
+                    "    int src_0_idx = src_0_offset + x * src_0_stride0;",
+                    "    int src_0_idx_valid = src_0_valid_area_0 <= x && x < src_0_valid_area_1;",
+                    "    float src_0_val = src_0_idx_valid ? src_0[src_0_idx] : 0.0f;",
+                    "    sum += src_0_val;",
+                    "}",
+                    "dst[dst_offset + x * dst_stride0] = sum;",
+                ]
 
-        if ndim == 2:
-            v = "x" if axis == 0 else "y"
-            return [
-                "int x = blockIdx.x * blockDim.x + threadIdx.x;",
-                "int y = blockIdx.y * blockDim.y + threadIdx.y;",
-                "float sum = 0.0f;",
-                f"for (int {v} = 0; {v} < dim{axis}; {v}++) {{",
-                "    int src_0_idx = src_0_offset + x * src_0_stride0 + y * src_0_stride1;",
-                "    int src_0_idx_valid = src_0_valid_area_0 <= x && x < src_0_valid_area_1 && src_0_valid_area_2 <= y && y < src_0_valid_area_3;",
-                "    float src_0_val = src_0_idx_valid ? src_0[src_0_idx] : 0.0f;",
-                "    sum += src_0_val;",
-                "}",
-                f"dst[dst_offset + x * dst_stride0 + y * dst_stride1] = sum;",
-            ]
+            if ndim == 2:
+                v = "x" if axis == 0 else "y"
+                return [
+                    "int x = blockIdx.x * blockDim.x + threadIdx.x;",
+                    "int y = blockIdx.y * blockDim.y + threadIdx.y;",
+                    "float sum = 0.0f;",
+                    f"for (int {v} = 0; {v} < dim{axis}; {v}++) {{",
+                    "    int src_0_idx = src_0_offset + x * src_0_stride0 + y * src_0_stride1;",
+                    "    int src_0_idx_valid = src_0_valid_area_0 <= x && x < src_0_valid_area_1 && src_0_valid_area_2 <= y && y < src_0_valid_area_3;",
+                    "    float src_0_val = src_0_idx_valid ? src_0[src_0_idx] : 0.0f;",
+                    "    sum += src_0_val;",
+                    "}",
+                    f"dst[dst_offset + x * dst_stride0 + y * dst_stride1] = sum;",
+                ]
 
-        if ndim == 3:
-            v = "x" if axis == 0 else "y" if axis == 1 else "z"
-            return [
-                "int x = blockIdx.x * blockDim.x + threadIdx.x;",
-                "int y = blockIdx.y * blockDim.y + threadIdx.y;",
-                "int z = blockIdx.z * blockDim.z + threadIdx.z;",
-                "float sum = 0.0f;",
-                f"for (int {v} = 0; {v} < dim{axis}; {v}++) {{",
-                "    int src_0_idx = src_0_offset + x * src_0_stride0 + y * src_0_stride1 + z * src_0_stride2;",
-                "    int src_0_idx_valid = src_0_valid_area_0 <= x && x < src_0_valid_area_1 && src_0_valid_area_2 <= y && y < src_0_valid_area_3 && src_0_valid_area_4 <= z && z < src_0_valid_area_5;",
-                "    float src_0_val = src_0_idx_valid ? src_0[src_0_idx] : 0.0f;",
-                "    sum += src_0_val;",
-                "}",
-                "dst[dst_offset + x * dst_stride0 + y * dst_stride1 + z * dst_stride2] = sum;",
-            ]
+            if ndim == 3:
+                v = "x" if axis == 0 else "y" if axis == 1 else "z"
+                return [
+                    "int x = blockIdx.x * blockDim.x + threadIdx.x;",
+                    "int y = blockIdx.y * blockDim.y + threadIdx.y;",
+                    "int z = blockIdx.z * blockDim.z + threadIdx.z;",
+                    "float sum = 0.0f;",
+                    f"for (int {v} = 0; {v} < dim{axis}; {v}++) {{",
+                    "    int src_0_idx = src_0_offset + x * src_0_stride0 + y * src_0_stride1 + z * src_0_stride2;",
+                    "    int src_0_idx_valid = src_0_valid_area_0 <= x && x < src_0_valid_area_1 && src_0_valid_area_2 <= y && y < src_0_valid_area_3 && src_0_valid_area_4 <= z && z < src_0_valid_area_5;",
+                    "    float src_0_val = src_0_idx_valid ? src_0[src_0_idx] : 0.0f;",
+                    "    sum += src_0_val;",
+                    "}",
+                    "dst[dst_offset + x * dst_stride0 + y * dst_stride1 + z * dst_stride2] = sum;",
+                ]
 
-        raise RuntimeError(f"kern body is not defined on op {code}")
+            raise RuntimeError(f"reduce kern body is not degined on dim {ndim}")
+
+        raise RuntimeError(f"reduce kern body is not defined on op {code}")
 
 
 class Device(device.Device):

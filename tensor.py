@@ -1021,8 +1021,8 @@ def tensor(arr, requires_grad=False):
 
 
 if __name__ == "__main__":
-    t = tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-    t1 = t.sum(axis=0)
+    t = tensor([[0, 1, 2], [3, 4, 5]])
+    t1 = t.broadcast_to(2, 2, 3)
     print(t1)
     t1.backprop()
     print(t.grad)
