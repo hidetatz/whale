@@ -179,7 +179,7 @@ class Pow(DifferentiableBinary):
 class DifferentiableReduce(Differentiable):
     def _forward(self, src: Tensor) -> Tensor:
         self.src = src
-        newshape = tuple(self.src.shape[: self.axis] + self.src.shape[self.axis + 1 :])  # reduces the axis
+        newshape = tuple([s if i != self.axis else 1 for i, s in enumerate(self.src.shape)])  # updates shape[axis] to 1
         return Tensor(self._forward_code(), shape=newshape, inputs=(src,), backprop_ctx=self)
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
@@ -189,30 +189,14 @@ class DifferentiableReduce(Differentiable):
 class Sum(DifferentiableReduce):
     def __init__(self, axis: int, keepdims: bool):
         self.axis = axis
-        self.keepdims= keepdims
+        self.keepdims = keepdims
 
     def _forward_code(self):
         return TensorOpCode.SUM
 
     def _backward(self, grad: Tensor):
-        ndim = len(self.src.shape)
-        tupled_axis = self.axis
-        if self.axis is None:
-            tupled_axis = None
-        elif not isinstance(self.axis, tuple):
-            tupled_axis = (self.axis,)
-
-        if not (ndim == 0 or tupled_axis is None or self.keepdims):
-            actual_axis = [a if a >= 0 else a + ndim for a in tupled_axis]
-            shape = list(grad.shape)
-            for a in sorted(actual_axis):
-                shape.insert(a, 1)
-        else:
-            shape = grad.shape
-
-        grad = grad.reshape(*shape)
-
-        return grad.broadcast_to(*self.src.shape)
+        lead = len(self.src.shape) - len(grad.shape)
+        return grad.reshape(*([1] * lead + list(grad.shape))).broadcast_to(*self.src.shape)
 
 
 # view
@@ -490,26 +474,21 @@ class Tensor:
             laxis.sort()
             t = self
             for i in range(len(laxis)):
-                t = t.sum(axis=laxis[i])
-                laxis = [la - 1 for la in laxis]
+                t = t.sum(axis=laxis[i], keepdims=keepdims)
+                if not keepdims:
+                    laxis = [a - 1 for a in laxis]
 
-            if not keepdims:
-                return t
-
-            newshape = list(t.shape)
-            for a in sorted(axis):
-                newshape.insert(a, 1)
-            return t.reshape(*newshape)
+            return t
 
         if axis < 0 or self.ndim - 1 < axis:
             raise RuntimeError(f"invalid axis {axis} for shape {self.shape}")
 
         t = Tensor.new_reduce_op(Sum(axis, keepdims), self)
-        if not keepdims:
+        if keepdims:
             return t
 
         newshape = list(t.shape)
-        newshape.insert(axis, 1)
+        newshape = newshape[:axis] + newshape[axis + 1 :]
         return t.reshape(*newshape)
 
     #
@@ -941,7 +920,7 @@ class Materializer:
                 name, src = self.kernel_generator.generate_binary_kernel(code_map[t.code], t.ndim)
 
             elif t.code.is_reduce_op():
-                name, src = self.kernel_generator.generate_reduce_kernel(code_map[t.code], t.ndim + 1, t.backprop_ctx.axis)
+                name, src = self.kernel_generator.generate_reduce_kernel(code_map[t.code], t.ndim, t.backprop_ctx.axis)
 
             else:
                 continue
@@ -969,7 +948,7 @@ class Materializer:
             elif t.code.is_reduce_op():
                 insts.append(AllocateDeviceMemory(t))
                 axis = t.backprop_ctx.axis
-                insts.append(InvokeReduceKernel(kernel.to_reduce_kern_name(t.code, t.ndim + 1, axis), t, t.inputs[0], axis))
+                insts.append(InvokeReduceKernel(kernel.to_reduce_kern_name(t.code, t.ndim, axis), t, t.inputs[0], axis))
 
             elif t.code.is_view_op():
                 insts.append(CopyDevicePointer(t.inputs[0], t))
@@ -1043,39 +1022,8 @@ def tensor(arr, requires_grad=False):
 
 if __name__ == "__main__":
     t = tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-    t1 = t.sum(axis=1, keepdims=True)
+    t1 = t.sum(axis=0)
     print(t1)
-    print(t1.tolist())
-    t1.backward()
+    t1.backprop()
+    print(t.grad)
     print(t.grad.tolist())
-    # t1 = Tensor([[0, 1, 2], [3, 4, 5]])
-    # t2 = t1.broadcast_to(2, 2, 3)
-    # t2.backward()
-    # print(t1.grad.tolist())
-
-    # t1 = Tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-    # t2 = t1.sum(0)
-    # t2.backward()
-    # print(t1.grad.tolist())
-    # def gs(x, y):
-    #     z = (1 + (x + y + 1) ** 2 * (19 - 14 * x + 3 * x**2 - 14 * y + 6 * x * y + 3 * y**2)) * (
-    #         30 + (2 * x - 3 * y) ** 2 * (18 - 32 * x + 12 * x**2 + 48 * y - 36 * x * y + 27 * y**2)
-    #     )
-    #     return z
-
-    # x = Tensor(1)
-    # y = Tensor(1)
-    # z = gs(x, y)
-    # z.backprop()
-    # print(x.grad.tolist())
-    # print(y.grad.tolist())
-    # t1 = Tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-    # t2 = t1[1, 1:3, 0:2]
-    # print(t2)
-    # t2.backward()
-    # print(t1.grad)
-    # print(t1.grad.tolist())
-    # print(t2.materialize())
-    # print(t5)
-    # t5.materialize()
-    # print(t5)
