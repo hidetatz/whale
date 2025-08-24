@@ -434,13 +434,17 @@ class Tensor:
     #
 
     def add(self, r: Tensor):
-        return Tensor.new_binary_op(Add(), self, Tensor.wrap(r))
+        r = Tensor.wrap(r)
+        l, r = self.broadcasted(r)
+        return Tensor.new_binary_op(Add(), l, r)
 
     def sub(self, r: Tensor):
         return self + (-Tensor.wrap(r))
 
     def mul(self, r: Tensor):
-        return Tensor.new_binary_op(Mul(), self, Tensor.wrap(r))
+        r = Tensor.wrap(r)
+        l, r = self.broadcasted(r)
+        return Tensor.new_binary_op(Mul(), l, r)
 
     def truediv(self, r: Tensor):
         # l/r = l * (1/r)
@@ -453,10 +457,12 @@ class Tensor:
         return Tensor.new_unary_op(Log(), self)
 
     def pow(self, r: Tensor):
-        return Tensor.new_binary_op(Pow(), self, Tensor.wrap(r))
+        r = Tensor.wrap(r)
+        l, r = self.broadcasted(r)
+        return Tensor.new_binary_op(Pow(), l, r)
 
     def neg(self):
-        return self * Tensor.full_like(self, -1)
+        return self * -1
 
     def sum(self, axis: int | tuple[int] = None, keepdims: bool = False):
         # this parallel reduction should be optimized
@@ -497,6 +503,7 @@ class Tensor:
 
     def _broadcasted_shape(self, s2: tuple[int]) -> tuple[int]:
         s1 = list(self.shape[:])
+        s2 = list(s2)
         maxlen = max(len(s1), len(s2))
         s1 = [1] * (maxlen - len(s1)) + s1
         s2 = [1] * (maxlen - len(s2)) + s2
@@ -519,20 +526,27 @@ class Tensor:
 
         return tuple(shape)
 
-    def broadcast_to(self, *shape: int) -> Tensor:
-        newshape = self._broadcasted_shape(list(shape[:]))
+    def broadcast_to(self, shape: tuple[int, ...]) -> Tensor:
+        if len(self.shape) > len(shape):
+            raise RuntimeError(f"broadcasting {self.shape} to {shape} is impossible")
 
-        if len(self.shape) > len(newshape):
-            raise RuntimeError(f"broadcasting {self.shape} to {newshape} is impossible")
-
-        delta = len(newshape) - len(self.shape)
+        delta = len(shape) - len(self.shape)
         expanded_shape = [1] * delta + list(self.shape[:])
         expanded_strides = [0] * delta + list(self.strides[:])
         expanded_valid_area = [(0, 1)] * delta + list(self.valid_area[:])
 
-        newstrides = tuple([st if newshape[i] == expanded_shape[i] else 0 for i, st in enumerate(expanded_strides)])
-        newvalidarea = tuple([va if newshape[i] == expanded_shape[i] else (0, newshape[i]) for i, va in enumerate(expanded_valid_area)])
-        return Tensor.new_view_op(Expand(newshape, newstrides, self.offset, newvalidarea, False), self)
+        newstrides = tuple([st if shape[i] == expanded_shape[i] else 0 for i, st in enumerate(expanded_strides)])
+        newvalidarea = tuple([va if shape[i] == expanded_shape[i] else (0, shape[i]) for i, va in enumerate(expanded_valid_area)])
+        return Tensor.new_view_op(Expand(shape, newstrides, self.offset, newvalidarea, False), self)
+
+    def broadcasted(self, t: Tensor) -> tuple[Tensor, Tensor]:
+        newshape = self._broadcasted_shape(t.shape)
+        l, r = self, t
+        if l.shape != newshape:
+            l = l.broadcast_to(newshape)
+        if r.shape != newshape:
+            r = r.broadcast_to(newshape)
+        return l, r
 
     def crop(self, areas: tuple[tuple[int, int]]):
         if len(areas) != self.ndim:
