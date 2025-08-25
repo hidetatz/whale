@@ -977,37 +977,6 @@ class Materializer:
             grid_y = (total_blocks + grid_x - 1) // grid_x
             return (grid_x, grid_y, 1), (threads_per_block, 1, 1)
 
-        def grid_block2(shape):
-            assert len(shape) <= 3, "4 or more dim not supported now"
-            if len(shape) == 0:
-                return (1, 1, 1), (1, 1, 1)
-
-            if len(shape) == 1:
-                x = shape[0]
-                threads_per_block = 256
-                blocks_per_grid = (x + threads_per_block - 1) // threads_per_block
-                return (blocks_per_grid, 1, 1), (threads_per_block, 1, 1)
-
-            if len(shape) == 2:
-                x = shape[0]
-                y = shape[1]
-                threads_per_block_x = 16
-                threads_per_block_y = 16
-                blocks_per_grid_x = (x + threads_per_block_x - 1) // threads_per_block_x
-                blocks_per_grid_y = (y + threads_per_block_y - 1) // threads_per_block_y
-                return (blocks_per_grid_x, blocks_per_grid_y, 1), (threads_per_block_x, threads_per_block_y, 1)
-
-            x = shape[0]
-            y = shape[1]
-            z = shape[2]
-            threads_per_block_x = 16
-            threads_per_block_y = 16
-            threads_per_block_z = 4
-            blocks_per_grid_x = (x + threads_per_block_x - 1) // threads_per_block_x
-            blocks_per_grid_y = (y + threads_per_block_y - 1) // threads_per_block_y
-            blocks_per_grid_z = (z + threads_per_block_z - 1) // threads_per_block_z
-            return (blocks_per_grid_x, blocks_per_grid_y, blocks_per_grid_z), (threads_per_block_x, threads_per_block_y, threads_per_block_z)
-
         for inst in insts:
             match inst:
                 case AllocateDeviceMemory():
@@ -1039,20 +1008,19 @@ class Materializer:
 
                 case InvokeBinaryKernel():
                     params = (
+                        inst.dst.size,
                         *inst.dst.shape,
+                        *inst.srcl.strides,
+                        *inst.srcr.strides,
                         *sum(inst.srcl.valid_area, ()),
                         *sum(inst.srcr.valid_area, ()),
                         inst.srcl.offset,
                         inst.srcr.offset,
-                        inst.dst.offset,
-                        *inst.srcl.strides,
-                        *inst.srcr.strides,
-                        *inst.dst.strides,
                         inst.srcl.dev_buffer,
                         inst.srcr.dev_buffer,
                         inst.dst.dev_buffer,
                     )
-                    grid, block = grid_block2(inst.dst.shape)
+                    grid, block = grid_block(inst.dst.size)
                     if dbg:
                         print(f"invoking kernel: {inst.kern_name=}, {grid=}, {block=}, {params=}")
                     self.kernel_manager.invoke(inst.kern_name, grid, block, params)
