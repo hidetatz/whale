@@ -38,7 +38,83 @@ class CUDA:
 cuda = CUDA()
 
 
+class LangFlavor(kernel.LangFlavor):
+    @classmethod
+    def indent_size(cls) -> int:
+        return 4
+
+    @classmethod
+    def line_term(cls) -> str:
+        return ";"
+
+    @classmethod
+    def kern_qualifier(cls) -> str:
+        return 'extern "C" __global__'
+
+    @classmethod
+    def block_start(cls) -> str:
+        return "{"
+
+    @classmethod
+    def block_end(cls) -> str:
+        return "}"
+
+    @classmethod
+    def if_cond_start(cls) -> str:
+        return "("
+
+    @classmethod
+    def if_cond_end(cls) -> str:
+        return ")"
+
+    @classmethod
+    def typegen(cls, typ: kernel.VType) -> str:
+        if typ.typ == kernel.VTypeCode.I32:
+            tp = "int"
+        elif typ.typ == kernel.VTypeCode.I64:
+            tp = "long long"
+        elif typ.typ == kernel.VTypeCode.F32:
+            tp = "float"
+        elif typ.typ == kernel.VTypeCode.VOID:
+            tp = "void"
+
+        if typ.pointer:
+            tp += "*"
+
+        return tp
+
+    @classmethod
+    def unary_op_gen(cls, operand: str, valid_operand: str, code: kernel.OpCode) -> str:
+        if code == kernel.OpCode.RECIP:
+            return f"1.0f / ({valid_operand} ? {operand} : 1e-6)"
+        if code == kernel.OpCode.LOG:
+            return f"log({valid_operand} ? {operand} : 1e-6)"
+        if code == kernel.OpCode.COPY:
+            return f"{operand}"
+
+        raise RuntimeError(f"unhandled code {code}")
+
+    @classmethod
+    def grid_dim(self, dim: str) -> str:
+        return f"gridDim.{dim}"
+
+    @classmethod
+    def block_idx(self, dim: str) -> str:
+        return f"blockIdx.{dim}"
+
+    @classmethod
+    def block_dim(self, dim: str) -> str:
+        return f"blockDim.{dim}"
+
+    @classmethod
+    def thread_idx(self, dim: str) -> str:
+        return f"threadIdx.{dim}"
+
+
 class CodeGenerator(kernel.CodeGenerator):
+    def __init__(self):
+        super().__init__(LangFlavor)
+
     def indent(self) -> str:
         return "    "
 

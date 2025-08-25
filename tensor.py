@@ -970,7 +970,14 @@ class Materializer:
         return insts
 
     def execute(self, insts: list[Instruction]) -> None:
-        def grid_block(shape):
+        def grid_block(total: int) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+            threads_per_block = 256
+            total_blocks = (total + threads_per_block - 1) // threads_per_block
+            grid_x = min(total_blocks, 65535)
+            grid_y = (total_blocks + grid_x - 1) // grid_x
+            return (grid_x, grid_y, 1), (threads_per_block, 1, 1)
+
+        def grid_block2(shape):
             assert len(shape) <= 3, "4 or more dim not supported now"
             if len(shape) == 0:
                 return (1, 1, 1), (1, 1, 1)
@@ -1017,16 +1024,15 @@ class Materializer:
 
                 case InvokeUnaryKernel():
                     params = (
+                        inst.dst.size,
                         *inst.dst.shape,
+                        *inst.src.strides,
                         *sum(inst.src.valid_area, ()),
                         inst.src.offset,
-                        inst.dst.offset,
-                        *inst.src.strides,
-                        *inst.dst.strides,
                         inst.src.dev_buffer,
                         inst.dst.dev_buffer,
                     )
-                    grid, block = grid_block(inst.dst.shape)
+                    grid, block = grid_block(inst.dst.size)
                     if dbg:
                         print(f"invoking kernel: {inst.kern_name=}, {grid=}, {block=}, {params=}")
                     self.kernel_manager.invoke(inst.kern_name, grid, block, params)
@@ -1046,7 +1052,7 @@ class Materializer:
                         inst.srcr.dev_buffer,
                         inst.dst.dev_buffer,
                     )
-                    grid, block = grid_block(inst.dst.shape)
+                    grid, block = grid_block2(inst.dst.shape)
                     if dbg:
                         print(f"invoking kernel: {inst.kern_name=}, {grid=}, {block=}, {params=}")
                     self.kernel_manager.invoke(inst.kern_name, grid, block, params)
@@ -1066,7 +1072,7 @@ class Materializer:
                     )
                     # grid, block = grid_block(inst.dst.shape)
                     if dbg:
-                        print(f"invoking kernel: {inst.kern_name=}, {grid=}, {block=}, {params=}")
+                        print(f"invoking kernel: {inst.kern_name=}, {params=}")
                     self.kernel_manager.invoke(inst.kern_name, 1, inst.dst.shape, params)
             if dbg:
                 print(f"executed: {inst}")
@@ -1077,8 +1083,21 @@ def tensor(arr, requires_grad=False):
 
 
 if __name__ == "__main__":
-    t = Tensor.arange(100000)
-    t2 = t * -1
-    print(t2.tolist())
-    # t1.backward()
-    # print(t.grad.tolist())
+    # t = tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+    # t1 = t[0, :2, 2:].recip()
+    # print(t1.tolist())
+    t = tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+    t1 = t.sum(axis=(1, 0), keepdims=True)
+    print(t1.tolist())  # , [[[84, 92, 100]]])  # (1, 1, 3)
+    t1.backprop()
+    print(t.grad.tolist())  # , [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]])
+
+    # t2 = t1.recip()
+    # print(t2)
+    # print(t2.tolist())
+    # t2 = t1[1:, 2]
+    # print(t2.tolist())
+    # self.assert_almost_eq(t2.tolist(), [17, 20])
+    # t2.backward()
+    # self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 0], [0, 0, 1], [0, 0, 1]])
+    # self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 1], [0, 0, 1], [0, 0, 0]]])
