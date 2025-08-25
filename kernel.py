@@ -6,14 +6,6 @@ from dataclasses import dataclass
 from enum import IntEnum, auto
 
 
-def to_kern_name(code: OpCode, dim: int) -> str:
-    return f"{code.__str__().lower()}_dim{dim}"
-
-
-def to_reduce_kern_name(code: OpCode, dim: int, axis: int) -> str:
-    return f"{code.__str__().lower()}_dim{dim}_axis{axis}"
-
-
 class OpCode(IntEnum):
     RECIP = auto()
     ADD = auto()
@@ -173,6 +165,14 @@ class KernelGeneratorBuffer:
         return f"{arr}[{index}]"
 
 
+def to_kern_name(code: OpCode, dim: int) -> str:
+    return f"{code.__str__().lower()}_dim{dim}"
+
+
+def to_reduce_kern_name(code: OpCode, dim: int, axis: int) -> str:
+    return f"{code.__str__().lower()}_dim{dim}_axis{axis}"
+
+
 class CodeGenerator:
     def __init__(self, flavor):
         self.flavor = flavor
@@ -231,7 +231,7 @@ class CodeGenerator:
         if ndim != 0:
             buff.init(VType(VTypeCode.I64), "remaining", "idx")
             for i in range(ndim - 1, -1, -1):
-                buff.init(VType(VTypeCode.I64), f"src_0_idx_{i}", buff.binary_expr("remaining", "%", f"dst_shape_{i}"))
+                buff.init(VType(VTypeCode.I64), f"src_idx_{i}", buff.binary_expr("remaining", "%", f"dst_shape_{i}"))
                 if i != 0:
                     buff.assign("remaining", buff.binary_expr("remaining", "/", f"dst_shape_{i}"))
 
@@ -239,7 +239,7 @@ class CodeGenerator:
         if ndim == 0:
             buff.init(VType(VTypeCode.I32), "src_0_lidx", "0")
         else:
-            exprs = [buff.binary_expr(f"src_0_idx_{i}", "*", f"src_0_stride{i}") for i in range(ndim)]
+            exprs = [buff.binary_expr(f"src_idx_{i}", "*", f"src_0_stride{i}") for i in range(ndim)]
             buff.init(VType(VTypeCode.I32), "src_0_lidx", buff.binary_expr("src_0_offset", "+", buff.binary_multi_expr(exprs, "+")))
 
         # valid_area check
@@ -248,9 +248,9 @@ class CodeGenerator:
         else:
             exprs = [
                 buff.binary_expr(
-                    buff.binary_expr(f"src_0_valid_area_{i}_start", "<=", f"src_0_idx_{i}"),
+                    buff.binary_expr(f"src_0_valid_area_{i}_start", "<=", f"src_idx_{i}"),
                     "&&",
-                    buff.binary_expr(f"src_0_idx_{i}", "<", f"src_0_valid_area_{i}_end"),
+                    buff.binary_expr(f"src_idx_{i}", "<", f"src_0_valid_area_{i}_end"),
                 )
                 for i in range(ndim)
             ]
