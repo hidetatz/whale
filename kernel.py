@@ -166,6 +166,12 @@ class KernelGeneratorBuffer:
     def binary_expr(self, left: str, operator: str, right: str) -> str:
         return "(" + f"{left} {operator} {right}" + ")"
 
+    def binary_expr_from_opcode(self, code: OpCode, left: str, right: str) -> str:
+        if code == OpCode.SUM:
+            return f"{left} + {right}"
+
+        raise NotImplementedError()
+
     def ternary_expr(self, cond: str, left: str, right: str) -> str:
         return f"{cond} ? {left} : {right}"  # This does not work for Python flavor
 
@@ -367,7 +373,9 @@ class CodeGenerator:
                 if i != len(rest_axes) - 1:
                     buff.assign("remaining", buff.binary_expr("remaining", "/", f"dst_shape_{a}"))
 
-        buff.init(VType(VTypeCode.F32), "acc", "0.0f")
+        acc = "0.0f" if code == OpCode.SUM else "0.0f"
+
+        buff.init(VType(VTypeCode.F32), "acc", acc)
         buff.loop_start("0", f"dim{axis}", var=f"src_idx_{axis}")
 
         # actual index calculation
@@ -392,7 +400,8 @@ class CodeGenerator:
             buff.init(VType(VTypeCode.I32), "src_0_lidx_valid", buff.binary_multi_expr(exprs, "&&"))
 
         buff.init(VType(VTypeCode.F32), "src_0_val", buff.ternary_expr("src_0_lidx_valid", buff.index_expr("src_0", "src_0_lidx"), "0.0f"))
-        buff.assign("acc", buff.binary_expr("acc", "+", "src_0_val"))
+
+        buff.assign("acc", buff.binary_expr_from_opcode(code, "acc", "src_0_val"))
 
         buff.loop_end()
         buff.assign(buff.index_expr("dst", "idx"), "acc")
