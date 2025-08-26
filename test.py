@@ -175,6 +175,16 @@ class WhaleTest(unittest.TestCase):
                 t1.backprop()
                 self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]])
 
+        with self.subTest("4 or more dims tensors"):
+            with self.subTest("4 dims"):
+                t = tensor.Tensor.arange(24).reshape(2, 2, 3, 2)
+                t1 = t.sum(axis=(1, 3))
+                self.assert_almost_eq(t1.tolist(), [[14.0, 22.0, 30.0], [62.0, 70.0, 78.0]])
+                t1.backprop()
+                self.assert_almost_eq(
+                    t.grad.tolist(), [[[[1, 1], [1, 1], [1, 1]], [[1, 1], [1, 1], [1, 1]]], [[[1, 1], [1, 1], [1, 1]], [[1, 1], [1, 1], [1, 1]]]]
+                )
+
         with self.subTest("2, 4, 3 -> no axis"):
             with self.subTest("keepdims=False"):
                 t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])

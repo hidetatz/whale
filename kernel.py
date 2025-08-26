@@ -92,6 +92,9 @@ class KernelGeneratorBuffer:
         self.block_end = flavor.block_end()
         self.if_cond_start = flavor.if_cond_start()
         self.if_cond_end = flavor.if_cond_end()
+        self.loop_cond_start = flavor.loop_cond_start()
+        self.loop_cond_end = flavor.loop_cond_end()
+        self.loop_cond = flavor.loop_cond
         self.typegen = flavor.typegen
         self.unary_op_gen = flavor.unary_op_gen
         self.binary_op_gen = flavor.binary_op_gen
@@ -136,6 +139,14 @@ class KernelGeneratorBuffer:
         self.depth -= 1
         self.addline(f"{self.block_end}", term=False)
 
+    def loop_start(self, start: str, stop: str, var: str = "i") -> None:
+        self.addline(f"for {self.loop_cond_start}{self.loop_cond(start, stop, var)}{self.loop_cond_end} {self.block_start}", term=False)
+        self.depth += 1
+
+    def loop_end(self) -> None:
+        self.depth -= 1
+        self.addline(f"{self.block_end}", term=False)
+
     #
     # expressions
     #
@@ -176,23 +187,6 @@ def to_reduce_kern_name(code: OpCode, dim: int, axis: int) -> str:
 class CodeGenerator:
     def __init__(self, flavor):
         self.flavor = flavor
-
-    def kern_param_ident(
-        self, ident_name: str, typ: type[int | float] = int, const: bool = False, pointer: bool = False, memory: str = "host"
-    ) -> str:
-        raise NotImplementedError()
-
-    def indent(self) -> str:
-        raise NotImplementedError()
-
-    def header(self, code: OpCode) -> list[str]:
-        raise NotImplementedError()
-
-    def kern_qualifier(self, code: OpCode) -> str:
-        raise NotImplementedError()
-
-    def reduce_kern_body(self, code: OpCode, ndim: int, axis: int) -> list[str]:
-        raise NotImplementedError()
 
     # not really optimized, but simple and good for the baseline
     def _init_linear_idx_2dim_blocks_1dim_threads(self, buff: KernelGeneratorBuffer) -> None:
@@ -339,23 +333,73 @@ class CodeGenerator:
         buff.kernel_end()
         return kern_name, buff.to_str()
 
+    # reduces by the single axis, the output size threads will be invoked. Must be optimized
     def generate_reduce_kernel(self, code: OpCode, ndim: int, axis: int):
-        indent = self.indent()
-        header = self.header(code)
-        kern_qual = self.kern_qualifier(code)
+        buff = KernelGeneratorBuffer(self.flavor)
+
         kern_name = to_reduce_kern_name(code, ndim, axis)
-        param_exprs = [
-            self.kern_param_ident(f"dim{axis}", typ=int, pointer=False, const=True, memory="host"),
-            *[self.kern_param_ident(f"src_0_stride{i}", typ=int, const=True, memory="host") for i in range(ndim)],
-            *[self.kern_param_ident(f"dst_stride{i}", typ=int, const=True, memory="host") for i in range(ndim)],
-            *[self.kern_param_ident(f"src_0_valid_area_{i}", typ=int, const=True, memory="host") for i in range(ndim * 2)],
-            self.kern_param_ident("src_0_offset", typ=int, pointer=False, const=True, memory="host"),
-            self.kern_param_ident("dst_offset", typ=int, pointer=False, const=True, memory="host"),
-            self.kern_param_ident("src_0", typ=float, pointer=True, const=True, memory="device"),
-            self.kern_param_ident("dst", typ=float, pointer=True, const=True, memory="device"),
-        ]
-        kern_body_lines = self.reduce_kern_body(code, ndim, axis)
-        return kern_name, f"{kern_qual} {kern_name}({', '.join(param_exprs)}) {{\n{indent}{f"\n{indent}".join(kern_body_lines)}\n}}"
+        buff.kernel_start(
+            kern_name,
+            VType(VTypeCode.VOID),
+            [
+                (VType(VTypeCode.I32), "total"),
+                (VType(VTypeCode.I32), f"dim{axis}"),
+                *[(VType(VTypeCode.I32), f"dst_shape_{i}") for i in range(ndim)],
+                *[(VType(VTypeCode.I32), f"src_0_stride{i}") for i in range(ndim)],
+                *[(VType(VTypeCode.I32), f"src_0_valid_area_{i}_{suffix}") for i in range(ndim) for suffix in ["start", "end"]],
+                (VType(VTypeCode.I32), "src_0_offset"),
+                (VType(VTypeCode.F32, True), "src_0"),
+                (VType(VTypeCode.F32, True), "dst"),
+            ],
+        )
+
+        # calculate linearized thread index
+        self._init_linear_idx_2dim_blocks_1dim_threads(buff)
+        buff.if_start(f"idx < total")
+
+        # restore dimensions index
+        if 1 < ndim:
+            buff.init(VType(VTypeCode.I64), "remaining", "idx")
+            rest_axes = list(range(ndim - 1, -1, -1))
+            rest_axes.remove(axis)
+            for i, a in enumerate(rest_axes):
+                buff.init(VType(VTypeCode.I64), f"src_idx_{a}", buff.binary_expr("remaining", "%", f"dst_shape_{a}"))
+                if i != len(rest_axes) - 1:
+                    buff.assign("remaining", buff.binary_expr("remaining", "/", f"dst_shape_{a}"))
+
+        buff.init(VType(VTypeCode.F32), "acc", "0.0f")
+        buff.loop_start("0", f"dim{axis}", var=f"src_idx_{axis}")
+
+        # actual index calculation
+        if ndim == 0:
+            buff.init(VType(VTypeCode.I32), "src_0_lidx", "0")
+        else:
+            exprs = [buff.binary_expr(f"src_idx_{i}", "*", f"src_0_stride{i}") for i in range(ndim)]
+            buff.init(VType(VTypeCode.I32), "src_0_lidx", buff.binary_expr("src_0_offset", "+", buff.binary_multi_expr(exprs, "+")))
+
+        # valid_area check
+        if ndim == 0:
+            buff.init(VType(VTypeCode.I32), "src_0_lidx_valid", "1")
+        else:
+            exprs = [
+                buff.binary_expr(
+                    buff.binary_expr(f"src_0_valid_area_{i}_start", "<=", f"src_idx_{i}"),
+                    "&&",
+                    buff.binary_expr(f"src_idx_{i}", "<", f"src_0_valid_area_{i}_end"),
+                )
+                for i in range(ndim)
+            ]
+            buff.init(VType(VTypeCode.I32), "src_0_lidx_valid", buff.binary_multi_expr(exprs, "&&"))
+
+        buff.init(VType(VTypeCode.F32), "src_0_val", buff.ternary_expr("src_0_lidx_valid", buff.index_expr("src_0", "src_0_lidx"), "0.0f"))
+        buff.assign("acc", buff.binary_expr("acc", "+", "src_0_val"))
+
+        buff.loop_end()
+        buff.assign(buff.index_expr("dst", "idx"), "acc")
+
+        buff.if_end()
+        buff.kernel_end()
+        return kern_name, buff.to_str()
 
 
 class KernelManager:
