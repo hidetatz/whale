@@ -160,17 +160,11 @@ class KernelGeneratorBuffer:
     def unary_op_expr(self, operand: str, valid_operand: str, op: Opcode) -> str:
         return "(" + self.unary_op_gen(operand, valid_operand, op) + ")"
 
-    def binary_op_expr(self, loperand: str, valid_loperand: str, roperand: str, valid_roperand: str, op: Opcode) -> str:
-        return "(" + self.binary_op_gen(loperand, valid_loperand, roperand, valid_roperand, op) + ")"
+    def binary_op_expr(self, op: Opcode, loperand: str, roperand: str, valid_loperand: str = "", valid_roperand: str = "") -> str:
+        return "(" + self.binary_op_gen(op, loperand, roperand, valid_loperand, valid_roperand) + ")"
 
     def binary_expr(self, left: str, operator: str, right: str) -> str:
         return "(" + f"{left} {operator} {right}" + ")"
-
-    def binary_expr_from_opcode(self, code: OpCode, left: str, right: str) -> str:
-        if code == OpCode.SUM:
-            return f"{left} + {right}"
-
-        raise NotImplementedError()
 
     def ternary_expr(self, cond: str, left: str, right: str) -> str:
         return f"{cond} ? {left} : {right}"  # This does not work for Python flavor
@@ -333,7 +327,7 @@ class CodeGenerator:
 
         buff.init(VType(VTypeCode.F32), "src_0_val", buff.ternary_expr("src_0_lidx_valid", buff.index_expr("src_0", "src_0_lidx"), "0.0f"))
         buff.init(VType(VTypeCode.F32), "src_1_val", buff.ternary_expr("src_1_lidx_valid", buff.index_expr("src_1", "src_1_lidx"), "0.0f"))
-        buff.assign(buff.index_expr("dst", "idx"), buff.binary_op_expr("src_0_val", "src_0_lidx_valid", "src_1_val", "src_1_lidx_valid", code))
+        buff.assign(buff.index_expr("dst", "idx"), buff.binary_op_expr(code, "src_0_val", "src_1_val", "src_0_lidx_valid", "src_1_lidx_valid"))
 
         buff.if_end()
         buff.kernel_end()
@@ -401,7 +395,7 @@ class CodeGenerator:
 
         buff.init(VType(VTypeCode.F32), "src_0_val", buff.ternary_expr("src_0_lidx_valid", buff.index_expr("src_0", "src_0_lidx"), "0.0f"))
 
-        buff.assign("acc", buff.binary_expr_from_opcode(code, "acc", "src_0_val"))
+        buff.assign("acc", buff.binary_op_expr(code, "acc", "src_0_val"))
 
         buff.loop_end()
         buff.assign(buff.index_expr("dst", "idx"), "acc")

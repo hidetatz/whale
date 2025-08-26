@@ -107,8 +107,10 @@ class LangFlavor(kernel.LangFlavor):
         raise RuntimeError(f"unhandled code {code}")
 
     @classmethod
-    def binary_op_gen(cls, loperand: str, valid_loperand: str, roperand: str, valid_roperand: str, code: kernel.OpCode) -> str:
+    def binary_op_gen(cls, code: kernel.OpCode, loperand: str, roperand: str, valid_loperand: str, valid_roperand: str) -> str:
         if code == kernel.OpCode.ADD:
+            return f"{loperand} + {roperand}"
+        if code == kernel.OpCode.SUM:
             return f"{loperand} + {roperand}"
         if code == kernel.OpCode.MUL:
             return f"{loperand} * {roperand}"
