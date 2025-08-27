@@ -8,7 +8,7 @@ import kernel
 
 
 class CUDA:
-    def __init__(self):
+    def __init__(self) -> None:
         self.libcuda = CDLL("libcuda.so")
 
         result = self.libcuda.cuInit(0)
@@ -29,7 +29,7 @@ class CUDA:
 
         self.ctx = ctx
 
-    def __del__(self):
+    def __del__(self) -> None:
         if self.ctx:
             self.libcuda.cuCtxDestroy(self.ctx)
             self.context = None
@@ -142,7 +142,7 @@ class CodeGenerator(kernel.CodeGenerator):
 
 
 class Device(device.Device):
-    def allocate(self, length: int):
+    def allocate(self, length: int) -> device.DeviceMemoryBuffer:
         size = length * sizeof(c_float)  # byte size
         ptr = c_void_p()
         result = cuda.libcuda.cuMemAlloc(byref(ptr), size)
@@ -151,15 +151,15 @@ class Device(device.Device):
 
         return device.DeviceMemoryBuffer(ptr, length, size)
 
-    def free(self, dev_buff: device.DeviceMemoryBuffer):
+    def free(self, dev_buff: device.DeviceMemoryBuffer) -> None:
         cuda.libcuda.cuMemFree(dev_buff.ptr)
 
-    def copy_to_device(self, cpu_buff: device.CPUMemoryBuffer, dev_buff: device.DeviceMemoryBuffer):
+    def copy_to_device(self, cpu_buff: device.CPUMemoryBuffer, dev_buff: device.DeviceMemoryBuffer) -> None:
         result = cuda.libcuda.cuMemcpyHtoD(dev_buff.ptr, (c_float * dev_buff.length)(*cpu_buff.raw), dev_buff.size)
         if result != 0:
             raise RuntimeError(f"cuMemcpyHtoD failed: {result}")
 
-    def copy_from_device(self, dev_buff: device.DeviceMemoryBuffer, cpu_buff: device.CPUMemoryBuffer):
+    def copy_from_device(self, dev_buff: device.DeviceMemoryBuffer, cpu_buff: device.CPUMemoryBuffer) -> None:
         out = (c_float * dev_buff.length)()
         result = cuda.libcuda.cuMemcpyDtoH(out, dev_buff.ptr, dev_buff.size)
         if result != 0:
@@ -169,10 +169,10 @@ class Device(device.Device):
 
 
 class PTXCompiler:
-    def __init__(self, dir="/tmp"):
+    def __init__(self, dir="/tmp") -> None:
         self.dir = dir
 
-    def compile_and_get_ptx_src(self, kern_src):
+    def compile_and_get_ptx_src(self, kern_src: str) -> bytes:
         t = int(time.time())
         kern_src_path = f"{self.dir}/kern_{t}.cu"
         with open(kern_src_path, "w") as f:
@@ -194,7 +194,7 @@ class PTXCompiler:
 
 
 class KernelManager(kernel.KernelManager):
-    def __init__(self, dir="/tmp"):
+    def __init__(self, dir="/tmp") -> None:
         self.ptx_compiler = PTXCompiler(dir)
         super().__init__()
 
@@ -217,7 +217,7 @@ class KernelManager(kernel.KernelManager):
 
         return fps
 
-    def invoke(self, kern_name: str, grid: int | tuple[int], block: int | tuple[int], params: tuple[typing.Any]):
+    def invoke(self, kern_name: str, grid: int | tuple[int], block: int | tuple[int], params: tuple[typing.Any]) -> None:
         def extract(p: int | tuple[int]):
             if type(p) == int:
                 return (p, 1, 1)

@@ -34,43 +34,72 @@ class VTypeCode(IntEnum):
 
 
 class LangFlavor:
-    def indent_size(self) -> int:
+    @classmethod
+    def indent_size(cls) -> int:
         raise NotImplementedError()
 
-    def line_term(self) -> str:
+    @classmethod
+    def line_term(cls) -> str:
         raise NotImplementedError()
 
-    def kern_qualifier(self) -> str:
+    @classmethod
+    def kern_qualifier(cls) -> str:
         raise NotImplementedError()
 
-    def block_start(self) -> str:
+    @classmethod
+    def block_start(cls) -> str:
         raise NotImplementedError()
 
-    def block_end(self) -> str:
+    @classmethod
+    def block_end(cls) -> str:
         raise NotImplementedError()
 
-    def if_cond_start(self) -> str:
+    @classmethod
+    def if_cond_start(cls) -> str:
         raise NotImplementedError()
 
-    def if_cond_end(self) -> str:
+    @classmethod
+    def if_cond_end(cls) -> str:
         raise NotImplementedError()
 
-    def typegen(self) -> str:
+    @classmethod
+    def loop_cond_start(cls) -> str:
         raise NotImplementedError()
 
-    def unary_op_gen(self) -> str:
+    @classmethod
+    def loop_cond_end(cls) -> str:
         raise NotImplementedError()
 
-    def grid_dim(self, dim: str) -> str:
+    @classmethod
+    def loop_cond(cls, start: str, stop: str, var: str) -> str:
         raise NotImplementedError()
 
-    def block_idx(self, dim: str) -> str:
+    @classmethod
+    def typegen(cls, typ: VType) -> str:
         raise NotImplementedError()
 
-    def block_dim(self, dim: str) -> str:
+    @classmethod
+    def unary_op_gen(cls, operand: str, valid_operand: str, code: OpCode) -> str:
         raise NotImplementedError()
 
-    def thread_idx(self, dim: str) -> str:
+    @classmethod
+    def binary_op_gen(cls, code: OpCode, loperand: str, roperand: str, valid_loperand: str, valid_roperand: str) -> str:
+        raise NotImplementedError()
+
+    @classmethod
+    def grid_dim(cls, dim: str) -> str:
+        raise NotImplementedError()
+
+    @classmethod
+    def block_idx(cls, dim: str) -> str:
+        raise NotImplementedError()
+
+    @classmethod
+    def block_dim(cls, dim: str) -> str:
+        raise NotImplementedError()
+
+    @classmethod
+    def thread_idx(cls, dim: str) -> str:
         raise NotImplementedError()
 
 
@@ -82,7 +111,7 @@ class VType:
 
 class KernelGeneratorBuffer:
     def __init__(self, flavor: LangFlavor):
-        self.buff = []
+        self.buff: list[str] = []
         self.depth = 0
         self.flavor = flavor
         self.indent_size = flavor.indent_size()
@@ -157,10 +186,10 @@ class KernelGeneratorBuffer:
     def binary_multi_expr(self, operands: list[str], operator: str) -> str:
         return "(" + f" {operator} ".join(operands) + ")"
 
-    def unary_op_expr(self, operand: str, valid_operand: str, op: Opcode) -> str:
+    def unary_op_expr(self, operand: str, valid_operand: str, op: OpCode) -> str:
         return "(" + self.unary_op_gen(operand, valid_operand, op) + ")"
 
-    def binary_op_expr(self, op: Opcode, loperand: str, roperand: str, valid_loperand: str = "", valid_roperand: str = "") -> str:
+    def binary_op_expr(self, op: OpCode, loperand: str, roperand: str, valid_loperand: str = "", valid_roperand: str = "") -> str:
         return "(" + self.binary_op_gen(op, loperand, roperand, valid_loperand, valid_roperand) + ")"
 
     def binary_expr(self, left: str, operator: str, right: str) -> str:
@@ -185,7 +214,7 @@ def to_reduce_kern_name(code: OpCode, dim: int, axis: int) -> str:
 
 
 class CodeGenerator:
-    def __init__(self, flavor):
+    def __init__(self, flavor) -> None:
         self.flavor = flavor
 
     # not really optimized, but simple and good for the baseline
@@ -199,7 +228,7 @@ class CodeGenerator:
         idx = buff.binary_expr(buff.binary_expr("block_pos", "*", buff.block_dim("x")), "+", buff.thread_idx("x"))
         buff.init(VType(VTypeCode.I64), "idx", idx)
 
-    def generate_unary_kernel(self, code: OpCode, ndim: int) -> str:
+    def generate_unary_kernel(self, code: OpCode, ndim: int) -> tuple[str, str]:
         buff = KernelGeneratorBuffer(self.flavor)
 
         kern_name = to_kern_name(code, ndim)
@@ -257,7 +286,7 @@ class CodeGenerator:
         buff.kernel_end()
         return kern_name, buff.to_str()
 
-    def generate_binary_kernel(self, code: OpCode, ndim: int):
+    def generate_binary_kernel(self, code: OpCode, ndim: int) -> tuple[str, str]:
         buff = KernelGeneratorBuffer(self.flavor)
 
         kern_name = to_kern_name(code, ndim)
@@ -334,7 +363,7 @@ class CodeGenerator:
         return kern_name, buff.to_str()
 
     # reduces by the single axis, the output size threads will be invoked. Must be optimized
-    def generate_reduce_kernel(self, code: OpCode, ndim: int, axis: int):
+    def generate_reduce_kernel(self, code: OpCode, ndim: int, axis: int) -> tuple[str, str]:
         buff = KernelGeneratorBuffer(self.flavor)
 
         kern_name = to_reduce_kern_name(code, ndim, axis)
@@ -406,7 +435,7 @@ class CodeGenerator:
 
 
 class KernelManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self.kerns: list[Kernel] = []
 
     def load(self, kerns: list[Kernel]) -> None:
