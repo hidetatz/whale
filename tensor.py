@@ -398,7 +398,7 @@ class Tensor:
         return d.forward((src,))
 
     @classmethod
-    def full(cls, shape: tuple[int], val: float):
+    def full(cls, shape: tuple[int, ...], val: float):
         return Tensor.new_buffer_op([val] * math.prod(shape), shape=shape)
 
     @classmethod
