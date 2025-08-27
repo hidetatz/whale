@@ -82,7 +82,7 @@ class TensorOpCode(IntEnum):
 
 
 class Differentiable:
-    def forward(self, inputs: tuple(Tensor)):
+    def forward(self, inputs: tuple[Tensor, ...]):
         self.inputs = inputs
         self.output = self._forward(*inputs)
         return self.output
@@ -103,8 +103,11 @@ class DifferentiableData(Differentiable):
         self.src = src
         return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self)
 
-    def _backward(self, grad: Tensor) -> tuple(Tensor):
-        return grad
+    def _forward_code(self) -> TensorOpCode:
+        raise NotImplementedError()
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        return grad,
 
 
 class Copy(DifferentiableData):
@@ -118,7 +121,10 @@ class DifferentiableUnary(Differentiable):
         self.src = src
         return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self)
 
-    def _backward(self, grad: Tensor) -> tuple(Tensor):
+    def _forward_code(self) -> TensorOpCode:
+        raise NotImplementedError()
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         raise NotImplementedError()
 
 
