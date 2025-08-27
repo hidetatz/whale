@@ -23,7 +23,7 @@ class OpCode(IntEnum):
 class Kernel:
     name: str
     src: str
-    func_pointer: c_void_p  # on C side
+    func_pointer: c_void_p | None  # on C side
 
 
 class VTypeCode(IntEnum):

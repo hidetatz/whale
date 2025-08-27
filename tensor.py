@@ -5,6 +5,7 @@ import itertools
 import math
 import os
 import time
+import typing
 from dataclasses import dataclass
 from enum import IntEnum, auto
 
@@ -107,7 +108,7 @@ class DifferentiableData(Differentiable):
         raise NotImplementedError()
 
     def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
-        return grad,
+        return (grad,)
 
 
 class Copy(DifferentiableData):
@@ -298,13 +299,13 @@ class Tensor:
 
     def __init__(
         self,
-        arg: int | float | list | TensorOpcode,
-        shape: tuple[int] = None,
-        strides: tuple[int] = None,
+        arg: int | float | list | TensorOpCode,
+        shape: tuple[int, ...] | None = None,
+        strides: tuple[int] | None = None,
         offset: int = 0,
-        valid_area: tuple[tuple[int, int]] = None,
+        valid_area: tuple[tuple[int, int], ...] | None = None,
         contiguous: bool = True,
-        inputs: tuple[Tensor] = [],
+        inputs: tuple[Tensor, ...] = [],
         backprop_ctx=None,
     ):
         self.dev = get_device()
@@ -320,8 +321,8 @@ class Tensor:
             self.inputs: list[Tensor] = inputs
             self.backprop_ctx: Differentiable = backprop_ctx
 
-            self.cpu_buffer: device.CPUMemoryBuffer = None
-            self.dev_buffer: device.DeviceMemoryBuffer = None
+            self.cpu_buffer: device.CPUMemoryBuffer | None = None
+            self.dev_buffer: device.DeviceMemoryBuffer | None = None
             self.materialized: bool = False
             return
 
@@ -420,7 +421,7 @@ class Tensor:
         return Tensor([i for i in range(n)])
 
     @classmethod
-    def wrap(cls, x: any):
+    def wrap(cls, x: typing.Any):
         return x if isinstance(x, Tensor) else Tensor(x)
 
     #
@@ -951,6 +952,15 @@ class Materializer:
         return kerns
 
     def generate_instructions(self, tensors: list[Tensor]) -> list[Instruction]:
+        code_map: dict[TensorOpCode, kernel.OpCode] = {
+            TensorOpCode.RECIP: kernel.OpCode.RECIP,
+            TensorOpCode.ADD: kernel.OpCode.ADD,
+            TensorOpCode.MUL: kernel.OpCode.MUL,
+            TensorOpCode.POW: kernel.OpCode.POW,
+            TensorOpCode.LOG: kernel.OpCode.LOG,
+            TensorOpCode.COPY: kernel.OpCode.COPY,
+            TensorOpCode.SUM: kernel.OpCode.SUM,
+        }
         insts: list[Instruction] = []
         for t in tensors:
             if t.code.is_buffer_op():
@@ -959,16 +969,16 @@ class Materializer:
 
             elif t.code.is_unary_op():
                 insts.append(AllocateDeviceMemory(t))
-                insts.append(InvokeUnaryKernel(kernel.to_kern_name(t.code, t.ndim), t, t.inputs[0]))
+                insts.append(InvokeUnaryKernel(kernel.to_kern_name(code_map[t.code], t.ndim), t, t.inputs[0]))
 
             elif t.code.is_binary_op():
                 insts.append(AllocateDeviceMemory(t))
-                insts.append(InvokeBinaryKernel(kernel.to_kern_name(t.code, t.ndim), t, t.inputs[0], t.inputs[1]))
+                insts.append(InvokeBinaryKernel(kernel.to_kern_name(code_map[t.code], t.ndim), t, t.inputs[0], t.inputs[1]))
 
             elif t.code.is_reduce_op():
                 insts.append(AllocateDeviceMemory(t))
                 axis = t.backprop_ctx.axis
-                insts.append(InvokeReduceKernel(kernel.to_reduce_kern_name(t.code, t.ndim, axis), t, t.inputs[0], axis))
+                insts.append(InvokeReduceKernel(kernel.to_reduce_kern_name(code_map[t.code], t.ndim, axis), t, t.inputs[0], axis))
 
             elif t.code.is_view_op():
                 insts.append(CopyDevicePointer(t.inputs[0], t))

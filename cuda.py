@@ -217,7 +217,7 @@ class KernelManager(kernel.KernelManager):
 
         return fps
 
-    def invoke(self, kern_name: str, grid: int | tuple[int], block: int | tuple[int], params: tuple[typing.Any]) -> None:
+    def invoke(self, kern_name: str, grid: int | tuple[int, ...], block: int | tuple[int, ...], params: tuple[typing.Any]) -> None:
         def extract(p: int | tuple[int]):
             if type(p) == int:
                 return (p, 1, 1)
