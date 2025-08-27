@@ -155,6 +155,9 @@ class Device(device.Device):
         cuda.libcuda.cuMemFree(dev_buff.ptr)
 
     def copy_to_device(self, cpu_buff: device.CPUMemoryBuffer, dev_buff: device.DeviceMemoryBuffer) -> None:
+        if cpu_buff.raw is None:
+            raise RuntimeError("cannot copy None CPU buffer")
+
         result = cuda.libcuda.cuMemcpyHtoD(dev_buff.ptr, (c_float * dev_buff.length)(*cpu_buff.raw), dev_buff.size)
         if result != 0:
             raise RuntimeError(f"cuMemcpyHtoD failed: {result}")
@@ -218,7 +221,7 @@ class KernelManager(kernel.KernelManager):
         return fps
 
     def invoke(self, kern_name: str, grid: int | tuple[int, ...], block: int | tuple[int, ...], params: tuple[typing.Any]) -> None:
-        def extract(p: int | tuple[int]):
+        def extract(p: int | tuple[int, ...]):
             if type(p) == int:
                 return (p, 1, 1)
             elif type(p) == list or type(p) == tuple:

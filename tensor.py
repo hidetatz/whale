@@ -305,11 +305,11 @@ class Tensor:
         offset: int = 0,
         valid_area: tuple[tuple[int, int], ...] | None = None,
         contiguous: bool = True,
-        inputs: tuple[Tensor, ...] = [],
+        inputs: tuple[Tensor, ...] = None,
         backprop_ctx=None,
     ):
         self.dev = get_device()
-        self.grad: Tensor = None
+        self.grad: Tensor | None = None
 
         if isinstance(arg, TensorOpCode):
             self.code: TensorOpCode = arg
@@ -318,7 +318,7 @@ class Tensor:
             self.offset: int = offset
             self.valid_area = tuple([(0, s) for s in self.shape]) if valid_area is None else valid_area
             self.contiguous = contiguous
-            self.inputs: list[Tensor] = inputs
+            self.inputs: tuple[Tensor, ...] = inputs
             self.backprop_ctx: Differentiable = backprop_ctx
 
             self.cpu_buffer: device.CPUMemoryBuffer | None = None
@@ -354,7 +354,7 @@ class Tensor:
         # tensor
         if isinstance(data, list):
             flattened = []
-            actual_shape = []
+            actual_shape: list[int] = []
 
             def f(d, dim):
                 if not isinstance(d, int) and not isinstance(d, float) and not isinstance(d, list):
@@ -377,7 +377,7 @@ class Tensor:
             f(data, 0)
 
             self.shape = shape if shape is not None else tuple(actual_shape)
-            self.strides = shape_to_strides(self.shape)
+            self.strides = shape_to_strides(list(self.shape))
             self.valid_area = tuple([(0, s) for s in self.shape])
             self.cpu_buffer = device.CPUMemoryBuffer(flattened)
             return
@@ -385,7 +385,7 @@ class Tensor:
         raise TypeError(f"type {type(data)} is unsupported as Tensor")
 
     @classmethod
-    def new_buffer_op(cls, data: any, shape: tuple(int) = None) -> Tensor:
+    def new_buffer_op(cls, data: typing.Any, shape: tuple[int]|None = None) -> Tensor:
         return Tensor(data, shape=shape)
 
     @classmethod
@@ -508,7 +508,7 @@ class Tensor:
     # shape movement
     #
 
-    def _broadcasted_shape(self, s2: tuple[int]) -> tuple[int]:
+    def _broadcasted_shape(self, s2: tuple[int]) -> tuple[int, ...]:
         s1 = list(self.shape[:])
         s2 = list(s2)
         maxlen = max(len(s1), len(s2))
@@ -677,7 +677,7 @@ class Tensor:
     def __pow__(self, r):
         return self.pow(r)
 
-    def __rpow__(self, r):
+    def __rpow__(self, l):
         return Tensor.wrap(l).pow(self)
 
     def __neg__(self):

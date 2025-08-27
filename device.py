@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 @dataclass
 class CPUMemoryBuffer:
-    raw: list[float]  # python buffer
+    raw: list[float] | None  # python buffer
 
 
 @dataclass
