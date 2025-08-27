@@ -9,16 +9,16 @@ class WhaleTest(unittest.TestCase):
     #
     # helpers
     #
-    def assert_almost_eq(self, l, r):
+    def assert_almost_eq(self, l, r, places=7):
         if isinstance(l, int) or isinstance(l, float):
             assert isinstance(r, int) or isinstance(r, float), f"l and r type difference: {l=}, {r=}"
             if isinstance(r, int) or isinstance(r, float):
-                self.assertAlmostEqual(l, r)
+                self.assertAlmostEqual(l, r, places=places)
                 return
 
         assert len(l) == len(r), f"l and r length difference: {l=}, {r=}"
         for i in range(len(l)):
-            self.assert_almost_eq(l[i], r[i])
+            self.assert_almost_eq(l[i], r[i], places=places)
 
     #
     # tests
@@ -39,6 +39,32 @@ class WhaleTest(unittest.TestCase):
         with self.subTest("full"):
             t4 = tensor.Tensor.full((1, 2, 3), 5)
             self.assert_almost_eq(t4.tolist(), [[[5, 5, 5], [5, 5, 5]]])
+
+    def test_operators(self):
+        t = tensor.Tensor.arange(6)
+        t1 = t + 3
+        self.assert_almost_eq(t1.tolist(), [3, 4, 5, 6, 7, 8])
+
+        t2 = 3 + t
+        self.assert_almost_eq(t2.tolist(), [3, 4, 5, 6, 7, 8])
+
+        t = tensor.Tensor.arange(6)
+        t1 = t - 3
+        self.assert_almost_eq(t1.tolist(), [-3, -2, -1, 0, 1, 2])
+        t2 = 3 - t
+        self.assert_almost_eq(t2.tolist(), [3, 2, 1, 0, -1, -2])
+
+        t = tensor.Tensor.arange(6)
+        t1 = t * 3
+        self.assert_almost_eq(t1.tolist(), [0, 3, 6, 9, 12, 15])
+        t2 = 3 * t
+        self.assert_almost_eq(t2.tolist(), [0, 3, 6, 9, 12, 15])
+
+        t = tensor.Tensor.arange(6)
+        t1 = t / 3
+        self.assert_almost_eq(t1.tolist(), [0 / 3, 1 / 3, 2 / 3, 3 / 3, 4 / 3, 5 / 3], places=6)
+        t2 = 3 / t
+        self.assert_almost_eq(t2.tolist(), [3 / 1e-6, 3 / 1, 3 / 2, 3 / 3, 3 / 4, 3 / 5], places=6)
 
     def test_arith(self):
         results = {}

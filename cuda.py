@@ -98,7 +98,7 @@ class LangFlavor(kernel.LangFlavor):
     @classmethod
     def unary_op_gen(cls, operand: str, valid_operand: str, code: kernel.OpCode) -> str:
         if code == kernel.OpCode.RECIP:
-            return f"1.0f / ({valid_operand} ? {operand} : 1e-6)"
+            return f"1.0f / ({valid_operand} ? ({operand} != 0 ? {operand} : 1e-6) : 1e-6)"
         if code == kernel.OpCode.LOG:
             return f"log({valid_operand} ? {operand} : 1e-6)"
         if code == kernel.OpCode.COPY:
