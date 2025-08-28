@@ -58,6 +58,7 @@ class TensorOpCode(IntEnum):
     _reduce_op_end = auto()
 
     _view_op_start = auto()
+    PERMUTE = auto()
     EXPAND = auto()
     CROP = auto()
     PAD = auto()
@@ -279,6 +280,28 @@ class DifferentiableView(Differentiable):
 
     def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         raise NotImplementedError()
+
+
+class Permute(DifferentiableView):
+    def __init__(
+        self,
+        shape: tuple[int, ...],
+        strides: tuple[int, ...],
+        offset: int,
+        valid_area: tuple[tuple[int, int], ...] | None,
+        contiguous: bool,
+        axes: tuple[int, ...],
+    ) -> None:
+        self.axes = axes
+        super().__init__(shape, strides, offset, valid_area, contiguous)
+
+    def _forward_code(self) -> TensorOpCode:
+        return TensorOpCode.PERMUTE
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        # argsort https://stackoverflow.com/questions/3382352/equivalent-of-numpy-argsort-in-basic-python
+        perm = sorted(range(len(self.axes)), key=self.axes.__getitem__)
+        return (grad.permute(*perm),)
 
 
 class Expand(DifferentiableView):
@@ -572,6 +595,20 @@ class Tensor:
     #
     # shape movement
     #
+
+    def permute(self, *axes: int) -> Tensor:
+        if sorted(axes) != list(range(self.ndim)):
+            raise RuntimeError(f"permute axes must be wrong: {axes}")
+
+        newshape = []
+        newstrides = []
+        newvalidarea = []
+        for a in axes:
+            newshape.append(self.shape[a])
+            newstrides.append(self.strides[a])
+            newvalidarea.append(self.valid_area[a])
+
+        return Tensor.new_view_op(Permute(tuple(newshape), tuple(newstrides), self.offset, tuple(newvalidarea), False, axes), self)
 
     def _broadcasted_shape(self, s2: tuple[int, ...]) -> tuple[int, ...]:
         ls1 = list(self.shape[:])
@@ -1139,6 +1176,6 @@ def ones_like(t: Tensor):
 
 
 if __name__ == "__main__":
-    t = Tensor.arange(24).reshape(2, 2, 3, 2)
-    t1 = t.sin()
-    print(t1.tolist())  # , [[3, 12, 21, 30], [39, 48, 57, 66]])  # (2, 4)
+    t = Tensor.arange(24).reshape(2, 3, 2, 2)
+    t1 = t.permute(2, 1, 3, 0)
+    print(t1.tolist())

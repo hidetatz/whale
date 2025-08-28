@@ -472,6 +472,69 @@ class WhaleTest(unittest.TestCase):
                 )
                 self.assert_almost_eq(t.grad.tolist(), [[1, 1, 1], [1, 1, 1]])
 
+    def test_permute(self):
+        with self.subTest("no reorder"):
+            # (2, 3, 2)
+            t = tensor.tensor([[[0, 1], [2, 3], [4, 5]], [[6, 7], [8, 9], [10, 11]]])
+            t1 = t.permute(0, 1, 2)
+            self.assert_almost_eq(t1.tolist(), t.tolist())
+            t1.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[[1, 1], [1, 1], [1, 1]], [[1, 1], [1, 1], [1, 1]]])
+
+        with self.subTest("(0, 2, 1)"):
+            # (2, 3, 2)
+            t = tensor.tensor([[[0, 1], [2, 3], [4, 5]], [[6, 7], [8, 9], [10, 11]]])
+            t1 = t.permute(0, 2, 1)
+            self.assert_almost_eq(t1.tolist(), [[[0, 2, 4], [1, 3, 5]], [[6, 8, 10], [7, 9, 11]]])
+            self.assertEqual(t1.shape, (2, 2, 3))
+            t1.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[[1, 1], [1, 1], [1, 1]], [[1, 1], [1, 1], [1, 1]]])
+
+        with self.subTest("(1, 0, 2)"):
+            # (2, 3, 2)
+            t = tensor.tensor([[[0, 1], [2, 3], [4, 5]], [[6, 7], [8, 9], [10, 11]]])
+            t1 = t.permute(1, 0, 2)
+            self.assert_almost_eq(t1.tolist(), [[[0, 1], [6, 7]], [[2, 3], [8, 9]], [[4, 5], [10, 11]]])
+            self.assertEqual(t1.shape, (3, 2, 2))
+            t1.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[[1, 1], [1, 1], [1, 1]], [[1, 1], [1, 1], [1, 1]]])
+
+        with self.subTest("(2, 0, 1)"):
+            # (2, 3, 2)
+            t = tensor.tensor([[[0, 1], [2, 3], [4, 5]], [[6, 7], [8, 9], [10, 11]]])
+            t1 = t.permute(2, 0, 1)
+            self.assert_almost_eq(t1.tolist(), [[[0, 2, 4], [6, 8, 10]], [[1, 3, 5], [7, 9, 11]]])
+            self.assertEqual(t1.shape, (2, 2, 3))
+            t1.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[[1, 1], [1, 1], [1, 1]], [[1, 1], [1, 1], [1, 1]]])
+
+        with self.subTest("permute cropped tensor"):
+            # 2, 4, 3
+            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+            t1 = t.crop(((1, 2), (1, 3), (0, 2)))  # (1, 2, 2), [15, 16, 18, 19]
+            t2 = t1.permute(2, 0, 1)
+            self.assert_almost_eq(t2.tolist(), [[[15, 18]], [[16, 19]]])
+            self.assertEqual(t2.shape, (2, 1, 2))
+            t2.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [1, 1, 0], [1, 1, 0], [0, 0, 0]]])
+
+        with self.subTest("permute padded tensor"):
+            t = tensor.tensor([[0, 1], [2, 3]])  # (2, 2)
+            t1 = t.pad(((1, 2), (2, 1)))  # (5, 5)
+            t2 = t1.permute(1, 0)
+            self.assert_almost_eq(
+                t2.tolist(),
+                [
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 0, 2, 0, 0],
+                    [0, 1, 3, 0, 0],
+                    [0, 0, 0, 0, 0],
+                ],
+            )
+            t2.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[1, 1], [1, 1]])
+
     def test_broadcast_to(self):
         with self.subTest("1, 1, 3 -> 1, 2, 3"):
             t = tensor.tensor([[[0, 1, 2]]])
