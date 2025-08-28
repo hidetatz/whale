@@ -22,6 +22,11 @@ def check(*args):
 def test(*args):
     os.system("python test.py")
 
+def all(*args):
+    fmt()
+    check()
+    test()
+
 #
 # arg processing
 # 
