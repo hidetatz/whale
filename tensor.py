@@ -60,22 +60,22 @@ class TensorOpCode(IntEnum):
     RESHAPE = auto()
     _view_op_end = auto()
 
-    def _in(self, start, end):
+    def _in(self, start:TensorOpCode, end:TensorOpCode) -> bool:
         return start < self.value and self.value < end
 
-    def is_buffer_op(self):
+    def is_buffer_op(self) -> bool:
         return self._in(TensorOpCode._buffer_op_start, TensorOpCode._buffer_op_end)
 
-    def is_unary_op(self):
+    def is_unary_op(self) -> bool:
         return self._in(TensorOpCode._unary_op_start, TensorOpCode._unary_op_end)
 
-    def is_binary_op(self):
+    def is_binary_op(self) -> bool:
         return self._in(TensorOpCode._binary_op_start, TensorOpCode._binary_op_end)
 
-    def is_reduce_op(self):
+    def is_reduce_op(self) -> bool:
         return self._in(TensorOpCode._reduce_op_start, TensorOpCode._reduce_op_end)
 
-    def is_view_op(self):
+    def is_view_op(self) -> bool:
         return self._in(TensorOpCode._view_op_start, TensorOpCode._view_op_end)
 
     def __str__(self):
