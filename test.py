@@ -472,6 +472,13 @@ class WhaleTest(unittest.TestCase):
                 )
                 self.assert_almost_eq(t.grad.tolist(), [[1, 1, 1], [1, 1, 1]])
 
+        with self.subTest("4 or more dims sum"):
+            t = tensor.tensor(
+                [[[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]]], [[[12, 13], [14, 15]], [[16, 17], [18, 19]], [[20, 21], [22, 23]]]]
+            )  # (2, 2, 3, 2)
+            t1 = t.sum(axis=(2, 0))
+            self.assert_almost_eq(t1.tolist(), [[28.0, 32.0], [44.0, 48.0], [60.0, 64.0]])
+
     def test_permute(self):
         with self.subTest("no reorder"):
             # (2, 3, 2)
@@ -561,41 +568,38 @@ class WhaleTest(unittest.TestCase):
             t = tensor.tensor([[[0, 1, 2]]])
             t1 = t.broadcast_to((2, 1, 1, 3))
             self.assert_almost_eq(t1.tolist(), [[[[0, 1, 2]]], [[[0, 1, 2]]]])
-            # todo: support 4 or more dim reduce
-            # t1.backprop()
-            # self.assert_almost_eq(t.grad.tolist(), [[[2, 2, 2]]])
+            t1.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[[2, 2, 2]]])
 
         with self.subTest("1, 1, 3 -> 2, 1, 2, 3"):
             t = tensor.tensor([[[0, 1, 2]]])
             t1 = t.broadcast_to((2, 1, 2, 3))
             self.assert_almost_eq(t1.tolist(), [[[[0, 1, 2], [0, 1, 2]]], [[[0, 1, 2], [0, 1, 2]]]])
-            # todo: support 4 or more dim reduce
-            # t1.backprop()
-            # self.assert_almost_eq(t.grad.tolist(), [[[4, 4, 4]]])
+            t1.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[[4, 4, 4]]])
 
         with self.subTest("1, 1, 3 -> 2, 2, 2, 3"):
             t = tensor.tensor([[[0, 1, 2]]])
             t1 = t.broadcast_to((2, 2, 2, 3))
             self.assert_almost_eq(t1.tolist(), [[[[0, 1, 2], [0, 1, 2]], [[0, 1, 2], [0, 1, 2]]], [[[0, 1, 2], [0, 1, 2]], [[0, 1, 2], [0, 1, 2]]]])
-            # todo: support 4 or more dim reduce
-            # t1.backprop()
-            # self.assert_almost_eq(t.grad.tolist(), [[[8, 8, 8]]])
+            t1.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[[8, 8, 8]]])
 
         with self.subTest("broadcast cropped tensor"):
             t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
             t1 = t.crop(((1, 2), (1, 3), (0, 2)))  # (1, 2, 2), [15, 16, 18, 19]
             t2 = t1.broadcast_to((2, 2, 2))
             self.assert_almost_eq(t2.tolist(), [[[15, 16], [18, 19]], [[15, 16], [18, 19]]])
-            # todo: support 4 or more dim reduce
-            # t2.backprop()
+            t2.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [2, 2, 0], [2, 2, 0], [0, 0, 0]]])
 
         with self.subTest("broadcast cropped tensor 2"):
             t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
             t1 = t.crop(((1, 2), (1, 3), (0, 2)))  # (1, 2, 2), [15, 16, 18, 19]
             t2 = t1.broadcast_to((2, 2, 2, 2))
             self.assert_almost_eq(t2.tolist(), [[[[15, 16], [18, 19]], [[15, 16], [18, 19]]], [[[15, 16], [18, 19]], [[15, 16], [18, 19]]]])
-            # todo: support 4 or more dim reduce
-            # t2.backprop()
+            t2.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [4, 4, 0], [4, 4, 0], [0, 0, 0]]])
 
         with self.subTest("broadcast padded tensor"):
             t = tensor.tensor([[0, 1], [2, 3]])  # (2, 2)
@@ -638,8 +642,8 @@ class WhaleTest(unittest.TestCase):
                     ],
                 ],
             )
-            # todo: support 4 or more dim reduce
-            # t2.backprop()
+            t2.backprop()
+            self.assert_almost_eq(t.grad.tolist(), [[4, 4], [4, 4]])
 
     def test_crop(self):
         with self.subTest("Nones"):
