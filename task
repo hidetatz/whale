@@ -16,6 +16,9 @@ def fmt(*args):
     os.system("black -q -l 150 -t py313 .")
     os.system("isort --profile black --skip .env .")
 
+def check(*args):
+    os.system("mypy --check-untyped-defs .")
+
 def test(*args):
     os.system("python test.py")
 
