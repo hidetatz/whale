@@ -187,6 +187,10 @@ class Pow(DifferentiableBinary):
 
 # reduce
 class DifferentiableReduce(Differentiable):
+    def __init__(self, axis: int, keepdims: bool) -> None:
+        self.axis = axis
+        self.keepdims = keepdims
+
     def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
         self.src = inputs[0]
         newshape = tuple([s if i != self.axis else 1 for i, s in enumerate(self.src.shape)])  # updates shape[axis] to 1
@@ -200,21 +204,19 @@ class DifferentiableReduce(Differentiable):
 
 
 class Sum(DifferentiableReduce):
-    def __init__(self, axis: int, keepdims: bool) -> None:
-        self.axis = axis
-        self.keepdims = keepdims
-
     def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.SUM
 
     def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         lead = len(self.src.shape) - len(grad.shape)
-        return grad.reshape(*([1] * lead + list(grad.shape))).broadcast_to(self.src.shape)
+        return (grad.reshape(*([1] * lead + list(grad.shape))).broadcast_to(self.src.shape),)
 
 
 # view
 class DifferentiableView(Differentiable):
-    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], contiguous: bool) -> None:
+    def __init__(
+        self, shape: tuple[int, ...], strides: tuple[int, ...], offset: int, valid_area: tuple[tuple[int, int], ...], contiguous: bool
+    ) -> None:
         self.shape = shape
         self.strides = strides
         self.offset = offset
@@ -237,7 +239,7 @@ class DifferentiableView(Differentiable):
     def _forward_code(self) -> TensorOpCode:
         raise NotImplementedError()
 
-    def _backward(self, grad: Tensor) -> tuple(Tensor):
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         raise NotImplementedError()
 
 
@@ -290,7 +292,7 @@ class Pad(DifferentiableView):
         return TensorOpCode.PAD
 
     def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
-        return grad.crop(tuple([(p[0], s + p[0]) for s, p in zip(self.src.shape, self.padding)]))
+        return (grad.crop(tuple([(p[0], s + p[0]) for s, p in zip(self.src.shape, self.padding)])),)
 
 
 class Reshape(DifferentiableView):
@@ -298,7 +300,7 @@ class Reshape(DifferentiableView):
         return TensorOpCode.RESHAPE
 
     def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
-        return grad.reshape(*self.src.shape)
+        return (grad.reshape(*self.src.shape),)
 
 
 class Tensor:
@@ -314,7 +316,7 @@ class Tensor:
         offset: int = 0,
         valid_area: tuple[tuple[int, int], ...] | None = None,
         contiguous: bool = True,
-        inputs: tuple[Tensor, ...] = None,
+        inputs: tuple[Tensor, ...] | None = None,
         backprop_ctx=None,
     ):
         self.dev = get_device()
@@ -322,8 +324,8 @@ class Tensor:
 
         if isinstance(arg, TensorOpCode):
             self.code: TensorOpCode = arg
-            self.shape: tuple[int] = shape
-            self.strides: tuple[int] = strides if strides is not None else shape_to_strides(shape)
+            self.shape: tuple[int, ...] = shape
+            self.strides: tuple[int, ...] = strides if strides is not None else shape_to_strides(shape)
             self.offset: int = offset
             self.valid_area = tuple([(0, s) for s in self.shape]) if valid_area is None else valid_area
             self.contiguous = contiguous
@@ -345,7 +347,7 @@ class Tensor:
         self.code = TensorOpCode.BUFFER
         self.offset = 0
         self.contiguous = True
-        self.inputs = []
+        self.inputs = None
         self.dev_buffer = None
         self.backprop_ctx = None
         self.materialized = True
@@ -480,7 +482,7 @@ class Tensor:
     def neg(self):
         return self * -1
 
-    def sum(self, axis: int | tuple[int] = None, keepdims: bool = False):
+    def sum(self, axis: int | tuple[int, ...] | None = None, keepdims: bool = False):
         # this parallel reduction should be optimized
         if axis is None:
             axis = tuple(list(range(self.ndim)))
@@ -517,7 +519,7 @@ class Tensor:
     # shape movement
     #
 
-    def _broadcasted_shape(self, s2: tuple[int]) -> tuple[int, ...]:
+    def _broadcasted_shape(self, s2: tuple[int, ...]) -> tuple[int, ...]:
         s1 = list(self.shape[:])
         s2 = list(s2)
         maxlen = max(len(s1), len(s2))
@@ -564,7 +566,7 @@ class Tensor:
             r = r.broadcast_to(newshape)
         return l, r
 
-    def crop(self, areas: tuple[tuple[int, int]]):
+    def crop(self, areas: tuple[tuple[int, int], ...]):
         if len(areas) != self.ndim:
             raise RuntimeError("crop area size must be the same with ndim")
 
@@ -579,7 +581,7 @@ class Tensor:
 
         return Tensor.new_view_op(Crop(tuple(newshape), self.strides, newoffset, None, False, arg), self)
 
-    def pad(self, padding: tuple[tuple[int, int]]):
+    def pad(self, padding: tuple[tuple[int, int], ...]):
         if len(padding) != self.ndim:
             raise RuntimeError("padding size must be the same with ndim")
 
@@ -923,8 +925,9 @@ class Materializer:
 
             seen.add(_t)
 
-            for i in _t.inputs:
-                dfs(i)
+            if _t.inputs is not None:
+                for i in _t.inputs:
+                    dfs(i)
 
             tensors.append(_t)
 
