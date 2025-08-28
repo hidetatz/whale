@@ -67,18 +67,33 @@ class WhaleTest(unittest.TestCase):
         self.assert_almost_eq(t2.tolist(), [float("inf"), 3 / 1, 3 / 2, 3 / 3, 3 / 4, 3 / 5], places=6)
 
     def test_arith(self):
-        results = {}
-        for mod in [tensor, torch]:
-            t1 = mod.tensor([1.0, 2.0, 3.0])
-            t2 = mod.tensor([4.0, 5.0, 6.0])
-            t3 = mod.tensor([7.0, 8.0, 9.0])
-            t4 = mod.tensor([10.0, 11.0, 12.0])
-            t5 = mod.tensor([13.0, 14.0, 15.0])
-            t6 = mod.tensor([0.0, 2.0, 4.0])
+        with self.subTest("+, -, *, /, **"):
+            results = {}
+            for mod in [tensor, torch]:
+                t1 = mod.tensor([1.0, 2.0, 3.0], requires_grad=True)
+                t2 = mod.tensor([4.0, 5.0, 6.0], requires_grad=True)
+                t3 = mod.tensor([7.0, 8.0, 9.0], requires_grad=True)
+                t4 = mod.tensor([10.0, 11.0, 12.0], requires_grad=True)
+                t5 = mod.tensor([13.0, 14.0, 15.0], requires_grad=True)
+                t6 = mod.tensor([0.0, 2.0, 4.0], requires_grad=True)
 
-            results[mod.__name__] = t1 + t2 * t3 - t4 / t5**t6
+                t7 = t1 + t2 * t3 - t4 / t5**t6
+                results[mod.__name__] = t7
+                t7.backward(gradient=mod.ones_like(t7))
+                results[mod.__name__ + "_t1_grad"] = t1.grad
+                results[mod.__name__ + "_t2_grad"] = t2.grad
+                results[mod.__name__ + "_t3_grad"] = t3.grad
+                results[mod.__name__ + "_t4_grad"] = t4.grad
+                results[mod.__name__ + "_t5_grad"] = t5.grad
+                results[mod.__name__ + "_t6_grad"] = t6.grad
 
-        self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist())
+            self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist())
+            self.assert_almost_eq(results["tensor_t1_grad"].tolist(), results["torch_t1_grad"].tolist())
+            self.assert_almost_eq(results["tensor_t2_grad"].tolist(), results["torch_t2_grad"].tolist())
+            self.assert_almost_eq(results["tensor_t3_grad"].tolist(), results["torch_t3_grad"].tolist())
+            self.assert_almost_eq(results["tensor_t4_grad"].tolist(), results["torch_t4_grad"].tolist())
+            self.assert_almost_eq(results["tensor_t5_grad"].tolist(), results["torch_t5_grad"].tolist())
+            self.assert_almost_eq(results["tensor_t6_grad"].tolist(), results["torch_t6_grad"].tolist())
 
         with self.subTest("neg"):
             t = tensor.tensor([[0, 1, 2], [3, 4, 5]])
@@ -786,35 +801,6 @@ class WhaleTest(unittest.TestCase):
             self.assert_almost_eq(t2.grad.tolist(), [[13, 14], [16, 17], [19, 20], [22, 23]])
             self.assert_almost_eq(t1.grad.tolist(), [[0, 1], [2, 3], [4, 5], [6, 7]])
             self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 1], [0, 2, 3], [0, 4, 5], [0, 6, 7]]])
-
-    def test_backprop(self):
-        results = {}
-        for mod in [tensor, torch]:
-            t1 = mod.tensor(1.0, requires_grad=True)
-            t2 = mod.tensor(4.0, requires_grad=True)
-            t3 = mod.tensor(7.0, requires_grad=True)
-            t4 = mod.tensor(10.0, requires_grad=True)
-            t5 = mod.tensor(13.0, requires_grad=True)
-            t6 = mod.tensor(3.0, requires_grad=True)
-            t7 = mod.tensor(1.0, requires_grad=True)
-
-            result = t1 + t2 * t3 - t4 / t5**t6 + t7
-            result.backward()
-            results[f"{mod.__name__}_grad_t1"] = t1.grad
-            results[f"{mod.__name__}_grad_t2"] = t2.grad
-            results[f"{mod.__name__}_grad_t3"] = t3.grad
-            results[f"{mod.__name__}_grad_t4"] = t4.grad
-            results[f"{mod.__name__}_grad_t5"] = t5.grad
-            results[f"{mod.__name__}_grad_t6"] = t6.grad
-            results[f"{mod.__name__}_grad_t7"] = t7.grad
-
-        self.assert_almost_eq(results["tensor_grad_t1"].tolist(), results["torch_grad_t1"].tolist())
-        self.assert_almost_eq(results["tensor_grad_t2"].tolist(), results["torch_grad_t2"].tolist())
-        self.assert_almost_eq(results["tensor_grad_t3"].tolist(), results["torch_grad_t3"].tolist())
-        self.assert_almost_eq(results["tensor_grad_t4"].tolist(), results["torch_grad_t4"].tolist())
-        self.assert_almost_eq(results["tensor_grad_t5"].tolist(), results["torch_grad_t5"].tolist())
-        self.assert_almost_eq(results["tensor_grad_t6"].tolist(), results["torch_grad_t6"].tolist())
-        self.assert_almost_eq(results["tensor_grad_t7"].tolist(), results["torch_grad_t7"].tolist())
 
 
 if __name__ == "__main__":
