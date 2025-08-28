@@ -28,7 +28,7 @@ def get_device():
     raise RuntimeError("no backend")
 
 
-def shape_to_strides(shape: list[int]):
+def shape_to_strides(shape: tuple[int, ...]) -> tuple[int, ...]:
     return tuple([math.prod(shape[i + 1 :]) for i in range(len(shape))])
 
 
@@ -215,7 +215,7 @@ class Sum(DifferentiableReduce):
 # view
 class DifferentiableView(Differentiable):
     def __init__(
-        self, shape: tuple[int, ...], strides: tuple[int, ...], offset: int, valid_area: tuple[tuple[int, int], ...], contiguous: bool
+        self, shape: tuple[int, ...], strides: tuple[int, ...], offset: int, valid_area: tuple[tuple[int, int], ...] | None, contiguous: bool
     ) -> None:
         self.shape = shape
         self.strides = strides
@@ -258,12 +258,12 @@ class Expand(DifferentiableView):
 class Crop(DifferentiableView):
     def __init__(
         self,
-        shape: tuple[int],
-        strides: tuple[int],
+        shape: tuple[int, ...],
+        strides: tuple[int, ...],
         offset: int,
-        valid_area: tuple[tuple[int, int]],
+        valid_area: tuple[tuple[int, int], ...] | None,
         contiguous: bool,
-        crop_area: tuple[tuple[int, int]],
+        crop_area: tuple[tuple[int, int], ...],
     ) -> None:
         self.crop_area = crop_area
         super().__init__(shape, strides, offset, valid_area, contiguous)
@@ -278,12 +278,12 @@ class Crop(DifferentiableView):
 class Pad(DifferentiableView):
     def __init__(
         self,
-        shape: tuple[int],
-        strides: tuple[int],
+        shape: tuple[int, ...],
+        strides: tuple[int, ...],
         offset: int,
-        valid_area: tuple[tuple[int, int]],
+        valid_area: tuple[tuple[int, int], ...] | None,
         contiguous: bool,
-        padding: tuple[tuple[int, int]],
+        padding: tuple[tuple[int, int], ...],
     ) -> None:
         self.padding = padding
         super().__init__(shape, strides, offset, valid_area, contiguous)
@@ -312,25 +312,25 @@ class Tensor:
         self,
         arg: int | float | list | TensorOpCode,
         shape: tuple[int, ...] | None = None,
-        strides: tuple[int] | None = None,
+        strides: tuple[int, ...] | None = None,
         offset: int = 0,
         valid_area: tuple[tuple[int, int], ...] | None = None,
         contiguous: bool = True,
         inputs: tuple[Tensor, ...] | None = None,
-        backprop_ctx=None,
+        backprop_ctx: Differentiable | None = None,
     ):
         self.dev = get_device()
         self.grad: Tensor | None = None
 
         if isinstance(arg, TensorOpCode):
             self.code: TensorOpCode = arg
-            self.shape: tuple[int, ...] = shape
-            self.strides: tuple[int, ...] = strides if strides is not None else shape_to_strides(shape)
-            self.offset: int = offset
+            self.shape: tuple[int, ...] = shape if shape is not None else ()
+            self.strides: tuple[int, ...] = strides if strides is not None else shape_to_strides(self.shape)
+            self.offset = offset
             self.valid_area = tuple([(0, s) for s in self.shape]) if valid_area is None else valid_area
             self.contiguous = contiguous
-            self.inputs: tuple[Tensor, ...] = inputs
-            self.backprop_ctx: Differentiable = backprop_ctx
+            self.inputs = inputs if inputs is not None else ()
+            self.backprop_ctx: Differentiable | None = backprop_ctx
 
             self.cpu_buffer: device.CPUMemoryBuffer | None = None
             self.dev_buffer: device.DeviceMemoryBuffer | None = None
@@ -347,13 +347,13 @@ class Tensor:
         self.code = TensorOpCode.BUFFER
         self.offset = 0
         self.contiguous = True
-        self.inputs = None
+        self.inputs = ()
         self.dev_buffer = None
         self.backprop_ctx = None
         self.materialized = True
 
         # scalar
-        if isinstance(data, float) | isinstance(data, int):
+        if isinstance(data, float) or isinstance(data, int):
             if shape:
                 raise RuntimeError(f"shape {shape} must not be passed to scalar initialization")
             self.shape = ()
@@ -388,7 +388,7 @@ class Tensor:
             f(data, 0)
 
             self.shape = shape if shape is not None else tuple(actual_shape)
-            self.strides = shape_to_strides(list(self.shape))
+            self.strides = shape_to_strides(self.shape)
             self.valid_area = tuple([(0, s) for s in self.shape])
             self.cpu_buffer = device.CPUMemoryBuffer(flattened)
             return
@@ -396,8 +396,12 @@ class Tensor:
         raise TypeError(f"type {type(data)} is unsupported as Tensor")
 
     @classmethod
-    def new_buffer_op(cls, data: typing.Any, shape: tuple[int] | None = None) -> Tensor:
+    def new_buffer_op(cls, data: typing.Any, shape: tuple[int, ...] | None = None) -> Tensor:
         return Tensor(data, shape=shape)
+
+    @classmethod
+    def new_data_op(cls, d: DifferentiableData, src: Tensor) -> Tensor:
+        return d.forward((src,))
 
     @classmethod
     def new_binary_op(cls, d: DifferentiableBinary, l: Tensor, r: Tensor) -> Tensor:
@@ -520,14 +524,14 @@ class Tensor:
     #
 
     def _broadcasted_shape(self, s2: tuple[int, ...]) -> tuple[int, ...]:
-        s1 = list(self.shape[:])
-        s2 = list(s2)
-        maxlen = max(len(s1), len(s2))
-        s1 = [1] * (maxlen - len(s1)) + s1
-        s2 = [1] * (maxlen - len(s2)) + s2
+        ls1 = list(self.shape[:])
+        ls2 = list(s2)
+        maxlen = max(len(ls1), len(ls2))
+        ls1 = [1] * (maxlen - len(ls1)) + ls1
+        ls2 = [1] * (maxlen - len(ls2)) + ls2
 
         shape = []
-        for d1, d2 in zip(s1, s2):
+        for d1, d2 in zip(ls1, ls2):
             if d1 == d2:
                 shape.append(d1)
                 continue
@@ -566,11 +570,11 @@ class Tensor:
             r = r.broadcast_to(newshape)
         return l, r
 
-    def crop(self, areas: tuple[tuple[int, int], ...]):
+    def crop(self, areas: tuple[tuple[int, int] | None, ...]):
         if len(areas) != self.ndim:
             raise RuntimeError("crop area size must be the same with ndim")
 
-        arg = [(0, s) if area is None else (area[0], area[1]) for s, area in zip(self.shape, areas)]
+        arg = tuple([(0, s) if area is None else (area[0], area[1]) for s, area in zip(self.shape, areas)])
         newshape = []
         newoffset = self.offset
         for i, a in enumerate(arg):
@@ -585,7 +589,7 @@ class Tensor:
         if len(padding) != self.ndim:
             raise RuntimeError("padding size must be the same with ndim")
 
-        arg = [(0, 0) if p is None else p for p in padding]
+        arg = tuple([(0, 0) if p is None else p for p in padding])
         newshape = []
         newoffset = self.offset
         newvalidarea = []
@@ -599,7 +603,7 @@ class Tensor:
             newoffset -= pd[0] * st
             newvalidarea.append((va[0] + pd[0], va[1] + pd[0]))
 
-        return Tensor.new_view_op(Pad(tuple(newshape), self.strides, newoffset, newvalidarea, False, arg), self)
+        return Tensor.new_view_op(Pad(tuple(newshape), self.strides, newoffset, tuple(newvalidarea), False, arg), self)
 
     def reshape(self, *shape: int) -> Tensor:
         if math.prod(shape) != self.size:
@@ -655,7 +659,7 @@ class Tensor:
     #
 
     def copy(self):
-        return Tensor.new_unary_op(Copy(), self)
+        return Tensor.new_data_op(Copy(), self)
 
     #
     # operators
@@ -745,6 +749,7 @@ class Tensor:
         vals = []
         for idx in indices:
             if all([area_dim[0] <= i_dim and i_dim < area_dim[1] for i_dim, area_dim in zip(idx, self.valid_area)]):
+                assert self.cpu_buffer.raw is not None
                 vals.append(self.cpu_buffer.raw[self.offset + sum([st * i for st, i in zip(self.strides, idx)])])
             else:
                 # if ids is not in valid area, use invalid value
@@ -796,6 +801,7 @@ class Tensor:
 
         for d in differentiables:
             gy = d.output.grad
+            assert gy is not None
             gxs = d.backward(gy)
             if not isinstance(gxs, tuple):
                 gxs = (gxs,)
@@ -953,6 +959,8 @@ class Materializer:
                 name, src = self.kernel_generator.generate_binary_kernel(code_map[t.code], t.ndim)
 
             elif t.code.is_reduce_op():
+                assert t.backprop_ctx is not None
+                assert hasattr(t.backprop_ctx, "axis")
                 name, src = self.kernel_generator.generate_reduce_kernel(code_map[t.code], t.ndim, t.backprop_ctx.axis)
 
             else:
@@ -989,6 +997,8 @@ class Materializer:
 
             elif t.code.is_reduce_op():
                 insts.append(AllocateDeviceMemory(t))
+                assert t.backprop_ctx is not None
+                assert hasattr(t.backprop_ctx, "axis")
                 axis = t.backprop_ctx.axis
                 insts.append(InvokeReduceKernel(kernel.to_reduce_kern_name(code_map[t.code], t.ndim, axis), t, t.inputs[0], axis))
 
