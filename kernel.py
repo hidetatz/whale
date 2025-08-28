@@ -14,6 +14,10 @@ class OpCode(IntEnum):
     LOG = auto()
     COPY = auto()
     SUM = auto()
+    SIN = auto()
+    COS = auto()
+    TANH = auto()
+    EXP = auto()
 
     def __str__(self):
         return self.name

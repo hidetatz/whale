@@ -64,7 +64,7 @@ class WhaleTest(unittest.TestCase):
         t1 = t / 3
         self.assert_almost_eq(t1.tolist(), [0 / 3, 1 / 3, 2 / 3, 3 / 3, 4 / 3, 5 / 3], places=6)
         t2 = 3 / t
-        self.assert_almost_eq(t2.tolist(), [3 / 1e-6, 3 / 1, 3 / 2, 3 / 3, 3 / 4, 3 / 5], places=6)
+        self.assert_almost_eq(t2.tolist(), [float("inf"), 3 / 1, 3 / 2, 3 / 3, 3 / 4, 3 / 5], places=6)
 
     def test_arith(self):
         results = {}
@@ -88,12 +88,70 @@ class WhaleTest(unittest.TestCase):
             self.assert_almost_eq(t.grad.tolist(), [[-1, -1, -1], [-1, -1, -1]])
 
     def test_math(self):
-        results = {}
-        for mod in [tensor, torch]:
-            t1 = mod.tensor(2.0)
-            results[mod.__name__] = t1.log()
+        with self.subTest("log"):
+            results = {}
+            for mod in [tensor, torch]:
+                t = mod.tensor([[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]], requires_grad=True)
+                t1 = t.log()
+                results[mod.__name__] = t1
 
-        self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist())
+                t1.backward(gradient=mod.ones_like(t1))
+                results[mod.__name__ + "_grad"] = t.grad
+
+            self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist())
+            self.assert_almost_eq(results["tensor_grad"].tolist(), results["torch_grad"].tolist())
+
+        with self.subTest("sin"):
+            results = {}
+            for mod in [tensor, torch]:
+                t = mod.tensor([[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]], requires_grad=True)
+                t1 = t.sin()
+                results[mod.__name__] = t1
+
+                t1.backward(gradient=mod.ones_like(t1))
+                results[mod.__name__ + "_grad"] = t.grad
+
+            self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist(), places=6)
+            self.assert_almost_eq(results["tensor_grad"].tolist(), results["torch_grad"].tolist(), places=6)
+
+        with self.subTest("cos"):
+            results = {}
+            for mod in [tensor, torch]:
+                t = mod.tensor([[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]], requires_grad=True)
+                t1 = t.cos()
+                results[mod.__name__] = t1
+
+                t1.backward(gradient=mod.ones_like(t1))
+                results[mod.__name__ + "_grad"] = t.grad
+
+            self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist(), places=6)
+            self.assert_almost_eq(results["tensor_grad"].tolist(), results["torch_grad"].tolist(), places=6)
+
+        with self.subTest("tanh"):
+            results = {}
+            for mod in [tensor, torch]:
+                t = mod.tensor([[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]], requires_grad=True)
+                t1 = t.tanh()
+                results[mod.__name__] = t1
+
+                t1.backward(gradient=mod.ones_like(t1))
+                results[mod.__name__ + "_grad"] = t.grad
+
+            self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist(), places=6)
+            self.assert_almost_eq(results["tensor_grad"].tolist(), results["torch_grad"].tolist(), places=6)
+
+        with self.subTest("exp"):
+            results = {}
+            for mod in [tensor, torch]:
+                t = mod.tensor([[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]], requires_grad=True)
+                t1 = t.exp()
+                results[mod.__name__] = t1
+
+                t1.backward(gradient=mod.ones_like(t1))
+                results[mod.__name__ + "_grad"] = t.grad
+
+            self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist(), places=6)
+            self.assert_almost_eq(results["tensor_grad"].tolist(), results["torch_grad"].tolist(), places=6)
 
     def test_sum(self):
         with self.subTest("2, 4, 3 -> sum(axis=0)"):

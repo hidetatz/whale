@@ -40,6 +40,10 @@ class TensorOpCode(IntEnum):
     _unary_op_start = auto()
     RECIP = auto()
     LOG = auto()
+    SIN = auto()
+    COS = auto()
+    TANH = auto()
+    EXP = auto()
     COPY = auto()
     _unary_op_end = auto()
 
@@ -143,6 +147,40 @@ class Log(DifferentiableUnary):
 
     def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         return (grad / self.src,)
+
+
+class Sin(DifferentiableUnary):
+    def _forward_code(self) -> TensorOpCode:
+        return TensorOpCode.SIN
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        return (grad * self.src.cos(),)
+
+
+class Cos(DifferentiableUnary):
+    def _forward_code(self) -> TensorOpCode:
+        return TensorOpCode.COS
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        return (grad * -self.src.sin(),)
+
+
+class Tanh(DifferentiableUnary):
+    def _forward_code(self) -> TensorOpCode:
+        return TensorOpCode.TANH
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        y = self.output
+        return (grad * (1 - y * y),)
+
+
+class Exp(DifferentiableUnary):
+    def _forward_code(self) -> TensorOpCode:
+        return TensorOpCode.EXP
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        y = self.output
+        return (grad * y,)
 
 
 # binary
@@ -452,7 +490,7 @@ class Tensor:
         return len(self.shape)
 
     #
-    # methods
+    # arith and math
     #
 
     def add(self, r: Tensor):
@@ -475,9 +513,6 @@ class Tensor:
     def recip(self):
         return Tensor.new_unary_op(Recip(), self)
 
-    def log(self):
-        return Tensor.new_unary_op(Log(), self)
-
     def pow(self, r: Tensor):
         r = Tensor.wrap(r)
         l, r = self.broadcasted(r)
@@ -485,6 +520,21 @@ class Tensor:
 
     def neg(self):
         return self * -1
+
+    def log(self):
+        return Tensor.new_unary_op(Log(), self)
+
+    def sin(self):
+        return Tensor.new_unary_op(Sin(), self)
+
+    def cos(self):
+        return Tensor.new_unary_op(Cos(), self)
+
+    def tanh(self):
+        return Tensor.new_unary_op(Tanh(), self)
+
+    def exp(self):
+        return Tensor.new_unary_op(Exp(), self)
 
     def sum(self, axis: int | tuple[int, ...] | None = None, keepdims: bool = False):
         # this parallel reduction should be optimized
@@ -809,7 +859,7 @@ class Tensor:
             for x, gx in zip(d.inputs, gxs):
                 x.grad = gx if x.grad is None else x.grad + gx
 
-    def backward(self):
+    def backward(self, gradient=None):
         self.backprop()
 
 
@@ -940,8 +990,8 @@ class Materializer:
         dfs(t)
         return tensors
 
-    def generate_kernels(self, tensors: list[Tensor]) -> list[kernel.Kernel]:
-        code_map: dict[TensorOpCode, kernel.OpCode] = {
+    def to_kern_opcode(self, c: TensorOpCode) -> kernel.OpCode:
+        d = {
             TensorOpCode.RECIP: kernel.OpCode.RECIP,
             TensorOpCode.ADD: kernel.OpCode.ADD,
             TensorOpCode.MUL: kernel.OpCode.MUL,
@@ -949,19 +999,26 @@ class Materializer:
             TensorOpCode.LOG: kernel.OpCode.LOG,
             TensorOpCode.COPY: kernel.OpCode.COPY,
             TensorOpCode.SUM: kernel.OpCode.SUM,
+            TensorOpCode.SIN: kernel.OpCode.SIN,
+            TensorOpCode.COS: kernel.OpCode.COS,
+            TensorOpCode.TANH: kernel.OpCode.TANH,
+            TensorOpCode.EXP: kernel.OpCode.EXP,
         }
+        return d[c]
+
+    def generate_kernels(self, tensors: list[Tensor]) -> list[kernel.Kernel]:
         kerns: list[kernel.Kernel] = []
         for t in tensors:
             if t.code.is_unary_op():
-                name, src = self.kernel_generator.generate_unary_kernel(code_map[t.code], t.ndim)
+                name, src = self.kernel_generator.generate_unary_kernel(self.to_kern_opcode(t.code), t.ndim)
 
             elif t.code.is_binary_op():
-                name, src = self.kernel_generator.generate_binary_kernel(code_map[t.code], t.ndim)
+                name, src = self.kernel_generator.generate_binary_kernel(self.to_kern_opcode(t.code), t.ndim)
 
             elif t.code.is_reduce_op():
                 assert t.backprop_ctx is not None
                 assert hasattr(t.backprop_ctx, "axis")
-                name, src = self.kernel_generator.generate_reduce_kernel(code_map[t.code], t.ndim, t.backprop_ctx.axis)
+                name, src = self.kernel_generator.generate_reduce_kernel(self.to_kern_opcode(t.code), t.ndim, t.backprop_ctx.axis)
 
             else:
                 continue
@@ -972,15 +1029,6 @@ class Materializer:
         return kerns
 
     def generate_instructions(self, tensors: list[Tensor]) -> list[Instruction]:
-        code_map: dict[TensorOpCode, kernel.OpCode] = {
-            TensorOpCode.RECIP: kernel.OpCode.RECIP,
-            TensorOpCode.ADD: kernel.OpCode.ADD,
-            TensorOpCode.MUL: kernel.OpCode.MUL,
-            TensorOpCode.POW: kernel.OpCode.POW,
-            TensorOpCode.LOG: kernel.OpCode.LOG,
-            TensorOpCode.COPY: kernel.OpCode.COPY,
-            TensorOpCode.SUM: kernel.OpCode.SUM,
-        }
         insts: list[Instruction] = []
         for t in tensors:
             if t.code.is_buffer_op():
@@ -989,18 +1037,18 @@ class Materializer:
 
             elif t.code.is_unary_op():
                 insts.append(AllocateDeviceMemory(t))
-                insts.append(InvokeUnaryKernel(kernel.to_kern_name(code_map[t.code], t.ndim), t, t.inputs[0]))
+                insts.append(InvokeUnaryKernel(kernel.to_kern_name(self.to_kern_opcode(t.code), t.ndim), t, t.inputs[0]))
 
             elif t.code.is_binary_op():
                 insts.append(AllocateDeviceMemory(t))
-                insts.append(InvokeBinaryKernel(kernel.to_kern_name(code_map[t.code], t.ndim), t, t.inputs[0], t.inputs[1]))
+                insts.append(InvokeBinaryKernel(kernel.to_kern_name(self.to_kern_opcode(t.code), t.ndim), t, t.inputs[0], t.inputs[1]))
 
             elif t.code.is_reduce_op():
                 insts.append(AllocateDeviceMemory(t))
                 assert t.backprop_ctx is not None
                 assert hasattr(t.backprop_ctx, "axis")
                 axis = t.backprop_ctx.axis
-                insts.append(InvokeReduceKernel(kernel.to_reduce_kern_name(code_map[t.code], t.ndim, axis), t, t.inputs[0], axis))
+                insts.append(InvokeReduceKernel(kernel.to_reduce_kern_name(self.to_kern_opcode(t.code), t.ndim, axis), t, t.inputs[0], axis))
 
             elif t.code.is_view_op():
                 insts.append(CopyDevicePointer(t.inputs[0], t))
@@ -1086,8 +1134,11 @@ def tensor(arr, requires_grad=False):
     return Tensor(arr)
 
 
+def ones_like(t: Tensor):
+    return Tensor.ones_like(t)
+
+
 if __name__ == "__main__":
     t = Tensor.arange(24).reshape(2, 2, 3, 2)
-    print(t.tolist())
-    t1 = t.sum(axis=(1, 3))
+    t1 = t.sin()
     print(t1.tolist())  # , [[3, 12, 21, 30], [39, 48, 57, 66]])  # (2, 4)
