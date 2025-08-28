@@ -60,7 +60,7 @@ class TensorOpCode(IntEnum):
     RESHAPE = auto()
     _view_op_end = auto()
 
-    def _in(self, start:TensorOpCode, end:TensorOpCode) -> bool:
+    def _in(self, start: TensorOpCode, end: TensorOpCode) -> bool:
         return start < self.value and self.value < end
 
     def is_buffer_op(self) -> bool:
@@ -83,26 +83,26 @@ class TensorOpCode(IntEnum):
 
 
 class Differentiable:
-    def forward(self, inputs: tuple[Tensor, ...]):
+    def forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
         self.inputs = inputs
-        self.output = self._forward(*inputs)
+        self.output = self._forward(inputs)
         return self.output
 
-    def backward(self, grad):
+    def backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         return self._backward(grad)
 
-    def _forward(self, inputs):
+    def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
         raise NotImplementedError()
 
-    def _backward(self, grad):
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         raise NotImplementedError()
 
 
 # data
 class DifferentiableData(Differentiable):
-    def _forward(self, src: Tensor) -> Tensor:
-        self.src = src
-        return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self)
+    def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
+        self.src = inputs[0]
+        return Tensor(self._forward_code(), shape=self.src.shape, inputs=(self.src,), backprop_ctx=self)
 
     def _forward_code(self) -> TensorOpCode:
         raise NotImplementedError()
@@ -118,9 +118,9 @@ class Copy(DifferentiableData):
 
 # unary
 class DifferentiableUnary(Differentiable):
-    def _forward(self, src: Tensor) -> Tensor:
-        self.src = src
-        return Tensor(self._forward_code(), shape=src.shape, inputs=(src,), backprop_ctx=self)
+    def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
+        self.src = inputs[0]
+        return Tensor(self._forward_code(), shape=self.src.shape, inputs=(self.src,), backprop_ctx=self)
 
     def _forward_code(self) -> TensorOpCode:
         raise NotImplementedError()
@@ -130,53 +130,56 @@ class DifferentiableUnary(Differentiable):
 
 
 class Recip(DifferentiableUnary):
-    def _forward_code(self):
+    def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.RECIP
 
-    def _backward(self, grad):
-        return grad * (Tensor.full_like(self.src, -1.0) / (self.src * self.src))
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        return (grad * (Tensor.full_like(self.src, -1.0) / (self.src * self.src)),)
 
 
 class Log(DifferentiableUnary):
-    def _forward_code(self):
+    def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.LOG
 
-    def _backward(self, grad):
-        return grad / self.src
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        return (grad / self.src,)
 
 
 # binary
 class DifferentiableBinary(Differentiable):
-    def _forward(self, l: Tensor, r: Tensor) -> Tensor:
-        self.l = l
-        self.r = r
-        return Tensor(self._forward_code(), shape=l.shape, inputs=(l, r), backprop_ctx=self)
+    def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
+        self.l = self.inputs[0]
+        self.r = self.inputs[1]
+        return Tensor(self._forward_code(), shape=self.l.shape, inputs=(self.l, self.r), backprop_ctx=self)
 
-    def _backward(self, grad: Tensor) -> tuple(Tensor):
+    def _forward_code(self) -> TensorOpCode:
+        raise NotImplementedError()
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         raise NotImplementedError()
 
 
 class Add(DifferentiableBinary):
-    def _forward_code(self):
+    def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.ADD
 
-    def _backward(self, grad: Tensor):
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         return grad, grad
 
 
 class Mul(DifferentiableBinary):
-    def _forward_code(self):
+    def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.MUL
 
-    def _backward(self, grad: Tensor):
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         return grad * self.r, grad * self.l
 
 
 class Pow(DifferentiableBinary):
-    def _forward_code(self):
+    def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.POW
 
-    def _backward(self, grad: Tensor) -> Tensor:
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         lgrad = grad * self.r * (self.l ** (self.r - Tensor.full_like(self.r, 1)))
         rgrad = grad * (self.l**self.r) * self.l.log()
         return lgrad, rgrad
@@ -184,39 +187,42 @@ class Pow(DifferentiableBinary):
 
 # reduce
 class DifferentiableReduce(Differentiable):
-    def _forward(self, src: Tensor) -> Tensor:
-        self.src = src
+    def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
+        self.src = inputs[0]
         newshape = tuple([s if i != self.axis else 1 for i, s in enumerate(self.src.shape)])  # updates shape[axis] to 1
-        return Tensor(self._forward_code(), shape=newshape, inputs=(src,), backprop_ctx=self)
+        return Tensor(self._forward_code(), shape=newshape, inputs=(self.src,), backprop_ctx=self)
 
-    def _backward(self, grad: Tensor) -> tuple(Tensor):
+    def _forward_code(self) -> TensorOpCode:
+        raise NotImplementedError()
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         raise NotImplementedError()
 
 
 class Sum(DifferentiableReduce):
-    def __init__(self, axis: int, keepdims: bool):
+    def __init__(self, axis: int, keepdims: bool) -> None:
         self.axis = axis
         self.keepdims = keepdims
 
-    def _forward_code(self):
+    def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.SUM
 
-    def _backward(self, grad: Tensor):
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         lead = len(self.src.shape) - len(grad.shape)
         return grad.reshape(*([1] * lead + list(grad.shape))).broadcast_to(self.src.shape)
 
 
 # view
 class DifferentiableView(Differentiable):
-    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], contiguous: bool):
+    def __init__(self, shape: tuple[int], strides: tuple[int], offset: int, valid_area: tuple[tuple[int, int]], contiguous: bool) -> None:
         self.shape = shape
         self.strides = strides
         self.offset = offset
         self.valid_area = valid_area
         self.contiguous = contiguous
 
-    def _forward(self, src: Tensor) -> Tensor:
-        self.src = src
+    def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
+        self.src = inputs[0]
         return Tensor(
             self._forward_code(),
             shape=self.shape,
@@ -224,19 +230,22 @@ class DifferentiableView(Differentiable):
             offset=self.offset,
             valid_area=self.valid_area,
             contiguous=self.contiguous,
-            inputs=(src,),
+            inputs=(self.src,),
             backprop_ctx=self,
         )
+
+    def _forward_code(self) -> TensorOpCode:
+        raise NotImplementedError()
 
     def _backward(self, grad: Tensor) -> tuple(Tensor):
         raise NotImplementedError()
 
 
 class Expand(DifferentiableView):
-    def _forward_code(self):
+    def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.EXPAND
 
-    def _backward(self, grad: Tensor) -> tuple(Tensor):
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         orig_shape = self.src.shape
         added_axis = tuple(range(grad.ndim - len(orig_shape)))
         expanded_axis = tuple([i + len(added_axis) for i, s in enumerate(orig_shape) if s == 1])
@@ -253,14 +262,14 @@ class Crop(DifferentiableView):
         valid_area: tuple[tuple[int, int]],
         contiguous: bool,
         crop_area: tuple[tuple[int, int]],
-    ):
+    ) -> None:
         self.crop_area = crop_area
         super().__init__(shape, strides, offset, valid_area, contiguous)
 
-    def _forward_code(self):
+    def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.CROP
 
-    def _backward(self, grad: Tensor) -> tuple(Tensor):
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         return grad.pad(tuple([(c[0], s - c[1]) for s, c in zip(self.src.shape, self.crop_area)]))
 
 
@@ -273,22 +282,22 @@ class Pad(DifferentiableView):
         valid_area: tuple[tuple[int, int]],
         contiguous: bool,
         padding: tuple[tuple[int, int]],
-    ):
+    ) -> None:
         self.padding = padding
         super().__init__(shape, strides, offset, valid_area, contiguous)
 
-    def _forward_code(self):
+    def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.PAD
 
-    def _backward(self, grad: Tensor) -> tuple(Tensor):
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         return grad.crop(tuple([(p[0], s + p[0]) for s, p in zip(self.src.shape, self.padding)]))
 
 
 class Reshape(DifferentiableView):
-    def _forward_code(self):
+    def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.RESHAPE
 
-    def _backward(self, grad: Tensor) -> tuple(Tensor):
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         return grad.reshape(*self.src.shape)
 
 
@@ -385,7 +394,7 @@ class Tensor:
         raise TypeError(f"type {type(data)} is unsupported as Tensor")
 
     @classmethod
-    def new_buffer_op(cls, data: typing.Any, shape: tuple[int]|None = None) -> Tensor:
+    def new_buffer_op(cls, data: typing.Any, shape: tuple[int] | None = None) -> Tensor:
         return Tensor(data, shape=shape)
 
     @classmethod
