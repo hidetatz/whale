@@ -505,12 +505,16 @@ class Tensor:
     #
 
     @property
-    def size(self):
+    def size(self) -> int:
         return math.prod(self.shape)
 
     @property
-    def ndim(self):
+    def ndim(self) -> int:
         return len(self.shape)
+
+    @property
+    def T(self) -> Tensor:
+        return self.transpose()
 
     #
     # arith and math
@@ -609,6 +613,11 @@ class Tensor:
             newvalidarea.append(self.valid_area[a])
 
         return Tensor.new_view_op(Permute(tuple(newshape), tuple(newstrides), self.offset, tuple(newvalidarea), False, axes), self)
+
+    def transpose(self, axis0: int = 1, axis1: int = 0) -> Tensor:
+        axes = list(range(self.ndim))
+        axes[axis0], axes[axis1] = axes[axis1], axes[axis0]
+        return self.permute(*axes)
 
     def _broadcasted_shape(self, s2: tuple[int, ...]) -> tuple[int, ...]:
         ls1 = list(self.shape[:])
