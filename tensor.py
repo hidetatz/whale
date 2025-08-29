@@ -629,6 +629,9 @@ class Tensor:
         return Tensor.new_view_op(Permute(tuple(newshape), tuple(newstrides), self.offset, tuple(newvalidarea), False, axes), self)
 
     def transpose(self, axis0: int = 1, axis1: int = 0) -> Tensor:
+        if axis0 < 0 or axis1 < 0 or self.ndim <= axis0 or self.ndim <= axis1:
+            raise RuntimeError(f"transpose axes out of bounds: {axis0} and {axis1}")
+
         axes = list(range(self.ndim))
         axes[axis0], axes[axis1] = axes[axis1], axes[axis0]
         return self.permute(*axes)

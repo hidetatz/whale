@@ -506,6 +506,10 @@ class WhaleTest(unittest.TestCase):
             t1 = t.sum(axis=(2, 0))
             self.assert_almost_eq(t1.tolist(), [[28.0, 32.0], [44.0, 48.0], [60.0, 64.0]])
 
+        with self.subTest("invalid axis"):
+            t = tensor.tensor([[0, 1, 2], [3, 4, 5]])  # (2, 3)
+            self.assertRaises(RuntimeError, t.sum, 3)
+
     def test_transpose(self):
         with self.subTest("simple"):
             # (2, 3)
@@ -558,6 +562,16 @@ class WhaleTest(unittest.TestCase):
             self.assertEqual(t1.shape, (2, 3, 2))
             t1.backprop()
             self.assert_almost_eq(t.grad.tolist(), [[[1, 1], [1, 1], [1, 1]], [[1, 1], [1, 1], [1, 1]]])
+
+        with self.subTest("invalid axes"):
+            # (2, 3, 2)
+            t = tensor.tensor([[[0, 1], [2, 3], [4, 5]], [[6, 7], [8, 9], [10, 11]]])
+            self.assertRaises(RuntimeError, t.transpose, 4, 0)
+
+        with self.subTest("invalid axes"):
+            # (2, 3, 2)
+            t = tensor.tensor([[[0, 1], [2, 3], [4, 5]], [[6, 7], [8, 9], [10, 11]]])
+            self.assertRaises(RuntimeError, t.transpose, 2, -1)
 
     def test_permute(self):
         with self.subTest("no reorder"):
@@ -621,6 +635,11 @@ class WhaleTest(unittest.TestCase):
             )
             t2.backprop()
             self.assert_almost_eq(t.grad.tolist(), [[1, 1], [1, 1]])
+
+        with self.subTest("invalid axes"):
+            # (2, 3, 2)
+            t = tensor.tensor([[[0, 1], [2, 3], [4, 5]], [[6, 7], [8, 9], [10, 11]]])
+            self.assertRaises(RuntimeError, t.permute, (2, 2, 0))
 
     def test_broadcast_to(self):
         with self.subTest("1, 1, 3 -> 1, 2, 3"):
