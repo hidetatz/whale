@@ -102,6 +102,33 @@ class WhaleTest(unittest.TestCase):
             t1.backward()
             self.assert_almost_eq(t.grad.tolist(), [[-1, -1, -1], [-1, -1, -1]])
 
+    def test_matmul(self):
+        with self.subTest("2, 3 x 3 , 4"):
+            results = {}
+            for mod in [tensor, torch]:
+                t1 = mod.tensor([[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]], requires_grad=True)
+                t2 = mod.tensor([[0.0, 1.0, 2.0, 3.0], [4.0, 5.0, 6.0, 7.0], [8.0, 9.0, 10.0, 11.0]], requires_grad=True)
+
+                t3 = t1 @ t2
+                results[mod.__name__] = t3
+                t3.backward(gradient=mod.ones_like(t3))
+                results[mod.__name__ + "_t1_grad"] = t1.grad
+                results[mod.__name__ + "_t2_grad"] = t2.grad
+
+            self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist())
+            self.assert_almost_eq(results["tensor_t1_grad"].tolist(), results["torch_t1_grad"].tolist())
+            self.assert_almost_eq(results["tensor_t2_grad"].tolist(), results["torch_t2_grad"].tolist())
+
+        with self.subTest("not matrix"):
+            t = tensor.tensor([[[1], [2]], [[3], [4]]])  # 2, 2, 1
+            t2 = tensor.tensor([[1, 2], [3, 4]])  # 2, 3
+            self.assertRaises(RuntimeError, t.matmul, t2)
+
+        with self.subTest("invalid"):
+            t1 = tensor.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])  # 3, 3
+            t2 = tensor.tensor([[1, 2], [3, 4]])  # 2, 3
+            self.assertRaises(RuntimeError, t.matmul, t2)
+
     def test_math(self):
         with self.subTest("log"):
             results = {}

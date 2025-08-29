@@ -545,6 +545,20 @@ class Tensor:
         l, r = self.broadcasted(r)
         return Tensor.new_binary_op(Pow(), l, r)
 
+    def matmul(self, r: Tensor):
+        r = Tensor.wrap(r)
+        if self.ndim != 2 or r.ndim != 2:
+            raise RuntimeError(f"matmul arg must be 2D matrix, got {self.shape} and {r.shape}")
+
+        if self.shape[1] != r.shape[0]:
+            raise RuntimeError(f"invalid shape combination for matmul, got {self.shape} and {r.shape}")
+
+        # using matmul trick, see https://mesozoic-egg.github.io/tinygrad-notes/20241203_matmul.html
+
+        _l = self.reshape(self.shape[0], 1, self.shape[1]).broadcast_to((self.shape[0], r.shape[1], self.shape[1]))
+        _r = r.reshape(1, r.shape[0], r.shape[1]).transpose(1, 2).broadcast_to((_l.shape[0], r.shape[1], r.shape[0]))
+        return (_l * _r).sum(axis=2)
+
     def neg(self):
         return self * -1
 
@@ -790,6 +804,9 @@ class Tensor:
 
     def __rpow__(self, l):
         return Tensor.wrap(l).pow(self)
+
+    def __matmul__(self, r):
+        return self.matmul(r)
 
     def __neg__(self):
         return self.neg()
@@ -1185,6 +1202,9 @@ def ones_like(t: Tensor):
 
 
 if __name__ == "__main__":
-    t = Tensor.arange(24).reshape(2, 3, 2, 2)
-    t1 = t.permute(2, 1, 3, 0)
-    print(t1.tolist())
+    t1 = Tensor.arange(24).reshape(6, 4)
+    t2 = Tensor.arange(20).reshape(4, 5)
+    t3 = t1 @ t2
+    t3.backprop()
+    print(t1.grad.tolist())
+    print(t2.grad.tolist())
