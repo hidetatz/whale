@@ -430,15 +430,6 @@ class Tensor:
         self.materialized = True
 
         # scalar
-        if isinstance(data, float) or isinstance(data, int):
-            if shape:
-                raise RuntimeError(f"shape {shape} must not be passed to scalar initialization")
-            self.shape = ()
-            self.strides = ()
-            self.valid_area = ()
-            self.cpu_buffer = device.CPUMemoryBuffer([data] if isinstance(data, float) else [float(data)])
-            self.dtype = dtypes.float32
-            return
 
         if isinstance(data, bool):
             if shape:
@@ -448,6 +439,16 @@ class Tensor:
             self.valid_area = ()
             self.cpu_buffer = device.CPUMemoryBuffer([1.0 if data else 0.0])
             self.dtype = dtypes.bool
+            return
+
+        if isinstance(data, float) or isinstance(data, int):
+            if shape:
+                raise RuntimeError(f"shape {shape} must not be passed to scalar initialization")
+            self.shape = ()
+            self.strides = ()
+            self.valid_area = ()
+            self.cpu_buffer = device.CPUMemoryBuffer([data] if isinstance(data, float) else [float(data)])
+            self.dtype = dtypes.float32
             return
 
         # tensor
@@ -596,9 +597,15 @@ class Tensor:
     def neg(self):
         return self * -1
 
+    def eq(self, r: Tensor) -> Tensor:
+        return self.ne(Tensor.wrap(r)).logical_not()
+
     def ne(self, r: Tensor) -> Tensor:
         l, r = self.broadcasted(Tensor.wrap(r))
         return Tensor.new_binary_op(Ne(), l, r)
+
+    def logical_not(self) -> Tensor:
+        return self.ne(Tensor.wrap(True))
 
     def log(self):
         return Tensor.new_unary_op(Log(), self)
@@ -1251,4 +1258,7 @@ if __name__ == "__main__":
     t1 = Tensor([[1, 2, 3], [1, 2, 3]])
     t2 = Tensor([[1, 3, 1], [0, 2, 3]])
     t3 = t1 != t2
+    t4 = t3.logical_not()
     print(t3.tolist())
+    print(t4.tolist())
+    print((t1.eq(t2).tolist()))

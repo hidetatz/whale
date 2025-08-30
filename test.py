@@ -102,17 +102,35 @@ class WhaleTest(unittest.TestCase):
             t1.backward()
             self.assert_almost_eq(t.grad.tolist(), [[-1, -1, -1], [-1, -1, -1]])
 
-    def test_ne(self):
-        with self.subTest("simple"):
+    def test_compare(self):
+        with self.subTest("ne, simple"):
             t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
             t2 = tensor.tensor([[0, 1, 2], [0, 1, 2]])
             t3 = t1 != t2
             self.assert_almost_eq(t3.tolist(), [[False, False, False], [True, True, True]])
 
-        with self.subTest("broadcast"):
+        with self.subTest("ne, broadcast"):
             t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
-            t3 = t1 != 2
-            self.assert_almost_eq(t3.tolist(), [[True, True, False], [True, True, True]])
+            t2 = t1 != 2
+            self.assert_almost_eq(t2.tolist(), [[True, True, False], [True, True, True]])
+
+        with self.subTest("eq, simple"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = tensor.tensor([[0, 1, 2], [0, 1, 2]])
+            t3 = t1.eq(t2)
+            self.assert_almost_eq(t3.tolist(), [[True, True, True], [False, False, False]])
+
+        with self.subTest("eq, broadcast"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = t1.eq(2)
+            self.assert_almost_eq(t2.tolist(), [[False, False, True], [False, False, False]])
+
+        with self.subTest("logical_not, simple"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = tensor.tensor([[0, 1, 2], [0, 1, 2]])
+            t3 = t1 != t2
+            t4 = t3.logical_not()
+            self.assert_almost_eq(t4.tolist(), [[True, True, True], [False, False, False]])
 
     def test_matmul(self):
         with self.subTest("2, 3 x 3 , 4"):
