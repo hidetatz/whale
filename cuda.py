@@ -126,6 +126,8 @@ class LangFlavor(kernel.LangFlavor):
             return f"powf({loperand}, {roperand})"
         if code == kernel.OpCode.NE:
             return f"({loperand} != {roperand}) ? 1.0f : 0.0f"
+        if code == kernel.OpCode.LT:
+            return f"({loperand} < {roperand}) ? 1.0f : 0.0f"
 
         raise RuntimeError(f"unhandled code {code}")
 

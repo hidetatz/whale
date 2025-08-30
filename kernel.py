@@ -19,6 +19,7 @@ class OpCode(IntEnum):
     TANH = auto()
     EXP = auto()
     NE = auto()
+    LT = auto()
 
     def __str__(self):
         return self.name

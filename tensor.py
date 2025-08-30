@@ -53,6 +53,7 @@ class TensorOpCode(IntEnum):
     MUL = auto()
     POW = auto()
     NE = auto()
+    LT = auto()
     _binary_op_end = auto()
 
     _reduce_op_start = auto()
@@ -233,6 +234,16 @@ class Ne(DifferentiableBinary):
         self.r = self.inputs[1]
         assert self.l.dtype == self.r.dtype  # todo: this should be fixed
         return Tensor(TensorOpCode.NE, shape=self.l.shape, inputs=(self.l, self.r), backprop_ctx=self, dtype=dtypes.bool)
+
+    # no backward for compare
+
+
+class Lt(DifferentiableBinary):
+    def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
+        self.l = self.inputs[0]
+        self.r = self.inputs[1]
+        assert self.l.dtype == self.r.dtype  # todo: this should be fixed
+        return Tensor(TensorOpCode.LT, shape=self.l.shape, inputs=(self.l, self.r), backprop_ctx=self, dtype=dtypes.bool)
 
     # no backward for compare
 
@@ -862,6 +873,19 @@ class Tensor:
     def __ne__(self, r):
         return self.ne(r)
 
+    def __lt__(self, r):
+        l, r = self.broadcasted(Tensor.wrap(r))
+        return Tensor.new_binary_op(Lt(), l, r)
+
+    def __gt__(self, r):
+        return Tensor.wrap(r).__lt__(self)
+
+    def __le__(self, r):
+        return (self > r).logical_not()
+
+    def __ge__(self, r):
+        return (self < r).logical_not()
+
     def __getitem__(self, indices):
         return self._getitem(indices)
 
@@ -1119,6 +1143,7 @@ class Materializer:
             TensorOpCode.TANH: kernel.OpCode.TANH,
             TensorOpCode.EXP: kernel.OpCode.EXP,
             TensorOpCode.NE: kernel.OpCode.NE,
+            TensorOpCode.LT: kernel.OpCode.LT,
         }
         return d[c]
 

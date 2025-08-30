@@ -132,6 +132,50 @@ class WhaleTest(unittest.TestCase):
             t4 = t3.logical_not()
             self.assert_almost_eq(t4.tolist(), [[True, True, True], [False, False, False]])
 
+        with self.subTest("<, simple"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = tensor.tensor([[0, 1, 3], [4, 3, 4]])
+            t3 = t1 < t2
+            self.assert_almost_eq(t3.tolist(), [[False, False, True], [True, False, False]])
+
+        with self.subTest("<, broadcast"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t3 = t1 < 2
+            self.assert_almost_eq(t3.tolist(), [[True, True, False], [False, False, False]])
+
+        with self.subTest(">, simple"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = tensor.tensor([[0, 1, 3], [4, 3, 4]])
+            t3 = t1 > t2
+            self.assert_almost_eq(t3.tolist(), [[False, False, False], [False, True, True]])
+
+        with self.subTest(">, broadcast"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t3 = t1 > 2
+            self.assert_almost_eq(t3.tolist(), [[False, False, False], [True, True, True]])
+
+        with self.subTest("<=, simple"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = tensor.tensor([[0, 1, 3], [4, 3, 4]])
+            t3 = t1 <= t2
+            self.assert_almost_eq(t3.tolist(), [[True, True, True], [True, False, False]])
+
+        with self.subTest("<=, broadcast"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t3 = t1 <= 2
+            self.assert_almost_eq(t3.tolist(), [[True, True, True], [False, False, False]])
+
+        with self.subTest(">=, simple"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = tensor.tensor([[0, 1, 3], [4, 3, 4]])
+            t3 = t1 >= t2
+            self.assert_almost_eq(t3.tolist(), [[True, True, False], [False, True, True]])
+
+        with self.subTest(">=, broadcast"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t3 = t1 >= 2
+            self.assert_almost_eq(t3.tolist(), [[False, False, True], [True, True, True]])
+
     def test_matmul(self):
         with self.subTest("2, 3 x 3 , 4"):
             results = {}
