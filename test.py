@@ -203,6 +203,40 @@ class WhaleTest(unittest.TestCase):
             t2 = tensor.tensor([[1, 2], [3, 4]])  # 2, 3
             self.assertRaises(RuntimeError, t.matmul, t2)
 
+    def test_maximum(self):
+        with self.subTest("simple"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = tensor.tensor([[0, 1, 3], [4, 3, 4]])
+            t3 = t1.maximum(t2)
+            self.assert_almost_eq(t3.tolist(), [[0, 1, 3], [4, 4, 5]])
+            t3.backprop()
+            self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 0], [0, 1, 1]])
+            self.assert_almost_eq(t2.grad.tolist(), [[1, 1, 1], [1, 0, 0]])
+
+        with self.subTest("simple, broadcast"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = t1.maximum(2)
+            self.assert_almost_eq(t2.tolist(), [[2, 2, 2], [3, 4, 5]])
+            t2.backprop()
+            self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 0], [1, 1, 1]])
+
+    def test_minimum(self):
+        with self.subTest("simple"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = tensor.tensor([[0, 1, 3], [4, 3, 4]])
+            t3 = t1.minimum(t2)
+            self.assert_almost_eq(t3.tolist(), [[0, 1, 2], [3, 3, 4]])
+            t3.backprop()
+            self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 1], [1, 0, 0]])
+            self.assert_almost_eq(t2.grad.tolist(), [[1, 1, 0], [0, 1, 1]])
+
+        with self.subTest("simple, broadcast"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = t1.minimum(2)
+            self.assert_almost_eq(t2.tolist(), [[0, 1, 2], [2, 2, 2]])
+            t2.backprop()
+            self.assert_almost_eq(t1.grad.tolist(), [[1, 1, 0], [0, 0, 0]])
+
     def test_math(self):
         with self.subTest("log"):
             results = {}

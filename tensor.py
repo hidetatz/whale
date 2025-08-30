@@ -54,6 +54,7 @@ class TensorOpCode(IntEnum):
     POW = auto()
     NE = auto()
     LT = auto()
+    MAXIMUM = auto()
     _binary_op_end = auto()
 
     _reduce_op_start = auto()
@@ -246,6 +247,18 @@ class Lt(DifferentiableBinary):
         return Tensor(TensorOpCode.LT, shape=self.l.shape, inputs=(self.l, self.r), backprop_ctx=self, dtype=dtypes.bool)
 
     # no backward for compare
+
+
+class Maximum(DifferentiableBinary):
+    def _forward_code(self) -> TensorOpCode:
+        return TensorOpCode.MAXIMUM
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        # this is not considering the same value case, likely equally split is better
+        l_mask = self.l > self.r
+        lgrad = l_mask.to(dtypes.float32) * grad
+        rgrad = l_mask.logical_not().to(dtypes.float32) * grad
+        return lgrad, rgrad
 
 
 # reduce
@@ -605,6 +618,13 @@ class Tensor:
         _r = r.reshape(1, r.shape[0], r.shape[1]).transpose(1, 2).broadcast_to((_l.shape[0], r.shape[1], r.shape[0]))
         return (_l * _r).sum(axis=2)
 
+    def maximum(self, r: Tensor):
+        l, r = self.broadcasted(Tensor.wrap(r))
+        return Tensor.new_binary_op(Maximum(), l, r)
+
+    def minimum(self, r: Tensor):
+        return -((-self).maximum(-r))
+
     def neg(self):
         return self * -1
 
@@ -829,6 +849,16 @@ class Tensor:
 
     def copy(self):
         return Tensor.new_data_op(Copy(), self)
+
+    def to(self, dt: DType) -> Tensor:
+        if self.dtype == dt:
+            return self
+        if self.dtype == dtypes.bool:
+            cp = self.copy()
+            cp.dtype = dt
+            return cp
+
+        raise RuntimeError(f"cast from {self.dtype} to {dt} still not implemented")
 
     #
     # operators
@@ -1144,6 +1174,7 @@ class Materializer:
             TensorOpCode.EXP: kernel.OpCode.EXP,
             TensorOpCode.NE: kernel.OpCode.NE,
             TensorOpCode.LT: kernel.OpCode.LT,
+            TensorOpCode.MAXIMUM: kernel.OpCode.MAXIMUM,
         }
         return d[c]
 
@@ -1282,8 +1313,11 @@ def ones_like(t: Tensor):
 if __name__ == "__main__":
     t1 = Tensor([[1, 2, 3], [1, 2, 3]])
     t2 = Tensor([[1, 3, 1], [0, 2, 3]])
-    t3 = t1 != t2
-    t4 = t3.logical_not()
-    print(t3.tolist())
-    print(t4.tolist())
-    print((t1.eq(t2).tolist()))
+    t3 = t1.maximum(t2)
+
+    t3.backprop()
+    # print(t1.grad.tolist())
+    # print(t2.grad.tolist())
+
+    # t4 = t1.minimum(t2)
+    # print(t4.tolist())

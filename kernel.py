@@ -20,6 +20,7 @@ class OpCode(IntEnum):
     EXP = auto()
     NE = auto()
     LT = auto()
+    MAXIMUM = auto()
 
     def __str__(self):
         return self.name

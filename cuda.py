@@ -128,6 +128,8 @@ class LangFlavor(kernel.LangFlavor):
             return f"({loperand} != {roperand}) ? 1.0f : 0.0f"
         if code == kernel.OpCode.LT:
             return f"({loperand} < {roperand}) ? 1.0f : 0.0f"
+        if code == kernel.OpCode.MAXIMUM:
+            return f"({loperand} > {roperand}) ? {loperand} : {roperand}"
 
         raise RuntimeError(f"unhandled code {code}")
 
