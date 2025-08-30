@@ -1,3 +1,4 @@
+import math
 import unittest
 
 import torch
@@ -13,7 +14,10 @@ class WhaleTest(unittest.TestCase):
         if isinstance(l, int) or isinstance(l, float):
             assert isinstance(r, int) or isinstance(r, float), f"l and r type difference: {l=}, {r=}"
             if isinstance(r, int) or isinstance(r, float):
-                self.assertAlmostEqual(l, r, places=places)
+                if math.isnan(l):
+                    self.assertTrue(math.isnan(r), f"left is nan but right is not, got {r}\n")
+                else:
+                    self.assertAlmostEqual(l, r, places=places)
                 return
 
         assert len(l) == len(r), f"l and r length difference: {l=}, {r=}"
@@ -617,6 +621,75 @@ class WhaleTest(unittest.TestCase):
         with self.subTest("invalid axis"):
             t = tensor.tensor([[0, 1, 2], [3, 4, 5]])  # (2, 3)
             self.assertRaises(RuntimeError, t.sum, 3)
+
+    def test_prod(self):
+        with self.subTest("2, 4, 3 -> prod(axis=0)"):
+            with self.subTest("keepdims=False"):
+                t = tensor.tensor([[[0.1, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t.prod(axis=0)
+                self.assert_almost_eq(t1.tolist(), [[1.2, 13, 28], [45, 64, 85], [108, 133, 160], [189, 220, 253]])  # (4, 3)
+                t1.backprop()
+                self.assert_almost_eq(
+                    t.grad.tolist(),
+                    [[[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]], [[0.1, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]],
+                    places=6,
+                )
+
+            with self.subTest("keepdims=True"):
+                t = tensor.tensor([[[0.1, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t.prod(axis=0, keepdims=True)
+                self.assert_almost_eq(t1.tolist(), [[[1.2, 13, 28], [45, 64, 85], [108, 133, 160], [189, 220, 253]]])  # (1, 4, 3)
+                t1.backprop()
+                self.assert_almost_eq(
+                    t.grad.tolist(),
+                    [[[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]], [[0.1, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]],
+                    places=6,
+                )
+
+    def test_max(self):
+        with self.subTest("2, 4, 3 -> max(axis=0)"):
+            with self.subTest("keepdims=False"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t.max(axis=0)
+                self.assert_almost_eq(t1.tolist(), [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]])  # (4, 3)
+                t1.backprop()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]])
+
+            with self.subTest("keepdims=True"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t.max(axis=0, keepdims=True)
+                self.assert_almost_eq(t1.tolist(), [[[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])  # (4, 3)
+                t1.backprop()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]])
+
+        with self.subTest("2, 4, 3 -> max(axis=0, 1)"):
+            with self.subTest("keepdims=False"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t.max(axis=(0, 1))
+                self.assert_almost_eq(t1.tolist(), [21, 22, 23])
+                t1.backprop()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 1, 1]]])
+
+            with self.subTest("keepdims=True"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t.max(axis=(1, 0), keepdims=True)
+                self.assert_almost_eq(t1.tolist(), [[[21, 22, 23]]])
+                t1.backprop()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 1, 1]]])
+
+        with self.subTest("same value"):
+            with self.subTest("keepdims=False"):
+                t = tensor.tensor([[[0, 1, 2], [3, 5, 5], [8, 8, 8], [9, 10, 11]], [[14, 13, 14], [15, 17, 17], [20, 20, 20], [21, 22, 23]]])
+                t1 = t.max(axis=2)
+                self.assert_almost_eq(t1.tolist(), [[2, 5, 8, 11], [14, 17, 20, 23]])
+                t1.backprop()
+                self.assert_almost_eq(
+                    t.grad.tolist(),
+                    [
+                        [[0, 0, 1], [0, 0.5, 0.5], [0.33333333, 0.33333333, 0.33333333], [0, 0, 1]],
+                        [[0.5, 0, 0.5], [0, 0.5, 0.5], [0.33333333, 0.33333333, 0.33333333], [0, 0, 1]],
+                    ],
+                )
 
     def test_transpose(self):
         with self.subTest("simple"):

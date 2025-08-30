@@ -14,6 +14,8 @@ class OpCode(IntEnum):
     LOG = auto()
     COPY = auto()
     SUM = auto()
+    PROD = auto()
+    MAX = auto()
     SIN = auto()
     COS = auto()
     TANH = auto()
@@ -78,6 +80,10 @@ class LangFlavor:
         raise NotImplementedError()
 
     @classmethod
+    def neg_inf(cls) -> str:
+        raise NotImplementedError()
+
+    @classmethod
     def loop_cond(cls, start: str, stop: str, var: str) -> str:
         raise NotImplementedError()
 
@@ -130,6 +136,7 @@ class KernelGeneratorBuffer:
         self.if_cond_end = flavor.if_cond_end()
         self.loop_cond_start = flavor.loop_cond_start()
         self.loop_cond_end = flavor.loop_cond_end()
+        self.neg_inf = flavor.neg_inf()
         self.loop_cond = flavor.loop_cond
         self.typegen = flavor.typegen
         self.unary_op_gen = flavor.unary_op_gen
@@ -210,6 +217,9 @@ class KernelGeneratorBuffer:
 
     def index_expr(self, arr: str, index: str) -> str:
         return f"{arr}[{index}]"
+
+    def neg_inf_expr(self) -> str:
+        return self.neg_inf
 
 
 def to_kern_name(code: OpCode, dim: int) -> str:
@@ -403,7 +413,9 @@ class CodeGenerator:
                 if i != len(rest_axes) - 1:
                     buff.assign("remaining", buff.binary_expr("remaining", "/", f"dst_shape_{a}"))
 
-        acc = "0.0f" if code == OpCode.SUM else "0.0f"
+        acc = "0.0f" if code == OpCode.SUM else buff.neg_inf_expr() if code == OpCode.MAX else "1.0f" if code == OpCode.PROD else ""
+        if acc == "":
+            raise RuntimeError(f"unhandled opcode in reduce: {code}")
 
         buff.init(VType(VTypeCode.F32), "acc", acc)
         buff.loop_start("0", f"dim{axis}", var=f"src_idx_{axis}")

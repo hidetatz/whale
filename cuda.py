@@ -76,6 +76,10 @@ class LangFlavor(kernel.LangFlavor):
         return ")"
 
     @classmethod
+    def neg_inf(cls) -> str:
+        return "-INFINITY"
+
+    @classmethod
     def loop_cond(cls, start: str, stop: str, var: str) -> str:
         return f"int {var} = {start}; {var} < {stop}; {var}++"
 
@@ -120,6 +124,10 @@ class LangFlavor(kernel.LangFlavor):
             return f"{loperand} + {roperand}"
         if code == kernel.OpCode.SUM:
             return f"{loperand} + {roperand}"
+        if code == kernel.OpCode.PROD:
+            return f"{loperand} * {roperand}"
+        if code == kernel.OpCode.MAX:
+            return f"({loperand} > {roperand}) ? {loperand} : {roperand}"
         if code == kernel.OpCode.MUL:
             return f"{loperand} * {roperand}"
         if code == kernel.OpCode.POW:

@@ -59,6 +59,8 @@ class TensorOpCode(IntEnum):
 
     _reduce_op_start = auto()
     SUM = auto()
+    PROD = auto()
+    MAX = auto()
     _reduce_op_end = auto()
 
     _view_op_start = auto()
@@ -279,13 +281,45 @@ class DifferentiableReduce(Differentiable):
         raise NotImplementedError()
 
 
+def _reduce_backward_restore_grad_shape(orig_shape: tuple[int, ...], t: Tensor) -> Tensor:
+    lead = len(orig_shape) - len(t.shape)
+    return t.reshape(*([1] * lead + list(t.shape))).broadcast_to(orig_shape)
+
+
 class Sum(DifferentiableReduce):
     def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.SUM
 
     def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
-        lead = len(self.src.shape) - len(grad.shape)
-        return (grad.reshape(*([1] * lead + list(grad.shape))).broadcast_to(self.src.shape),)
+        return (_reduce_backward_restore_grad_shape(self.src.shape, grad),)
+
+
+class Prod(DifferentiableReduce):
+    def _forward_code(self) -> TensorOpCode:
+        return TensorOpCode.PROD
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        # This implementation is different with the pytorch one.
+        # When the input includes 0, the 0 division occurs and the grad will be nan.
+        # In PyTorch, it calcs (grad[i] * prod(*input[:i], *input[i+1:])).
+        return ((_reduce_backward_restore_grad_shape(self.src.shape, grad * self.output) / self.src),)
+
+
+class Max(DifferentiableReduce):
+    def _forward_code(self) -> TensorOpCode:
+        return TensorOpCode.MAX
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        orig_shape = self.src.shape
+
+        # mask tensor where the maximum value position is 1, otherwise 0, dtype is float32
+        max_mask = self.src.eq(_reduce_backward_restore_grad_shape(orig_shape, self.output)).to(dtypes.float32)
+
+        # sum the mask tensor to count how many max value is contained on the axis
+        factor = _reduce_backward_restore_grad_shape(orig_shape, max_mask.sum(axis=self.axis, keepdims=True))
+
+        # distribute the sum to the max value pos equally by division
+        return ((max_mask / factor) * _reduce_backward_restore_grad_shape(orig_shape, grad),)
 
 
 # view
@@ -656,6 +690,15 @@ class Tensor:
     def sum(self, axis: int | tuple[int, ...] | None = None, keepdims: bool = False):
         return self._reduce(Sum, axis, keepdims)
 
+    def prod(self, axis: int | tuple[int, ...] | None = None, keepdims: bool = False):
+        return self._reduce(Prod, axis, keepdims)
+
+    def max(self, axis: int | tuple[int, ...] | None = None, keepdims: bool = False):
+        return self._reduce(Max, axis, keepdims)
+
+    def min(self, axis: int | tuple[int, ...] | None = None, keepdims: bool = False):
+        return -(-self.max(axis=axis, keepdims=keepdims))
+
     def _reduce(self, red: typing.Type[DifferentiableReduce], axis: int | tuple[int, ...] | None = None, keepdims: bool = False) -> Tensor:
         # this parallel reduction should be optimized
         if axis is None:
@@ -853,6 +896,10 @@ class Tensor:
         if self.dtype == dt:
             return self
         if self.dtype == dtypes.bool:
+            cp = self.copy()
+            cp.dtype = dt
+            return cp
+        if self.dtype == dtypes.float32:
             cp = self.copy()
             cp.dtype = dt
             return cp
@@ -1167,6 +1214,8 @@ class Materializer:
             TensorOpCode.LOG: kernel.OpCode.LOG,
             TensorOpCode.COPY: kernel.OpCode.COPY,
             TensorOpCode.SUM: kernel.OpCode.SUM,
+            TensorOpCode.PROD: kernel.OpCode.PROD,
+            TensorOpCode.MAX: kernel.OpCode.MAX,
             TensorOpCode.SIN: kernel.OpCode.SIN,
             TensorOpCode.COS: kernel.OpCode.COS,
             TensorOpCode.TANH: kernel.OpCode.TANH,
@@ -1310,13 +1359,4 @@ def ones_like(t: Tensor):
 
 
 if __name__ == "__main__":
-    t1 = Tensor([[1, 2, 3], [1, 2, 3]])
-    t2 = Tensor([[1, 3, 1], [0, 2, 3]])
-    t3 = t1.maximum(t2)
-
-    t3.backprop()
-    # print(t1.grad.tolist())
-    # print(t2.grad.tolist())
-
-    # t4 = t1.minimum(t2)
-    # print(t4.tolist())
+    pass
