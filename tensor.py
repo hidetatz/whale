@@ -13,6 +13,7 @@ import cuda
 import device
 import kernel
 from backend import Backend
+from dtype import DType, dtypes
 
 dbg = os.getenv("WHALE_DEBUG", "") != ""
 
@@ -51,6 +52,7 @@ class TensorOpCode(IntEnum):
     ADD = auto()
     MUL = auto()
     POW = auto()
+    NE = auto()
     _binary_op_end = auto()
 
     _reduce_op_start = auto()
@@ -107,7 +109,7 @@ class Differentiable:
 class DifferentiableData(Differentiable):
     def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
         self.src = inputs[0]
-        return Tensor(self._forward_code(), shape=self.src.shape, inputs=(self.src,), backprop_ctx=self)
+        return Tensor(self._forward_code(), shape=self.src.shape, inputs=(self.src,), backprop_ctx=self, dtype=self.src.dtype)
 
     def _forward_code(self) -> TensorOpCode:
         raise NotImplementedError()
@@ -125,7 +127,7 @@ class Copy(DifferentiableData):
 class DifferentiableUnary(Differentiable):
     def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
         self.src = inputs[0]
-        return Tensor(self._forward_code(), shape=self.src.shape, inputs=(self.src,), backprop_ctx=self)
+        return Tensor(self._forward_code(), shape=self.src.shape, inputs=(self.src,), backprop_ctx=self, dtype=self.src.dtype)
 
     def _forward_code(self) -> TensorOpCode:
         raise NotImplementedError()
@@ -189,7 +191,8 @@ class DifferentiableBinary(Differentiable):
     def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
         self.l = self.inputs[0]
         self.r = self.inputs[1]
-        return Tensor(self._forward_code(), shape=self.l.shape, inputs=(self.l, self.r), backprop_ctx=self)
+        assert self.l.dtype == self.r.dtype  # todo: this should be fixed
+        return Tensor(self._forward_code(), shape=self.l.shape, inputs=(self.l, self.r), backprop_ctx=self, dtype=self.l.dtype)
 
     def _forward_code(self) -> TensorOpCode:
         raise NotImplementedError()
@@ -224,6 +227,16 @@ class Pow(DifferentiableBinary):
         return lgrad, rgrad
 
 
+class Ne(DifferentiableBinary):
+    def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
+        self.l = self.inputs[0]
+        self.r = self.inputs[1]
+        assert self.l.dtype == self.r.dtype  # todo: this should be fixed
+        return Tensor(TensorOpCode.NE, shape=self.l.shape, inputs=(self.l, self.r), backprop_ctx=self, dtype=dtypes.bool)
+
+    # no backward for compare
+
+
 # reduce
 class DifferentiableReduce(Differentiable):
     def __init__(self, axis: int, keepdims: bool) -> None:
@@ -233,7 +246,7 @@ class DifferentiableReduce(Differentiable):
     def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
         self.src = inputs[0]
         newshape = tuple([s if i != self.axis else 1 for i, s in enumerate(self.src.shape)])  # updates shape[axis] to 1
-        return Tensor(self._forward_code(), shape=newshape, inputs=(self.src,), backprop_ctx=self)
+        return Tensor(self._forward_code(), shape=newshape, inputs=(self.src,), backprop_ctx=self, dtype=self.src.dtype)
 
     def _forward_code(self) -> TensorOpCode:
         raise NotImplementedError()
@@ -273,6 +286,7 @@ class DifferentiableView(Differentiable):
             contiguous=self.contiguous,
             inputs=(self.src,),
             backprop_ctx=self,
+            dtype=self.src.dtype,
         )
 
     def _forward_code(self) -> TensorOpCode:
@@ -371,7 +385,7 @@ class Tensor:
 
     def __init__(
         self,
-        arg: int | float | list | TensorOpCode,
+        arg: int | float | list | bool | TensorOpCode,
         shape: tuple[int, ...] | None = None,
         strides: tuple[int, ...] | None = None,
         offset: int = 0,
@@ -379,6 +393,7 @@ class Tensor:
         contiguous: bool = True,
         inputs: tuple[Tensor, ...] | None = None,
         backprop_ctx: Differentiable | None = None,
+        dtype: DType = dtypes.float32,
     ):
         self.dev = get_device()
         self.grad: Tensor | None = None
@@ -392,19 +407,20 @@ class Tensor:
             self.contiguous = contiguous
             self.inputs = inputs if inputs is not None else ()
             self.backprop_ctx: Differentiable | None = backprop_ctx
+            self.dtype = dtype
 
             self.cpu_buffer: device.CPUMemoryBuffer | None = None
             self.dev_buffer: device.DeviceMemoryBuffer | None = None
             self.materialized: bool = False
             return
 
-        if isinstance(arg, int) or isinstance(arg, float) or isinstance(arg, list):
+        if isinstance(arg, int) or isinstance(arg, float) or isinstance(arg, list) or isinstance(arg, bool):
             self.init_from_data(arg, shape=shape)
             return
 
         raise TypeError(f"cannot handle type {type(arg)} in Tensor constructor")
 
-    def init_from_data(self, data: int | float | list, shape=None):
+    def init_from_data(self, data: int | float | list | bool, shape=None):
         self.code = TensorOpCode.BUFFER
         self.offset = 0
         self.contiguous = True
@@ -421,16 +437,31 @@ class Tensor:
             self.strides = ()
             self.valid_area = ()
             self.cpu_buffer = device.CPUMemoryBuffer([data] if isinstance(data, float) else [float(data)])
+            self.dtype = dtypes.float32
+            return
+
+        if isinstance(data, bool):
+            if shape:
+                raise RuntimeError(f"shape {shape} must not be passed to scalar initialization")
+            self.shape = ()
+            self.strides = ()
+            self.valid_area = ()
+            self.cpu_buffer = device.CPUMemoryBuffer([1.0 if data else 0.0])
+            self.dtype = dtypes.bool
             return
 
         # tensor
         if isinstance(data, list):
-            flattened = []
+            flattened: list[typing.Any] = []
             actual_shape: list[int] = []
 
             def f(d, dim):
-                if not isinstance(d, int) and not isinstance(d, float) and not isinstance(d, list):
-                    raise ValueError(f"array must be a multi-dimensional array of int or float: {data}")
+                if not isinstance(d, int) and not isinstance(d, float) and not isinstance(d, bool) and not isinstance(d, list):
+                    raise ValueError(f"array must be a multi-dimensional array of int or float or bool: {data}")
+
+                if isinstance(d, bool):
+                    flattened.append(d)
+                    return
 
                 if isinstance(d, int) or isinstance(d, float):
                     flattened.append(d if isinstance(d, float) else float(d))
@@ -448,6 +479,9 @@ class Tensor:
 
             f(data, 0)
 
+            self.dtype = dtypes.bool if isinstance(flattened[0], bool) else dtypes.float32
+            if self.dtype == dtypes.bool:
+                flattened = [1.0 if v else 0.0 for v in flattened]
             self.shape = shape if shape is not None else tuple(actual_shape)
             self.strides = shape_to_strides(self.shape)
             self.valid_area = tuple([(0, s) for s in self.shape])
@@ -561,6 +595,10 @@ class Tensor:
 
     def neg(self):
         return self * -1
+
+    def ne(self, r: Tensor) -> Tensor:
+        l, r = self.broadcasted(Tensor.wrap(r))
+        return Tensor.new_binary_op(Ne(), l, r)
 
     def log(self):
         return Tensor.new_unary_op(Log(), self)
@@ -814,6 +852,9 @@ class Tensor:
     def __neg__(self):
         return self.neg()
 
+    def __ne__(self, r):
+        return self.ne(r)
+
     def __getitem__(self, indices):
         return self._getitem(indices)
 
@@ -866,10 +907,11 @@ class Tensor:
         for idx in indices:
             if all([area_dim[0] <= i_dim and i_dim < area_dim[1] for i_dim, area_dim in zip(idx, self.valid_area)]):
                 assert self.cpu_buffer.raw is not None
-                vals.append(self.cpu_buffer.raw[self.offset + sum([st * i for st, i in zip(self.strides, idx)])])
+                val = self.cpu_buffer.raw[self.offset + sum([st * i for st, i in zip(self.strides, idx)])]
+                vals.append(val if self.dtype == dtypes.float32 else bool(val))
             else:
-                # if ids is not in valid area, use invalid value
-                vals.append(0.0)
+                # if idx is not in valid area, use invalid value
+                vals.append(0.0 if self.dtype == dtypes.float32 else False)
 
         # early return on scalar
         if len(self.shape) == 0:
@@ -1069,6 +1111,7 @@ class Materializer:
             TensorOpCode.COS: kernel.OpCode.COS,
             TensorOpCode.TANH: kernel.OpCode.TANH,
             TensorOpCode.EXP: kernel.OpCode.EXP,
+            TensorOpCode.NE: kernel.OpCode.NE,
         }
         return d[c]
 
@@ -1205,9 +1248,7 @@ def ones_like(t: Tensor):
 
 
 if __name__ == "__main__":
-    t1 = Tensor.arange(24).reshape(6, 4)
-    t2 = Tensor.arange(20).reshape(4, 5)
-    t3 = t1 @ t2
-    t3.backprop()
-    print(t1.grad.tolist())
-    print(t2.grad.tolist())
+    t1 = Tensor([[1, 2, 3], [1, 2, 3]])
+    t2 = Tensor([[1, 3, 1], [0, 2, 3]])
+    t3 = t1 != t2
+    print(t3.tolist())
