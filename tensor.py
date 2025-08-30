@@ -659,6 +659,16 @@ class Tensor:
     def minimum(self, r: Tensor):
         return -((-self).maximum(-r))
 
+    def clamp(self, min=None, max=None) -> Tensor:
+        if min is None and max is None:
+            raise RuntimeError("both min and max is None")
+
+        ret = self.maximum(min) if min is not None else self
+        return ret.minimum(max) if max is not None else ret
+
+    def clip(self, min=None, max=None) -> Tensor:
+        return self.clamp(min, max)
+
     def neg(self):
         return self * -1
 

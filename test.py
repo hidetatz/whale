@@ -241,6 +241,28 @@ class WhaleTest(unittest.TestCase):
             t2.backprop()
             self.assert_almost_eq(t1.grad.tolist(), [[1, 1, 0], [0, 0, 0]])
 
+    def test_clamp(self):
+        with self.subTest("only min"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = t1.clamp(min=2)
+            self.assert_almost_eq(t2.tolist(), [[2, 2, 2], [3, 4, 5]])
+            t2.backprop()
+            self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 0], [1, 1, 1]])
+
+        with self.subTest("only max"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = t1.clamp(max=2)
+            self.assert_almost_eq(t2.tolist(), [[0, 1, 2], [2, 2, 2]])
+            t2.backprop()
+            self.assert_almost_eq(t1.grad.tolist(), [[1, 1, 0], [0, 0, 0]])
+
+        with self.subTest("both"):
+            t1 = tensor.tensor([[0, 1, 2], [3, 4, 5]])
+            t2 = t1.clamp(min=2, max=4)
+            self.assert_almost_eq(t2.tolist(), [[2, 2, 2], [3, 4, 4]])
+            t2.backprop()
+            self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 0], [1, 0, 0]])
+
     def test_math(self):
         with self.subTest("log"):
             results = {}
