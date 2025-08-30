@@ -654,6 +654,9 @@ class Tensor:
         return Tensor.new_unary_op(Exp(), self)
 
     def sum(self, axis: int | tuple[int, ...] | None = None, keepdims: bool = False):
+        return self._reduce(Sum, axis, keepdims)
+
+    def _reduce(self, red: typing.Type[DifferentiableReduce], axis: int | tuple[int, ...] | None = None, keepdims: bool = False) -> Tensor:
         # this parallel reduction should be optimized
         if axis is None:
             axis = tuple(list(range(self.ndim)))
@@ -665,20 +668,16 @@ class Tensor:
             if len(axis) == 0:
                 return self
 
-            laxis = list(axis)
-            laxis.sort()
             t = self
-            for i in range(len(laxis)):
-                t = t.sum(axis=laxis[i], keepdims=keepdims)
-                if not keepdims:
-                    laxis = [a - 1 for a in laxis]
+            for a in sorted(list(axis), reverse=True):
+                t = t._reduce(red, axis=a, keepdims=keepdims)
 
             return t
 
         if axis < 0 or self.ndim - 1 < axis:
             raise RuntimeError(f"invalid axis {axis} for shape {self.shape}")
 
-        t = Tensor.new_reduce_op(Sum(axis, keepdims), self)
+        t = Tensor.new_reduce_op(red(axis, keepdims), self)
         if keepdims:
             return t
 
