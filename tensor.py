@@ -4,6 +4,7 @@ import collections
 import itertools
 import math
 import os
+import random
 import time
 import typing
 from dataclasses import dataclass
@@ -548,6 +549,10 @@ class Tensor:
             return
 
         raise TypeError(f"type {type(data)} is unsupported as Tensor")
+
+    @classmethod
+    def rand(cls, *shape: int, dtype: DType = dtypes.float32) -> Tensor:
+        return Tensor([random.random() for i in range(math.prod(shape))], shape=shape)
 
     @classmethod
     def new_buffer_op(cls, data: typing.Any, shape: tuple[int, ...] | None = None) -> Tensor:
@@ -1369,4 +1374,4 @@ def ones_like(t: Tensor):
 
 
 if __name__ == "__main__":
-    pass
+    print(Tensor.rand(2, 3).tolist())

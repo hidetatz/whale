@@ -44,6 +44,16 @@ class WhaleTest(unittest.TestCase):
             t4 = tensor.Tensor.full((1, 2, 3), 5)
             self.assert_almost_eq(t4.tolist(), [[[5, 5, 5], [5, 5, 5]]])
 
+        with self.subTest("rand"):
+            t = tensor.Tensor.rand(2, 3)
+            l = t.tolist()
+            self.assertTrue(0.0 <= l[0][0] < 1.0)
+            self.assertTrue(0.0 <= l[0][1] < 1.0)
+            self.assertTrue(0.0 <= l[0][2] < 1.0)
+            self.assertTrue(0.0 <= l[1][0] < 1.0)
+            self.assertTrue(0.0 <= l[1][1] < 1.0)
+            self.assertTrue(0.0 <= l[1][2] < 1.0)
+
     def test_operators(self):
         t = tensor.Tensor.arange(6)
         t1 = t + 3
