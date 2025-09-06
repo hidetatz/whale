@@ -1102,84 +1102,164 @@ class WhaleTest(unittest.TestCase):
             self.assertRaises(RuntimeError, t.reshape, ())
 
     def test_getitem(self):
-        with self.subTest("basic: int indexing 1"):
-            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-            t1 = t[0]
-            self.assert_almost_eq(t1.tolist(), [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]])
-            t1.backward()
-            self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+        with self.subTest("basic indexing"):
+            with self.subTest("basic: int indexing 1"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[0]
+                self.assert_almost_eq(t1.tolist(), [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
 
-        with self.subTest("basic: int indexing 2"):
-            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-            t1 = t[1, 2]
-            self.assert_almost_eq(t1.tolist(), [18, 19, 20])
-            t1.backward()
-            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [1, 1, 1], [0, 0, 0]]])
+            with self.subTest("basic: int indexing 2"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[1, 2]
+                self.assert_almost_eq(t1.tolist(), [18, 19, 20])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [1, 1, 1], [0, 0, 0]]])
 
-        with self.subTest("basic: int indexing 3"):
-            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-            t1 = t[0, 1, 2]
-            self.assert_almost_eq(t1.tolist(), 5)
-            t1.backward()
-            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 1], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+            with self.subTest("basic: int indexing 3"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[0, 1, 2]
+                self.assert_almost_eq(t1.tolist(), 5)
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 1], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
 
-        with self.subTest("basic: slice indexing 1"):
-            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-            t1 = t[0:1]
-            self.assert_almost_eq(t1.tolist(), [[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]])  # dimension is not reduced
-            t1.backward()
-            self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+            with self.subTest("basic: slice indexing 1"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[0:1]
+                self.assert_almost_eq(t1.tolist(), [[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]])  # dimension is not reduced
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
 
-        with self.subTest("basic: slice indexing 2"):
-            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-            t1 = t[0:1, 1:3]
-            self.assert_almost_eq(t1.tolist(), [[[3, 4, 5], [6, 7, 8]]])  # dimension is not reduced
-            t1.backward()
-            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+            with self.subTest("basic: slice indexing 2"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[0:1, 1:3]
+                self.assert_almost_eq(t1.tolist(), [[[3, 4, 5], [6, 7, 8]]])  # dimension is not reduced
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
 
-        with self.subTest("basic: slice indexing 3"):
-            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-            t1 = t[0:1, 1:3, 0:2]
-            self.assert_almost_eq(t1.tolist(), [[[3, 4], [6, 7]]])  # dimension is not reduced
-            t1.backward()
-            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 0], [1, 1, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+            with self.subTest("basic: slice indexing 3"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[0:1, 1:3, 0:2]
+                self.assert_almost_eq(t1.tolist(), [[[3, 4], [6, 7]]])  # dimension is not reduced
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 0], [1, 1, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
 
-        with self.subTest("basic: slice default processing"):
-            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-            t1 = t[:1, 1:, :]
-            self.assert_almost_eq(t1.tolist(), [[[3, 4, 5], [6, 7, 8], [9, 10, 11]]])  # dimension is not reduced
-            t1.backward()
-            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+            with self.subTest("basic: slice default processing"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[:1, 1:, :]
+                self.assert_almost_eq(t1.tolist(), [[[3, 4, 5], [6, 7, 8], [9, 10, 11]]])  # dimension is not reduced
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
 
-        with self.subTest("basic: int and slice mixed indexing"):
-            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-            t1 = t[1, 1:3]
-            self.assert_almost_eq(t1.tolist(), [[15, 16, 17], [18, 19, 20]])
-            t1.backward()
-            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0]]])
+            with self.subTest("basic: int and slice mixed indexing"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[1, 1:3]
+                self.assert_almost_eq(t1.tolist(), [[15, 16, 17], [18, 19, 20]])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0]]])
 
-        with self.subTest("basic: index on index"):
-            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-            t1 = t[1, :3]
-            self.assert_almost_eq(t1.tolist(), [[12, 13, 14], [15, 16, 17], [18, 19, 20]])
-            t2 = t1[1:, 2]
-            self.assert_almost_eq(t2.tolist(), [17, 20])
-            t2.backward()
-            self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 0], [0, 0, 1], [0, 0, 1]])
-            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 1], [0, 0, 1], [0, 0, 0]]])
+            with self.subTest("basic: index on index"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[1, :3]
+                self.assert_almost_eq(t1.tolist(), [[12, 13, 14], [15, 16, 17], [18, 19, 20]])
+                t2 = t1[1:, 2]
+                self.assert_almost_eq(t2.tolist(), [17, 20])
+                t2.backward()
+                self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 0], [0, 0, 1], [0, 0, 1]])
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 1], [0, 0, 1], [0, 0, 0]]])
 
-        with self.subTest("basic: index * index"):
-            t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
-            t1 = t[1, :, 1:]
-            self.assert_almost_eq(t1.tolist(), [[13, 14], [16, 17], [19, 20], [22, 23]])
-            t2 = tensor.tensor([[0, 1], [2, 3], [4, 5], [6, 7]])
-            t3 = t1 * t2
-            self.assert_almost_eq(t3.tolist(), [[0, 14], [32, 51], [76, 100], [132, 161]])
-            t3.backward()
-            self.assert_almost_eq(t3.grad.tolist(), [[1, 1], [1, 1], [1, 1], [1, 1]])
-            self.assert_almost_eq(t2.grad.tolist(), [[13, 14], [16, 17], [19, 20], [22, 23]])
-            self.assert_almost_eq(t1.grad.tolist(), [[0, 1], [2, 3], [4, 5], [6, 7]])
-            self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 1], [0, 2, 3], [0, 4, 5], [0, 6, 7]]])
+            with self.subTest("basic: index * index"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[1, :, 1:]
+                self.assert_almost_eq(t1.tolist(), [[13, 14], [16, 17], [19, 20], [22, 23]])
+                t2 = tensor.tensor([[0, 1], [2, 3], [4, 5], [6, 7]])
+                t3 = t1 * t2
+                self.assert_almost_eq(t3.tolist(), [[0, 14], [32, 51], [76, 100], [132, 161]])
+                t3.backward()
+                self.assert_almost_eq(t3.grad.tolist(), [[1, 1], [1, 1], [1, 1], [1, 1]])
+                self.assert_almost_eq(t2.grad.tolist(), [[13, 14], [16, 17], [19, 20], [22, 23]])
+                self.assert_almost_eq(t1.grad.tolist(), [[0, 1], [2, 3], [4, 5], [6, 7]])
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 1], [0, 2, 3], [0, 4, 5], [0, 6, 7]]])
+
+        with self.subTest("advanced index"):
+            with self.subTest("Tensor indexing 1"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[tensor.Tensor(0)]
+                self.assert_almost_eq(t1.tolist(), [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+
+            with self.subTest("Tensor indexing 2"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[tensor.Tensor([0, 0])]
+                self.assert_almost_eq(t1.tolist(), [[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]])
+
+            with self.subTest("Tensor indexing 3"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[tensor.Tensor([0, 1, 0, 1])]
+                self.assert_almost_eq(
+                    t1.tolist(),
+                    [
+                        [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]],
+                        [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]],
+                        [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]],
+                        [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]],
+                    ],
+                )
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]], [[2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2]]])
+
+            with self.subTest("Tensor indexing 3"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[tensor.Tensor([1, 1]), tensor.Tensor([1, 2])]
+                self.assert_almost_eq(t1.tolist(), [[15, 16, 17], [18, 19, 20]])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0]]])
+
+            with self.subTest("Tensor indexing 4"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[tensor.Tensor([1]), tensor.Tensor([2]), tensor.Tensor([2, 1, 2, 1, 0])]
+                self.assert_almost_eq(t1.tolist(), [20, 19, 20, 19, 18])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [1, 2, 2], [0, 0, 0]]])
+
+            with self.subTest("Tensor indexing 5: includes int"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[1, tensor.Tensor([1, 0])]
+                self.assert_almost_eq(t1.tolist(), [[15, 16, 17], [12, 13, 14]])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], [[1, 1, 1], [1, 1, 1], [0, 0, 0], [0, 0, 0]]])
+
+            with self.subTest("Tensor indexing 6: includes int 2"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[tensor.Tensor([1, 0]), 2, tensor.Tensor([2, 2])]
+                self.assert_almost_eq(t1.tolist(), [20, 8])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 0], [0, 0, 1], [0, 0, 0]], [[0, 0, 0], [0, 0, 0], [0, 0, 1], [0, 0, 0]]])
+
+            with self.subTest("Tensor indexing 7: includes slice"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[tensor.Tensor([1, 0]), 1:3, tensor.Tensor([2, 2])]
+                self.assert_almost_eq(t1.tolist(), [[17, 20], [5, 8]])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 0, 1], [0, 0, 1], [0, 0, 0]], [[0, 0, 0], [0, 0, 1], [0, 0, 1], [0, 0, 0]]])
+
+            with self.subTest("Tensor indexing 8: includes slice and int"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[tensor.Tensor([1, 0, 0]), 1:3, 1]
+                self.assert_almost_eq(t1.tolist(), [[16, 19], [4, 7], [4, 7]])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 2, 0], [0, 2, 0], [0, 0, 0]], [[0, 0, 0], [0, 1, 0], [0, 1, 0], [0, 0, 0]]])
+
+            with self.subTest("Tensor indexing 9: includes slice and int"):
+                t = tensor.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]], [[12, 13, 14], [15, 16, 17], [18, 19, 20], [21, 22, 23]]])
+                t1 = t[tensor.Tensor([1, 0, 0]), 1:3:2, 1]
+                self.assert_almost_eq(t1.tolist(), [[16], [4], [4]])
+                t1.backward()
+                self.assert_almost_eq(t.grad.tolist(), [[[0, 0, 0], [0, 2, 0], [0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 1, 0], [0, 0, 0], [0, 0, 0]]])
 
 
 if __name__ == "__main__":

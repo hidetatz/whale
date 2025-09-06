@@ -857,48 +857,133 @@ class Tensor:
 
         return Tensor.new_view_op(Reshape(tuple(shape), shape_to_strides(shape), 0, None, True), self if self.contiguous else self.copy())
 
+    # https://github.com/tinygrad/tinygrad/blob/v0.7.0/tinygrad/tensor.py#L274
     def _getitem(self, indices):
-        if type(indices) != tuple:
-            indices = (indices,)
+        # convert to list
+        orig_indices = list(indices) if isinstance(indices, tuple) else [indices]
 
-        if self.ndim < len(indices):
-            raise ValueError(f"too many index accessors specified")
+        if len(orig_indices) > len(self.shape):
+            raise IndexError(f"too many indices {len(indices)} for tensor of dimension {len(self.shape)}")
 
-        if Tensor in [type(i) for i in indices]:
-            raise NotImplementedError("advanced index is still not implemented")
+        # handle ellipsis
+        ellipses_pos = [i for i, v in enumerate(orig_indices) if v is Ellipsis]
+        if len(ellipses_pos) > 1:
+            raise IndexError("an index can only have a single ellipsis ('...')")
+        ellipsis_idx = ellipses_pos[0] if ellipses_pos else len(orig_indices)
+        orig_indices[ellipsis_idx : ellipsis_idx + 1] = [slice(None)] * (len(self.shape) - len(orig_indices))
 
-        return self._get_item_basic(indices)
+        # handle tensor index (pos, tensor)
+        tensor_pos = [(i, v) for i, v in enumerate(orig_indices) if isinstance(v, Tensor)]
 
-    # numpy basic index
-    # https://numpy.org/doc/stable/user/basics.indexing.html#basic-indexing
-    def _get_item_basic(self, indices):
-        for i in range(self.ndim - len(indices)):
-            indices = indices + (slice(None, None, None),)
+        # replace tensor index with slice(None) temporarily
+        orig_indices = [slice(None) if isinstance(v, Tensor) else v for v in orig_indices]
 
-        t = self
-        curdim = 0
-        for idx in indices:
-            if type(idx) == int:
-                if t.shape[curdim] - 1 < idx:
-                    raise ValueError(f"index out of bounds for axis {curdim} with size {t.shape[curdim]}")
-                idx = idx if 0 <= idx else t.shape[curdim] + idx
-                start, stop = idx, idx + 1
-            elif type(idx) == slice:
-                start = 0 if idx.start is None else t.shape[curdim] + idx.start if idx.start < 0 else idx.start
-                stop = t.shape[curdim] if idx.stop is None else t.shape[curdim] + idx.stop if idx.stop < 0 else idx.stop
-                stop = min(t.shape[curdim], stop)
-                # todo: support step
-            else:
-                raise RuntimeError(f"unhandled index in basic index: {type(idx)}")
+        # filter None (newaxis)
+        # as of here there will be only slice or int inside
+        valid_indices = [s for s in orig_indices if s is not None]
 
-            t = t.crop(tuple([(start, stop) if i == curdim else None for i in range(t.ndim)]))
+        def _norm(idx_int, pos, dim):
+            if -dim <= idx_int < dim:
+                return idx_int if idx_int != -1 else dim - 1
+            raise IndexError(f"index {idx_int} is out of bounds for dimension {pos} with size {self.shape[pos]}")
 
-            if type(idx) == int:
-                t = t.reshape(*t.shape[:curdim], *t.shape[curdim + 1 :])
-            else:
-                curdim += 1
+        # convert int to slice
+        valid_indices = [idx if isinstance(idx, slice) else slice(pos := _norm(idx, i, dim), pos + 1) for i, (idx, dim) in enumerate(zip(valid_indices, self.shape))]
 
-        return t
+        # get start, stop, step from slice
+        starts, stops, steps = zip(*idxs) if (idxs := [sl.indices(dim) for sl, dim in zip(valid_indices, self.shape)]) else ((), (), ())
+        new_slice = tuple((s, e) if st > 0 else (e + 1, s + 1) for s, e, st in zip(starts, stops, steps))
+
+        # do crop
+        sliced_tensor = self.crop(new_slice)
+        new_shape = sliced_tensor.shape
+
+        # do flip on negative strides
+        if flip_axes := tuple(i for i, s in enumerate(steps) if s < 0):
+            sliced_tensor = sliced_tensor.flip(axis=flip_axes)
+
+        # do pad on non-1 step
+        if any(st > 1 or st < 0 for st in steps):
+            steps = tuple(abs(s) for s in steps)
+
+            def num_zeros(step, dim_sz):
+                return 0 if step == 1 or (y := dim_sz % step) == 0 else (step - y)
+
+            def flatten(l):
+                return [item for sublist in l for item in sublist]
+
+            paddings = tuple((0, num_zeros(st, dim)) for st, dim in zip(steps, sliced_tensor.shape))
+            padded_tensor = sliced_tensor.pad(paddings)
+            new_shape = flatten([sh // s, s] for sh, s in zip(padded_tensor.shape, steps))
+            reshaped_tensor = padded_tensor.reshape(*new_shape)
+            new_shape = new_shape[::2]
+            final_slice = tuple(flatten(((0, sh), (0, 1)) for sh in new_shape))
+            sliced_tensor = reshaped_tensor.crop(final_slice)
+
+        # determin final shape:
+        # as of here, new_shape length is the same as self
+        # dimension must be reduced on int index pos
+
+        final_shape, shape_iter = [], iter(new_shape)
+
+        # tensor index tweak factor:
+        # record the reduced int index position
+        tensor_pos_tweak = [0] * len(tensor_pos)
+
+        for i, idx in enumerate(orig_indices):
+            if idx is None:
+                final_shape.append(1)
+                continue
+
+            # as of here idx is int or slice
+            dim_shape = next(shape_iter)
+
+            # if slice, dimension is kept
+            if isinstance(idx, slice):
+                final_shape.append(dim_shape)
+                continue
+
+            # else, sub the tensor position if int index is before tensor index as it's reduced
+            for i_ in range(len(tensor_pos)):
+                if tensor_pos[i_][0] > i:
+                    tensor_pos_tweak[i_] -= 1
+
+        # reduce the int index pos dimension
+        ret = sliced_tensor.reshape(*final_shape)
+
+        if tensor_pos:
+            # tweak the tensor positions first
+            for i, s in enumerate(tensor_pos_tweak):
+                tensor_pos[i] = (tensor_pos[i][0] + s, tensor_pos[i][1])
+
+
+            tensor_idx_pos = [i[0] for i in tensor_pos]
+
+            # flip the negative in tensor index to positive
+            idx = [i[1].sign().copy().__neg__().copy().relu() * ret.shape[i[0]] + i[1] for i in tensor_pos]
+
+            # add ones to the head to get all the tensors same length
+            max_dim = max(i.ndim for i in idx)
+            idx = [i.reshape(*[1] * (max_dim - i.ndim), *i.shape) for i in idx]
+            sum_dim = [d + max_dim - n for n, d in enumerate(tensor_idx_pos)]
+
+            # reshape and broadcast the ret then pick up the selected dimension by tensor idx
+            new_idx = idx[0].reshape(*[1] * tensor_idx_pos[0], 1, *idx[0].shape, *[1] * (ret.ndim - tensor_idx_pos[0] - 1))
+            arange = Tensor.arange(ret.shape[tensor_idx_pos[0]]).reshape(*[1] * tensor_idx_pos[0], ret.shape[tensor_idx_pos[0]], *[1] * idx[0].ndim, *[1] * (ret.ndim - tensor_idx_pos[0] - 1))
+            newshape = *ret.shape[: tensor_idx_pos[0] + 1], *[1] * idx[0].ndim, *ret.shape[tensor_idx_pos[0] + 1 :]
+            pick = (arange.eq(new_idx)).to(dtypes.float32)
+            ret = (ret.reshape(*newshape) * pick).sum(tensor_idx_pos[0])
+            for idx_, d in zip(idx[1:], sum_dim[1:]):
+                new_idx = idx_.reshape(*[1] * tensor_idx_pos[0], *idx_.shape, *[1] * (ret.ndim - tensor_idx_pos[0] - idx_.ndim))
+                arange = Tensor.arange(ret.shape[d]).reshape(*[1] * (d), ret.shape[d], *[1] * (ret.ndim - d - 1))
+                ret = ((new_idx.eq(arange)).to(dtypes.float32) * ret).sum(d)
+
+            if tensor_idx_pos[0] != 0 and tensor_idx_pos != list(range(tensor_idx_pos[0], tensor_idx_pos[-1] + 1)) and len(tensor_idx_pos) != 1:  # special permute case
+                order = list(range(ret.ndim))
+                order = order[tensor_idx_pos[0] : tensor_idx_pos[0] + idx[0].ndim] + order[: tensor_idx_pos[0]] + order[tensor_idx_pos[0] + idx[0].ndim :]
+                ret = ret.permute(order)
+
+        return ret
 
     #
     # data operation
@@ -1374,4 +1459,6 @@ def ones_like(t: Tensor):
 
 
 if __name__ == "__main__":
-    print(Tensor.rand(2, 3).tolist())
+    a = Tensor([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]])
+    print(a[1, 3].tolist())
+    print(a[Tensor([1, 2, 1]), Tensor([3, 1, 2])].tolist())
