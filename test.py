@@ -29,8 +29,17 @@ class WhaleTest(unittest.TestCase):
     #
     def test_constructors(self):
         with self.subTest("arange"):
-            t = tensor.Tensor.arange(6)
-            self.assert_almost_eq(t.tolist(), [0, 1, 2, 3, 4, 5])
+            with self.subTest("only start"):
+                t = tensor.Tensor.arange(6)
+                self.assert_almost_eq(t.tolist(), [0, 1, 2, 3, 4, 5])
+
+            with self.subTest("with stop"):
+                t = tensor.Tensor.arange(1, 4)
+                self.assert_almost_eq(t.tolist(), [1, 2, 3])
+
+            with self.subTest("with stop and step"):
+                t = tensor.Tensor.arange(1, 4, 2)
+                self.assert_almost_eq(t.tolist(), [1, 3])
 
         with self.subTest("zeros_like"):
             t = tensor.Tensor.arange(6)

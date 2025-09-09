@@ -608,8 +608,10 @@ class Tensor:
         return Tensor.full_like(t, 1.0)
 
     @classmethod
-    def arange(cls, n: int):
-        return Tensor([i for i in range(n)])
+    def arange(cls, start, stop=None, step=1):
+        if stop is None:
+            stop, start = start, 0
+        return Tensor([i for i in range(start, stop, step)])
 
     @classmethod
     def wrap(cls, x: typing.Any):
