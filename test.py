@@ -32,15 +32,28 @@ class WhaleTest(unittest.TestCase):
             t = tensor.Tensor.arange(6)
             self.assert_almost_eq(t.tolist(), [0, 1, 2, 3, 4, 5])
 
+        with self.subTest("zeros_like"):
+            t = tensor.Tensor.arange(6)
+            t2 = tensor.Tensor.zeros_like(t)
+            self.assert_almost_eq(t2.tolist(), [0, 0, 0, 0, 0, 0])
+
+        with self.subTest("zeros"):
+            t = tensor.Tensor.arange(6)
+            t2 = tensor.Tensor.zeros(t.shape)
+            self.assert_almost_eq(t2.tolist(), [0, 0, 0, 0, 0, 0])
+
         with self.subTest("ones_like"):
+            t = tensor.Tensor.arange(6)
             t2 = tensor.Tensor.ones_like(t)
             self.assert_almost_eq(t2.tolist(), [1, 1, 1, 1, 1, 1])
 
         with self.subTest("full_like"):
+            t = tensor.Tensor.arange(6)
             t3 = tensor.Tensor.full_like(t2, 3)
             self.assert_almost_eq(t3.tolist(), [3, 3, 3, 3, 3, 3])
 
         with self.subTest("full"):
+            t = tensor.Tensor.arange(6)
             t4 = tensor.Tensor.full((1, 2, 3), 5)
             self.assert_almost_eq(t4.tolist(), [[[5, 5, 5], [5, 5, 5]]])
 

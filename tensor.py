@@ -596,6 +596,14 @@ class Tensor:
         return Tensor.full(t.shape, val)
 
     @classmethod
+    def zeros_like(cls, t: Tensor):
+        return Tensor.full_like(t, 0.0)
+
+    @classmethod
+    def zeros(cls, shape: tuple[int, ...]) -> None:
+        return Tensor.full(shape, 0.0)
+
+    @classmethod
     def ones_like(cls, t: Tensor):
         return Tensor.full_like(t, 1.0)
 
