@@ -785,6 +785,9 @@ class Tensor:
         newshape = newshape[:axis] + newshape[axis + 1 :]
         return t.reshape(*newshape)
 
+    def relu(self) -> Tensor:
+        return self.maximum(Tensor(0))
+
     #
     # shape movement
     #

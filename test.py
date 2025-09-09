@@ -322,6 +322,13 @@ class WhaleTest(unittest.TestCase):
         t2.backprop()
         self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 0], [0, 0, 0]])
 
+    def test_relu(self):
+        t1 = tensor.tensor([[-3, -4, -5], [0, 4, 5]])
+        t2 = t1.relu()
+        self.assert_almost_eq(t2.tolist(), [[0, 0, 0], [0, 4, 5]])
+        t2.backprop()
+        self.assert_almost_eq(t1.grad.tolist(), [[0, 0, 0], [0, 1, 1]])
+
     def test_math(self):
         with self.subTest("log"):
             results = {}
