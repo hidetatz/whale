@@ -204,7 +204,7 @@ class DifferentiableBinary(Differentiable):
     def _forward(self, inputs: tuple[Tensor, ...]) -> Tensor:
         self.l = self.inputs[0]
         self.r = self.inputs[1]
-        assert self.l.dtype == self.r.dtype  # todo: this should be fixed
+        assert self.l.dtype == self.r.dtype, f"type: l: {self.l.dtype}, r: {self.r.dtype}"  # todo: this should be fixed
         return Tensor(self._forward_code(), shape=self.l.shape, inputs=(self.l, self.r), backprop_ctx=self, dtype=self.l.dtype)
 
     def _forward_code(self) -> TensorOpCode:
