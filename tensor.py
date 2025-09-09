@@ -211,7 +211,7 @@ class DifferentiableBinary(Differentiable):
         raise NotImplementedError()
 
     def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
-        raise NotImplementedError()
+        return Tensor.zeros_like(grad), Tensor.zeros_like(grad)
 
 
 class Add(DifferentiableBinary):
