@@ -758,7 +758,7 @@ class Tensor:
         return self._reduce(Max, axis, keepdims)
 
     def min(self, axis: int | tuple[int, ...] | None = None, keepdims: bool = False):
-        return -(-self.max(axis=axis, keepdims=keepdims))
+        return -((-self).max(axis=axis, keepdims=keepdims))
 
     def _reduce(self, red: typing.Type[DifferentiableReduce], axis: int | tuple[int, ...] | None = None, keepdims: bool = False) -> Tensor:
         # this parallel reduction should be optimized
