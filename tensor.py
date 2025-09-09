@@ -630,7 +630,6 @@ class Tensor:
     def ndim(self) -> int:
         return len(self.shape)
 
-    @property
     def ndimension(self) -> int:
         return self.ndim
 
@@ -1417,7 +1416,7 @@ class Materializer:
         for inst in insts:
             match inst:
                 case AllocateDeviceMemory():
-                    inst.t.dev_buffer = inst.t.dev.allocate(inst.t.size)
+                    inst.t.dev_buffer = inst.t.dev.allocate(inst.t.numel())
 
                 case CopyBufferPythonToDevice():
                     inst.t.dev.copy_to_device(inst.t.cpu_buffer, inst.t.dev_buffer)
@@ -1430,7 +1429,7 @@ class Materializer:
 
                 case InvokeUnaryKernel():
                     params = (
-                        inst.dst.size,
+                        inst.dst.numel(),
                         *inst.dst.shape,
                         *inst.src.strides,
                         *sum(inst.src.valid_area, ()),
@@ -1438,14 +1437,14 @@ class Materializer:
                         inst.src.dev_buffer,
                         inst.dst.dev_buffer,
                     )
-                    grid, block = grid_block(inst.dst.size)
+                    grid, block = grid_block(inst.dst.numel())
                     if dbg:
                         print(f"invoking kernel: {inst.kern_name=}, {grid=}, {block=}, {params=}")
                     self.kernel_manager.invoke(inst.kern_name, grid, block, params)
 
                 case InvokeBinaryKernel():
                     params = (
-                        inst.dst.size,
+                        inst.dst.numel(),
                         *inst.dst.shape,
                         *inst.srcl.strides,
                         *inst.srcr.strides,
@@ -1457,14 +1456,14 @@ class Materializer:
                         inst.srcr.dev_buffer,
                         inst.dst.dev_buffer,
                     )
-                    grid, block = grid_block(inst.dst.size)
+                    grid, block = grid_block(inst.dst.numel())
                     if dbg:
                         print(f"invoking kernel: {inst.kern_name=}, {grid=}, {block=}, {params=}")
                     self.kernel_manager.invoke(inst.kern_name, grid, block, params)
 
                 case InvokeReduceKernel():
                     params = (
-                        inst.dst.size,
+                        inst.dst.numel(),
                         inst.src.shape[inst.axis],
                         *inst.dst.shape,
                         *inst.src.strides,
@@ -1473,7 +1472,7 @@ class Materializer:
                         inst.src.dev_buffer,
                         inst.dst.dev_buffer,
                     )
-                    grid, block = grid_block(inst.dst.size)
+                    grid, block = grid_block(inst.dst.numel())
                     if dbg:
                         print(f"invoking kernel: {inst.kern_name=}, {grid=}, {block=}, {params=}")
                     self.kernel_manager.invoke(inst.kern_name, grid, block, params)
