@@ -1,19 +1,26 @@
+# type: ignore
+
 from tensor import Tensor
+
 
 def dataset():
     x = Tensor.rand(100, 1)
     y = 5 + 2 * x + Tensor.rand(100, 1)
     return x, y
 
+
 W = Tensor.zeros((1, 1))
 b = Tensor.zeros((1,))
+
 
 def model(x):
     return (x @ W) + b
 
+
 def mse(x0, x1):
     diff = x0 - x1
-    return (diff ** 2).sum() / len(diff)
+    return (diff**2).sum() / len(diff)
+
 
 lr = 0.1
 iters = 1000

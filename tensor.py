@@ -183,6 +183,7 @@ class Tanh(DifferentiableUnary):
         y = self.output
         return (grad * (1 - y * y),)
 
+
 class Sqrt(DifferentiableUnary):
     def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.SQRT
@@ -190,6 +191,7 @@ class Sqrt(DifferentiableUnary):
     def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         y = self.output
         return grad / (y * 2)
+
 
 class Exp(DifferentiableUnary):
     def _forward_code(self) -> TensorOpCode:
@@ -199,12 +201,14 @@ class Exp(DifferentiableUnary):
         y = self.output
         return (grad * y,)
 
+
 class Sign(DifferentiableUnary):
     def _forward_code(self) -> TensorOpCode:
         return TensorOpCode.SIGN
 
     def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
         return (Tensor.zeros_like(grad),)
+
 
 # binary
 class DifferentiableBinary(Differentiable):
@@ -568,7 +572,7 @@ class Tensor:
 
     @classmethod
     def rand(cls, *shape: int, dtype: DType = dtypes.float32) -> Tensor:
-        return Tensor([random.gauss(0., 1.) for i in range(math.prod(shape))], shape=shape)
+        return Tensor([random.gauss(0.0, 1.0) for i in range(math.prod(shape))], shape=shape)
 
     @classmethod
     def new_buffer_op(cls, data: typing.Any, shape: tuple[int, ...] | None = None) -> Tensor:
@@ -607,7 +611,7 @@ class Tensor:
         return Tensor.full_like(t, 0.0)
 
     @classmethod
-    def zeros(cls, shape: tuple[int, ...]) -> None:
+    def zeros(cls, shape: tuple[int, ...]) -> Tensor:
         return Tensor.full(shape, 0.0)
 
     @classmethod
@@ -933,7 +937,10 @@ class Tensor:
             raise IndexError(f"index {idx_int} is out of bounds for dimension {pos} with size {self.shape[pos]}")
 
         # convert int to slice
-        valid_indices = [idx if isinstance(idx, slice) else slice(pos := _norm(idx, i, dim), pos + 1) for i, (idx, dim) in enumerate(zip(valid_indices, self.shape))]
+        valid_indices = [
+            idx if isinstance(idx, slice) else slice(pos := _norm(idx, i, dim), pos + 1)
+            for i, (idx, dim) in enumerate(zip(valid_indices, self.shape))
+        ]
 
         # get start, stop, step from slice
         starts, stops, steps = zip(*idxs) if (idxs := [sl.indices(dim) for sl, dim in zip(valid_indices, self.shape)]) else ((), (), ())
@@ -1001,7 +1008,6 @@ class Tensor:
             for i, s in enumerate(tensor_pos_tweak):
                 tensor_pos[i] = (tensor_pos[i][0] + s, tensor_pos[i][1])
 
-
             tensor_idx_pos = [i[0] for i in tensor_pos]
 
             # flip the negative in tensor index to positive
@@ -1014,7 +1020,9 @@ class Tensor:
 
             # reshape and broadcast the ret then pick up the selected dimension by tensor idx
             new_idx = idx[0].reshape(*[1] * tensor_idx_pos[0], 1, *idx[0].shape, *[1] * (ret.ndim - tensor_idx_pos[0] - 1))
-            arange = Tensor.arange(ret.shape[tensor_idx_pos[0]]).reshape(*[1] * tensor_idx_pos[0], ret.shape[tensor_idx_pos[0]], *[1] * idx[0].ndim, *[1] * (ret.ndim - tensor_idx_pos[0] - 1))
+            arange = Tensor.arange(ret.shape[tensor_idx_pos[0]]).reshape(
+                *[1] * tensor_idx_pos[0], ret.shape[tensor_idx_pos[0]], *[1] * idx[0].ndim, *[1] * (ret.ndim - tensor_idx_pos[0] - 1)
+            )
             newshape = *ret.shape[: tensor_idx_pos[0] + 1], *[1] * idx[0].ndim, *ret.shape[tensor_idx_pos[0] + 1 :]
             pick = (arange.eq(new_idx)).to(dtypes.float32)
             ret = (ret.reshape(*newshape) * pick).sum(tensor_idx_pos[0])
@@ -1023,9 +1031,13 @@ class Tensor:
                 arange = Tensor.arange(ret.shape[d]).reshape(*[1] * (d), ret.shape[d], *[1] * (ret.ndim - d - 1))
                 ret = ((new_idx.eq(arange)).to(dtypes.float32) * ret).sum(d)
 
-            if tensor_idx_pos[0] != 0 and tensor_idx_pos != list(range(tensor_idx_pos[0], tensor_idx_pos[-1] + 1)) and len(tensor_idx_pos) != 1:  # special permute case
+            if (
+                tensor_idx_pos[0] != 0 and tensor_idx_pos != list(range(tensor_idx_pos[0], tensor_idx_pos[-1] + 1)) and len(tensor_idx_pos) != 1
+            ):  # special permute case
                 order = list(range(ret.ndim))
-                order = order[tensor_idx_pos[0] : tensor_idx_pos[0] + idx[0].ndim] + order[: tensor_idx_pos[0]] + order[tensor_idx_pos[0] + idx[0].ndim :]
+                order = (
+                    order[tensor_idx_pos[0] : tensor_idx_pos[0] + idx[0].ndim] + order[: tensor_idx_pos[0]] + order[tensor_idx_pos[0] + idx[0].ndim :]
+                )
                 ret = ret.permute(order)
 
         return ret
