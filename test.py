@@ -47,12 +47,13 @@ class WhaleTest(unittest.TestCase):
         with self.subTest("rand"):
             t = tensor.Tensor.rand(2, 3)
             l = t.tolist()
-            self.assertTrue(0.0 <= l[0][0] < 1.0)
-            self.assertTrue(0.0 <= l[0][1] < 1.0)
-            self.assertTrue(0.0 <= l[0][2] < 1.0)
-            self.assertTrue(0.0 <= l[1][0] < 1.0)
-            self.assertTrue(0.0 <= l[1][1] < 1.0)
-            self.assertTrue(0.0 <= l[1][2] < 1.0)
+            # Tensor.rand returns random values that mean is 0, variance is 1
+            self.assertTrue(-2.0 <= l[0][0] < 2.0)
+            self.assertTrue(-2.0 <= l[0][1] < 2.0)
+            self.assertTrue(-2.0 <= l[0][2] < 2.0)
+            self.assertTrue(-2.0 <= l[1][0] < 2.0)
+            self.assertTrue(-2.0 <= l[1][1] < 2.0)
+            self.assertTrue(-2.0 <= l[1][2] < 2.0)
 
     def test_operators(self):
         t = tensor.Tensor.arange(6)

@@ -552,7 +552,7 @@ class Tensor:
 
     @classmethod
     def rand(cls, *shape: int, dtype: DType = dtypes.float32) -> Tensor:
-        return Tensor([random.random() for i in range(math.prod(shape))], shape=shape)
+        return Tensor([random.gauss(0., 1.) for i in range(math.prod(shape))], shape=shape)
 
     @classmethod
     def new_buffer_op(cls, data: typing.Any, shape: tuple[int, ...] | None = None) -> Tensor:
