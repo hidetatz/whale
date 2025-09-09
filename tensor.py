@@ -618,16 +618,24 @@ class Tensor:
         return x if isinstance(x, Tensor) else Tensor(x)
 
     #
-    # properties
+    # layouts
     #
-
-    @property
-    def size(self) -> int:
+    def numel(self) -> int:
         return math.prod(self.shape)
+
+    def nelement(self) -> int:
+        return self.numel()
 
     @property
     def ndim(self) -> int:
         return len(self.shape)
+
+    @property
+    def ndimension(self) -> int:
+        return self.ndim
+
+    def dim(self) -> int:
+        return self.ndim
 
     @property
     def T(self) -> Tensor:
@@ -874,8 +882,8 @@ class Tensor:
         return Tensor.new_view_op(Pad(tuple(newshape), self.strides, newoffset, tuple(newvalidarea), False, arg), self)
 
     def reshape(self, *shape: int) -> Tensor:
-        if math.prod(shape) != self.size:
-            raise RuntimeError(f"invalid reshape {shape} for size {self.size} tensor")
+        if math.prod(shape) != self.numel():
+            raise RuntimeError(f"invalid reshape {shape} for size {self.numel()} tensor")
 
         return Tensor.new_view_op(Reshape(tuple(shape), shape_to_strides(shape), 0, None, True), self if self.contiguous else self.copy())
 

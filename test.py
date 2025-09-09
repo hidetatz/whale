@@ -77,6 +77,18 @@ class WhaleTest(unittest.TestCase):
             self.assertTrue(-2.0 <= l[1][1] < 2.0)
             self.assertTrue(-2.0 <= l[1][2] < 2.0)
 
+    def test_properties(self):
+        with self.subTest("elemnt counts"):
+            t = tensor.Tensor([[1, 2, 3], [4, 5, 6]])
+            self.assert_almost_eq(t.numel(), 6)
+            self.assert_almost_eq(t.nelement(), 6)
+
+        with self.subTest("dimensions"):
+            t = tensor.Tensor([[1, 2, 3], [4, 5, 6]])
+            self.assert_almost_eq(t.ndim, 2)
+            self.assert_almost_eq(t.dim(), 2)
+            self.assert_almost_eq(t.ndimension(), 2)
+
     def test_operators(self):
         t = tensor.Tensor.arange(6)
         t1 = t + 3
