@@ -461,6 +461,7 @@ class Tensor:
         inputs: tuple[Tensor, ...] | None = None,
         backprop_ctx: Differentiable | None = None,
         dtype: DType = dtypes.float32,
+        **kwargs,
     ):
         self.dev = get_device()
         self.grad: Tensor | None = None
