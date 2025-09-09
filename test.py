@@ -327,6 +327,19 @@ class WhaleTest(unittest.TestCase):
             self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist(), places=6)
             self.assert_almost_eq(results["tensor_grad"].tolist(), results["torch_grad"].tolist(), places=6)
 
+        with self.subTest("sqrt"):
+            results = {}
+            for mod in [tensor, torch]:
+                t = mod.tensor([[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]], requires_grad=True)
+                t1 = t.sqrt()
+                results[mod.__name__] = t1
+
+                t1.backward(gradient=mod.ones_like(t1))
+                results[mod.__name__ + "_grad"] = t.grad
+
+            self.assert_almost_eq(results["tensor"].tolist(), results["torch"].tolist(), places=6)
+            self.assert_almost_eq(results["tensor_grad"].tolist(), results["torch_grad"].tolist(), places=6)
+
         with self.subTest("exp"):
             results = {}
             for mod in [tensor, torch]:

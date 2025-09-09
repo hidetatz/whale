@@ -45,6 +45,7 @@ class TensorOpCode(IntEnum):
     SIN = auto()
     COS = auto()
     TANH = auto()
+    SQRT = auto()
     EXP = auto()
     COPY = auto()
     _unary_op_end = auto()
@@ -181,6 +182,13 @@ class Tanh(DifferentiableUnary):
         y = self.output
         return (grad * (1 - y * y),)
 
+class Sqrt(DifferentiableUnary):
+    def _forward_code(self) -> TensorOpCode:
+        return TensorOpCode.SQRT
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        y = self.output
+        return grad / (y * 2)
 
 class Exp(DifferentiableUnary):
     def _forward_code(self) -> TensorOpCode:
@@ -698,6 +706,9 @@ class Tensor:
 
     def tanh(self):
         return Tensor.new_unary_op(Tanh(), self)
+
+    def sqrt(self):
+        return Tensor.new_unary_op(Sqrt(), self)
 
     def exp(self):
         return Tensor.new_unary_op(Exp(), self)
@@ -1319,6 +1330,7 @@ class Materializer:
             TensorOpCode.SIN: kernel.OpCode.SIN,
             TensorOpCode.COS: kernel.OpCode.COS,
             TensorOpCode.TANH: kernel.OpCode.TANH,
+            TensorOpCode.SQRT: kernel.OpCode.SQRT,
             TensorOpCode.EXP: kernel.OpCode.EXP,
             TensorOpCode.NE: kernel.OpCode.NE,
             TensorOpCode.LT: kernel.OpCode.LT,

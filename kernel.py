@@ -19,6 +19,7 @@ class OpCode(IntEnum):
     SIN = auto()
     COS = auto()
     TANH = auto()
+    SQRT = auto()
     EXP = auto()
     NE = auto()
     LT = auto()

@@ -113,6 +113,8 @@ class LangFlavor(kernel.LangFlavor):
             return f"cos({operand})"
         if code == kernel.OpCode.TANH:
             return f"tanh({operand})"
+        if code == kernel.OpCode.SQRT:
+            return f"sqrtf({operand})"
         if code == kernel.OpCode.EXP:
             return f"exp({operand})"
 
