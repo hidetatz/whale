@@ -117,6 +117,8 @@ class LangFlavor(kernel.LangFlavor):
             return f"sqrtf({operand})"
         if code == kernel.OpCode.EXP:
             return f"exp({operand})"
+        if code == kernel.OpCode.SIGN:
+            return f"({operand} < 0) ? -1.0f : ({operand} == 0) ? 0.0f : 1.0f"
 
         raise RuntimeError(f"unhandled code {code}")
 

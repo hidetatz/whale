@@ -13,6 +13,7 @@ class OpCode(IntEnum):
     POW = auto()
     LOG = auto()
     COPY = auto()
+    SIGN = auto()
     SUM = auto()
     PROD = auto()
     MAX = auto()

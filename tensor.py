@@ -48,6 +48,7 @@ class TensorOpCode(IntEnum):
     SQRT = auto()
     EXP = auto()
     COPY = auto()
+    SIGN = auto()
     _unary_op_end = auto()
 
     _binary_op_start = auto()
@@ -198,6 +199,12 @@ class Exp(DifferentiableUnary):
         y = self.output
         return (grad * y,)
 
+class Sign(DifferentiableUnary):
+    def _forward_code(self) -> TensorOpCode:
+        return TensorOpCode.SIGN
+
+    def _backward(self, grad: Tensor) -> tuple[Tensor, ...]:
+        return (Tensor.zeros_like(grad),)
 
 # binary
 class DifferentiableBinary(Differentiable):
@@ -699,6 +706,12 @@ class Tensor:
 
     def clip(self, min=None, max=None) -> Tensor:
         return self.clamp(min, max)
+
+    def abs(self):
+        return self.relu() + (-self).relu()
+
+    def sign(self):
+        return Tensor.new_unary_op(Sign(), self)
 
     def neg(self):
         return self * -1
@@ -1342,6 +1355,7 @@ class Materializer:
             TensorOpCode.POW: kernel.OpCode.POW,
             TensorOpCode.LOG: kernel.OpCode.LOG,
             TensorOpCode.COPY: kernel.OpCode.COPY,
+            TensorOpCode.SIGN: kernel.OpCode.SIGN,
             TensorOpCode.SUM: kernel.OpCode.SUM,
             TensorOpCode.PROD: kernel.OpCode.PROD,
             TensorOpCode.MAX: kernel.OpCode.MAX,
