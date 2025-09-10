@@ -95,6 +95,15 @@ class WhaleTest(unittest.TestCase):
             t = tensor.Tensor([[1, 2, 3], [4, 5, 6]])
             self.assert_almost_eq(len(t), 2)
 
+    def test_pythonitem(self):
+        with self.subTest("item"):
+            t = tensor.Tensor(3).reshape(1, 1, 1)
+            self.assert_almost_eq(t.item(), 3)
+
+        with self.subTest("tolist"):
+            t = tensor.Tensor.arange(6).reshape(2, 3)
+            self.assert_almost_eq(t.tolist(), [[0, 1, 2], [3, 4, 5]])
+
     def test_operators(self):
         t = tensor.Tensor.arange(6)
         t1 = t + 3

@@ -1177,6 +1177,13 @@ class Tensor:
             self.materialized = True
         return self
 
+    def item(self):
+        if self.numel() != 1:
+            raise RuntimeError("tensor size must be 1")
+
+        flatten = lambda x: [z for y in x for z in (flatten(y) if hasattr(y, '__iter__') else (y,))]
+        return flatten(self.tolist())[0]
+
     def tolist(self):
         if not self.materialized:
             self.materialize()
