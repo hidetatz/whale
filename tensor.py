@@ -917,7 +917,7 @@ class Tensor:
         return Tensor.new_view_op(Reshape(tuple(shape), shape_to_strides(shape), 0, None, True), self if self.contiguous else self.copy())
 
     # https://github.com/tinygrad/tinygrad/blob/v0.7.0/tinygrad/tensor.py#L274
-    def _getitem(self, indices):
+    def _getitem(self, indices: int|tuple[int, ...]|slice|Tensor|None):
         # convert to list
         orig_indices = list(indices) if isinstance(indices, tuple) else [indices]
 
