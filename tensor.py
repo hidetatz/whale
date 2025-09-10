@@ -760,6 +760,16 @@ class Tensor:
     def min(self, axis: int | tuple[int, ...] | None = None, keepdims: bool = False):
         return -((-self).max(axis=axis, keepdims=keepdims))
 
+    def mean(self, axis: int | tuple[int, ...] | None = None, keepdims: bool = False):
+        out = self.sum(axis=axis, keepdims=keepdims)
+        return out * (out.numel()/self.numel())
+
+    def argmax(self, axis: int, keepdims: bool = False):
+        axis = axis + len(self.shape) if axis < 0 else axis
+        max_mask = self.eq(self.max(axis=axis, keepdims=True)).to(dtypes.float32)
+        idx = max_mask * Tensor.arange(self.shape[axis]-1, -1, -1).reshape(self.shape[axis], *[1]*(self.ndim-axis-1))
+        return self.shape[axis]-idx.max(axis=axis, keepdims=keepdims)-1
+
     def _reduce(self, red: typing.Type[DifferentiableReduce], axis: int | tuple[int, ...] | None = None, keepdims: bool = False) -> Tensor:
         # this parallel reduction should be optimized
         if axis is None:
