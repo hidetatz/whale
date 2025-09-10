@@ -1132,6 +1132,9 @@ class Tensor:
     def __getitem__(self, indices):
         return self._getitem(indices)
 
+    def __len__(self):
+        return self.shape[0]
+
     def __str__(self):
         def f(depth: int, t: Tensor):
             indent = "    " * depth

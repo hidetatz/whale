@@ -1,4 +1,5 @@
 import math
+import random
 import unittest
 
 import torch
@@ -67,6 +68,7 @@ class WhaleTest(unittest.TestCase):
             self.assert_almost_eq(t4.tolist(), [[[5, 5, 5], [5, 5, 5]]])
 
         with self.subTest("rand"):
+            random.seed(100)
             t = tensor.Tensor.rand(2, 3)
             l = t.tolist()
             # Tensor.rand returns random values that mean is 0, variance is 1
@@ -88,6 +90,10 @@ class WhaleTest(unittest.TestCase):
             self.assert_almost_eq(t.ndim, 2)
             self.assert_almost_eq(t.dim(), 2)
             self.assert_almost_eq(t.ndimension(), 2)
+
+        with self.subTest("len"):
+            t = tensor.Tensor([[1, 2, 3], [4, 5, 6]])
+            self.assert_almost_eq(len(t), 2)
 
     def test_operators(self):
         t = tensor.Tensor.arange(6)
