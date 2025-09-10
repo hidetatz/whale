@@ -1155,8 +1155,17 @@ class Tensor:
         return self.__str__()
 
     def __del__(self):
+        self.free()
+
+    def free(self):
         if hasattr(self, "dev_buffer") and self.dev_buffer:
             self.dev.free(self.dev_buffer)
+
+    def free_all(self):
+        self.free()
+        if self.backprop_ctx:
+            for i in self.backprop_ctx.inputs:
+                i.free_all()
 
     #
     # materialization
