@@ -802,6 +802,17 @@ class Tensor:
     def relu(self) -> Tensor:
         return self.maximum(Tensor(0))
 
+    def softmax(self, axis=1):
+        m = self - self.max(axis=axis, keepdims=True)
+        e = m.exp()
+        return e / e.sum(axis=axis, keepdims=True)
+
+    def softmax_cross_entropy(self, y: Tensor) -> Tensor:
+        n = self.shape[0]
+        logp = self.softmax().clip(1e-15, 1.0).log()
+        tlogp = logp[Tensor.arange(n), y]
+        return -1 * sum(tlogp) / n
+
     #
     # shape movement
     #
