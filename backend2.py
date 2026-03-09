@@ -176,8 +176,8 @@ class BackendIR:
 
 sum2d_axis0 = """
 extern "C" __global__ void sum2d_axis0(
-    double* in0,
-    double* out,
+    float* in0,
+    float* out,
     int out_size,
     int in0_stride0,
     int in0_stride1,
@@ -195,10 +195,10 @@ extern "C" __global__ void sum2d_axis0(
 
 fuse1d_add_mul = """
 extern "C" __global__ void fuse1d_add_mul(
-    double* in0,
-    double* in1,
-    double* in2,
-    double* out,
+    float* in0,
+    float* in1,
+    float* in2,
+    float* out,
     int out_size
 ) {
     int out_idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -237,13 +237,13 @@ if __name__ == "__main__":
     # e = b + d
     # f = e * c
     # f.materialize()
-    a = CPUBuff([1.0, 2.0, 3.0, 1.0, 2.0, 3.0])
+    a = CPUBuff([1.0, 2.0, 3.0, 1.0, 2.0, 3.0], dtype=float32)
     a_dev = DevBuff(dtype=a.dtype)
 
-    b = CPUBuff([4.0, 5.0, 6.0])
+    b = CPUBuff([4.0, 5.0, 6.0], dtype=float32)
     b_dev = DevBuff(dtype=b.dtype)
 
-    c = CPUBuff([10.0, 10.0, 10.0])
+    c = CPUBuff([10.0, 10.0, 10.0], dtype=float32)
     c_dev = DevBuff(dtype=c.dtype)
 
     d_dev = DevBuff(dtype=a_dev.dtype)
