@@ -1,25 +1,22 @@
-from __future__ import annotations
-
+from ctypes import c_int, c_longlong, c_float, c_double
 
 class DType:
-    def __init__(self, code: str) -> None:
-        self.code = code
+    def __repr__(self):
+        return self.__class__.__name__.lower()
 
-    def __eq__(self, r) -> bool:
-        return self.code == r.code
+class Int32(DType):
+    def ctype(self): return c_int
 
-    def __str__(self) -> str:
-        return "dtypes." + self.code
+class Int64(DType):
+    def ctype(self): return c_longlong
 
-    @staticmethod
-    def float32() -> DType:
-        return DType("float32")
+class Float32(DType):
+    def ctype(self): return c_float
 
-    @staticmethod
-    def bool() -> DType:
-        return DType("bool")
+class Float64(DType):
+    def ctype(self): return c_double
 
-
-class dtypes:
-    float32 = DType.float32()
-    bool = DType.bool()
+int32 = Int32()
+int64 = Int64()
+float32 = Float32()
+float64 = Float64()

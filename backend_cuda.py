@@ -4,42 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 from ctypes import CDLL, byref, c_double, c_float, c_int, c_longlong, c_void_p, cast, pointer, sizeof
 
-class DType:
-    pass
-
-class Int32(DType):
-    def ctype(self): return c_int
-
-class Int64(DType):
-    def ctype(self): return c_longlong
-
-class Float32(DType):
-    def ctype(self): return c_float
-
-class Float64(DType):
-    def ctype(self): return c_double
-
-int32 = Int32()
-int64 = Int64()
-float32 = Float32()
-float64 = Float64()
-
-#
-# buffer
-# 
-
-class CPUBuff:
-    def __init__(self, val=None, dtype=None):
-        self.val = val
-        self.dtype = dtype
-        if val and dtype is None:
-            assert type(val[0]) is int or type(val[0]) is float
-            self.dtype = int64 if type(val[0]) is int else float64
-
-class DevBuff:
-    def __init__(self, ptr=None, dtype=None):
-        self.ptr = ptr
-        self.dtype = dtype
+from dtype import int32, int64, float32, float64
+from buffer import CPUBuff, DevBuff
 
 @dataclass
 class Kernel:
@@ -168,6 +134,8 @@ class MemcpyDtoH:
 class InvokeKernel:
     name: str
     params: list[Any]
+    grid: tuple = (1, 1, 1)
+    block: tuple = (32, 1, 1)
 
 @dataclass
 class BackendIR:
@@ -226,8 +194,7 @@ class Executor:
                     step.dst.val = self.backend.memcpy_dtoh(step.src.ptr, step.length, step.dst.dtype)
                 case InvokeKernel():
                     kern = self.kernels[step.name]
-                    self.backend.invoke(kern.ptr, (1, 1, 1), (32, 1, 1), step.params)
-
+                    self.backend.invoke(kern.ptr, step.grid, step.block, step.params)
 
 if __name__ == "__main__":
     # a = Tensor([[1, 2, 3], [1, 2, 3]])

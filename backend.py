@@ -1,26 +1,148 @@
-import os
-from enum import Enum, auto
+from functools import reduce
+import operator
 
+import buffer
+import dtype
+import exprir
+import sched
+from ops import Ops
 
-class Backend(Enum):
-    PYTHON = auto()
-    CUDA = auto()
+class Backend:
+    def codegen(self, func, schedule):
+        renderer = self.get_renderer()
 
-    @classmethod
-    def detect(cls):
-        be = os.environ.get("WHALE_BACKEND")
-        if be is None:
+        bufs, fncs = func.inputs()
+        kern_name = f"aaa"
+        self.args = {f"{self.argname(buf)}_{i}": buf for i, buf in enumerate(bufs)} | {f"{self.argname(fnc)}_{i}": fnc for i, fnc in enumerate(fncs)}
+        arg_names = ["out"] + list(self.args.keys())
 
-            def cmd_avail(cmd):
-                return os.system(f"command -v {cmd} > /dev/null") == 0
+        renderer.kern_start(kern_name, arg_names)
 
-            # auto detect
-            if cmd_avail("nvcc"):
-                return cls.CUDA
+        for idx in func.out_indices:
+            renderer.loop_start(idx.name, 0, idx.extent, 1)
 
-            return cls.PYTHON
+        result_var = self.codegen_expr(func.expr, renderer)
 
-        if be == "CUDA":
-            return cls.CUDA
+        strides = strides_from_shape(func.out_shape)
+        access = [f"{i.name} * {st}" for i, st in zip(func.out_indices, strides)]
+        renderer.assign(f"out[{' + '.join(access)}]", result_var)
 
-        return cls.PYTHON
+        for idx in func.out_indices:
+            renderer.loop_end()
+
+        renderer.kern_end()
+
+        return renderer.render()
+
+    def codegen_expr(self, expr, renderer):
+        if isinstance(expr, exprir.ReduceExpr):
+            return self.codegen_reduce(expr, renderer)
+        elif isinstance(expr, exprir.BufferExpr):
+            return self.codegen_buffer(expr, renderer)
+
+    def codegen_reduce(self, expr, renderer):
+        renderer.init_var("acc", 0, dtype.float64)
+
+        for idx in expr.reduced:
+            renderer.loop_start(idx.name, 0, idx.extent, 1)
+
+        if expr.op == Ops.Sum:
+            renderer.iadd("acc", self.codegen_expr(expr.operand, renderer))
+
+        for idx in expr.reduced:
+            renderer.loop_end()
+
+        return "acc"
+
+    def codegen_buffer(self, expr, renderer):
+        buf = list(self.args.keys())[list(self.args.values()).index(expr)]
+        strides = strides_from_shape(expr.src.shape)
+        access = [f"{i.idx.name} * {st}" for i, st in zip(expr.indices, strides)]
+        return f"{buf}[{" + ".join(access)}]"
+
+    def argname(self, arg):
+        if type(arg) is exprir.BufferExpr: return "buf"
+        if type(arg) is exprir.FuncExpr: return "fnc"
+        raise RuntimeError(f"unexpected arg type: {type(arg)}")
+
+def prod(iterable): return reduce(operator.mul, iterable, 1)
+def strides_from_shape(shape): return [prod(shape[i+1:]) for i in range(len(shape))]
+
+class Renderer:
+    def __init__(self):
+        self.buff = []
+        self.level = 0
+
+    def write(self, code): self.buff.append(f"{self.indent()}{code}")
+    def indent(self): return self.indent_str() * self.level
+    def render(self): return "\n".join(self.buff)
+
+class PythonRenderer(Renderer):
+    def indent_str(self): return "    "
+
+    def kern_start(self, name, arg_names):
+        self.write(f"def {name}({', '.join(arg_names)}):")
+        self.level += 1
+
+    def kern_end(self):
+        self.level -= 1
+
+    def loop_start(self, index, start, end, step):
+        self.write(f"for {index} in range({start}, {end}, {step}):")
+        self.level += 1
+
+    def loop_end(self):
+        self.level -= 1
+
+    def init_var(self, name, value, dtype):
+        self.write(f"{name} = {value}")
+
+    def assign(self, l, r):
+        self.write(f"{l} = {r}")
+
+    def iadd(self, l, r): self.write(f"{l} += {r}")
+
+class PythonExecutor:
+    def compile(self, code):
+        self.kerns = {}
+        exec(code, self.kerns)
+
+    def execute(self, name, param_buffs):
+        params = [buff.cpu.val for buff in param_buffs]
+        k = self.kerns[name]
+        k(*params)
+
+class Python(Backend):
+    def name(self): return "Python"
+    def is_gpu(self): return False
+    def get_renderer(self): return PythonRenderer()
+
+def detect_backend():
+    return Python()
+
+_backend = detect_backend()
+
+def gpu_enabled():
+    return _backend.is_gpu()
+
+def lower_and_exec(eir, scheds):
+    e = PythonExecutor()
+    for func, schedule in zip(eir.funcs, scheds):
+        code = _backend.codegen(func, schedule)
+
+        bufs, fncs = func.inputs()
+        params = [func.out_buffer] + [b.src.buffer for b in bufs] + [f.src.out_buffer for f in fncs]
+        e.compile(code)
+        e.execute("aaa", params)
+
+if __name__ == "__main__":
+    from ndarray import array, _const
+    a = _const([2, 3, 4, 5], [i for i in range(120)])
+    e = a.sum(axis=[0, 2])
+    # print(e.debug())
+    eir = exprir.convert(e)
+    # print(eir)
+    scheds = sched.schedule(eir)
+    lower_and_exec(eir, scheds)
+
+    print(e.tolist())
