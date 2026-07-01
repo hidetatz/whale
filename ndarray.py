@@ -1,6 +1,7 @@
 import math
 import weakref
 
+import backend
 import exprir
 import node
 import sched
@@ -172,7 +173,7 @@ class ndarray:
             for x, gx in zip(f.inputs, gxs):
                 x.grad = gx if x.grad is None else x.grad + gx
 
-    def _compute(self):
+    def materialize(self):
         eir = exprir.convert(self)
         scheds = sched.schedule(eir)
         backend.lower_and_exec(eir, scheds)
@@ -224,7 +225,7 @@ class ndarray:
 
 def _const(shape, val):
     dtype = int64 if val and type(val[0]) is int else float64
-    strides = [math.prod(shape[i + 1 :]) for i in range(len(shape))]
+    strides = tuple([math.prod(shape[i + 1 :]) for i in range(len(shape))])
     return ndarray(val, dtype, shape, strides, 0, Func(Ops.Const))
 
 def array(val):
@@ -247,7 +248,7 @@ def array(val):
             f(elem, dim + 1)
 
     f(val, 0)
-    return _const(shape, flattened)
+    return _const(tuple(shape), flattened)
 
 def arange(stop):
     return array([i for i in range(stop)])

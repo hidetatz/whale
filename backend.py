@@ -1,11 +1,15 @@
-from functools import reduce
+import math
 import operator
+from functools import reduce
 
 import buffer
 import dtype
 import exprir
 import sched
 from ops import Ops
+
+def strides_from_shape(shape):
+    return tuple([math.prod(shape[i + 1 :]) for i in range(len(shape))])
 
 class Backend:
     def codegen(self, func, schedule):
@@ -103,10 +107,7 @@ class Backend:
         if type(arg) is exprir.FuncExpr: return "fnc"
         raise RuntimeError(f"unexpected arg type: {type(arg)}")
 
-def prod(iterable): return reduce(operator.mul, iterable, 1)
-def strides_from_shape(shape): return [prod(shape[i+1:]) for i in range(len(shape))]
-
-class Renderer:
+class CLikeLangRenderer:
     def __init__(self):
         self.buff = []
         self.level = 0
@@ -115,7 +116,7 @@ class Renderer:
     def indent(self): return self.indent_str() * self.level
     def render(self): return "\n".join(self.buff)
 
-class PythonRenderer(Renderer):
+class PythonRenderer(CLikeLangRenderer):
     def indent_str(self): return "    "
 
     def kern_start(self, name, arg_names):
@@ -179,8 +180,6 @@ def lower_and_exec(eir, scheds):
     e = PythonExecutor()
     for func, schedule in zip(eir.funcs, scheds):
         kern_name, code = _backend.codegen(func, schedule)
-        print(func, schedule, code)
-
         bufs, fncs = func.inputs()
         params = [func.out_buffer] + [b.src.buffer for b in bufs] + [f.src.out_buffer for f in fncs]
         e.compile(code)
@@ -188,18 +187,12 @@ def lower_and_exec(eir, scheds):
 
 if __name__ == "__main__":
     from ndarray import array, _const
-    # a = _const([2, 3, 4, 5], [i for i in range(120)])
-    # e = a.sum(axis=[0, 2])
     # [[0, 1, 2], [3, 4, 5]]
     a = _const([2, 3], [i for i in range(6)])
     # [[1, 2, 3], [1, 2, 3]]
     b = _const([2, 3], [1, 2, 3, 1, 2, 3])
     c = a + b
     d = c.sum(axis=[0])
-    # print(e.debug())
-    eir = exprir.convert(d)
-    # print(eir)
-    scheds = sched.schedule(eir)
-    lower_and_exec(eir, scheds)
+    d.materialize()
 
     print(d.tolist())
