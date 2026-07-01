@@ -75,5 +75,30 @@ class Test(unittest.TestCase):
             c.materialize()
             self.assertEqual(c.tolist(), [0, 0, 0, 0, 0, 0])
 
+        with self.subTest("add -> sub -> mul -> div"):
+            a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+            b = ndarray.array([[1, 2, 3], [1, 2, 3]])
+            c = ndarray.array([[2, 2, 2], [2, 2, 2]])
+            d = ndarray.array([[1, 2, 3], [4, 5, 6]])
+            e = ndarray.array([[2, 2, 2], [2, 2, 2]])
+            f = a + b - c * d / e
+            f.materialize()
+            self.assertEqual(f.tolist(), [1, 2, 3, 1, 2, 3])
+
+    def test_reduce(self):
+        with self.subTest("sum"):
+            a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+            b = a.sum(axis=0)
+            b.materialize()
+            self.assertEqual(b.tolist(), [5, 7, 9])
+
+        with self.subTest("add -> sum"):
+            a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+            b = ndarray.array([[1, 2, 3], [1, 2, 3]])
+            # a + b -> [[2, 4, 6], [5, 7, 9]]
+            c = (a + b).sum(axis=0)
+            c.materialize()
+            self.assertEqual(c.tolist(), [7, 11, 15])
+
 if __name__ == '__main__':
     unittest.main()
