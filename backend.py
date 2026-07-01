@@ -9,6 +9,7 @@ from ops import Ops
 
 class Backend:
     def codegen(self, func, schedule):
+        self.tmpvar_idx = 0
         renderer = self.get_renderer()
 
         bufs, fncs = func.inputs()
@@ -34,6 +35,11 @@ class Backend:
 
         return kern_name, renderer.render()
 
+    def tmp_var(self):
+        n = f"tmp{self.tmpvar_idx}"
+        self.tmpvar_idx += 1
+        return n
+
     def codegen_expr(self, expr, renderer):
         if isinstance(expr, exprir.UnaryExpr): return self.codegen_unary(expr, renderer)
         elif isinstance(expr, exprir.BinaryExpr): return self.codegen_binary(expr, renderer)
@@ -41,25 +47,36 @@ class Backend:
         elif isinstance(expr, exprir.BufferExpr): return self.codegen_buffer(expr, renderer)
 
     def codegen_unary(self, expr, renderer):
-        renderer.init_var("tmp", 0, dtype.float64)
+        tmpvar = self.tmp_var()
+        renderer.init_var(tmpvar, 0, dtype.float64)
         if expr.op == Ops.Neg:
-            renderer.ineg("tmp", self.codegen_expr(expr.operand, renderer))
+            renderer.ineg(tmpvar, self.codegen_expr(expr.operand, renderer))
         elif expr.op == Ops.Pow:
-            renderer.ipow("tmp", self.codegen_expr(expr.operand, renderer))
+            renderer.ipow(tmpvar, self.codegen_expr(expr.operand, renderer))
         elif expr.op == Ops.Sin:
-            renderer.isin("tmp", self.codegen_expr(expr.operand, renderer))
+            renderer.isin(tmpvar, self.codegen_expr(expr.operand, renderer))
         elif expr.op == Ops.Cos:
-            renderer.icos("tmp", self.codegen_expr(expr.operand, renderer))
+            renderer.icos(tmpvar, self.codegen_expr(expr.operand, renderer))
         elif expr.op == Ops.Exp:
-            renderer.iexp("tmp", self.codegen_expr(expr.operand, renderer))
+            renderer.iexp(tmpvar, self.codegen_expr(expr.operand, renderer))
         elif expr.op == Ops.Log:
-            renderer.ilog("tmp", self.codegen_expr(expr.operand, renderer))
+            renderer.ilog(tmpvar, self.codegen_expr(expr.operand, renderer))
         elif expr.op == Ops.Sqrt:
-            renderer.isqrt("tmp", self.codegen_expr(expr.operand, renderer))
-        return "tmp"
+            renderer.isqrt(tmpvar, self.codegen_expr(expr.operand, renderer))
+        return tmpvar
 
     def codegen_binary(self, expr, renderer):
-        pass
+        tmpvar = self.tmp_var()
+        renderer.init_var(tmpvar, 0, dtype.float64)
+        if expr.op == Ops.Add:
+            renderer.assign_add(tmpvar, self.codegen_expr(expr.left, renderer), self.codegen_expr(expr.right, renderer))
+        elif expr.op == Ops.Sub:
+            renderer.assign_sub(tmpvar, self.codegen_expr(expr.left, renderer), self.codegen_expr(expr.right, renderer))
+        elif expr.op == Ops.Mul:
+            renderer.assign_mul(tmpvar, self.codegen_expr(expr.left, renderer), self.codegen_expr(expr.right, renderer))
+        elif expr.op == Ops.Truediv:
+            renderer.assign_truediv(tmpvar, self.codegen_expr(expr.left, renderer), self.codegen_expr(expr.right, renderer))
+        return tmpvar
 
     def codegen_reduce(self, expr, renderer):
         renderer.init_var("acc", 0, dtype.float64)
@@ -130,6 +147,10 @@ class PythonRenderer(Renderer):
     def ilog(self, l, r): self.write(f"{l} = math.log({r})")
     def isqrt(self, l, r): self.write(f"{l} = math.sqrt({r})")
 
+    def assign_add(self, left, l, r): self.write(f"{left} = {l} + {r}")
+    def assign_sub(self, left, l, r): self.write(f"{left} = {l} - {r}")
+    def assign_mul(self, left, l, r): self.write(f"{left} = {l} * {r}")
+    def assign_truediv(self, left, l, r): self.write(f"{left} = {l} / {r}")
 
 class PythonExecutor:
     def compile(self, code):
@@ -169,11 +190,12 @@ if __name__ == "__main__":
     from ndarray import array, _const
     # a = _const([2, 3, 4, 5], [i for i in range(120)])
     # e = a.sum(axis=[0, 2])
+    # [[0, 1, 2], [3, 4, 5]]
     a = _const([2, 3], [i for i in range(6)])
-    b = -a
-    # b = _const([2, 3], [1, 2, 3, 1, 2, 3])
-    # c = a + b
-    d = b.sum(axis=[0])
+    # [[1, 2, 3], [1, 2, 3]]
+    b = _const([2, 3], [1, 2, 3, 1, 2, 3])
+    c = a + b
+    d = c.sum(axis=[0])
     # print(e.debug())
     eir = exprir.convert(d)
     # print(eir)
