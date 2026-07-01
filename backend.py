@@ -32,13 +32,34 @@ class Backend:
 
         renderer.kern_end()
 
-        return renderer.render()
+        return kern_name, renderer.render()
 
     def codegen_expr(self, expr, renderer):
-        if isinstance(expr, exprir.ReduceExpr):
-            return self.codegen_reduce(expr, renderer)
-        elif isinstance(expr, exprir.BufferExpr):
-            return self.codegen_buffer(expr, renderer)
+        if isinstance(expr, exprir.UnaryExpr): return self.codegen_unary(expr, renderer)
+        elif isinstance(expr, exprir.BinaryExpr): return self.codegen_binary(expr, renderer)
+        elif isinstance(expr, exprir.ReduceExpr): return self.codegen_reduce(expr, renderer)
+        elif isinstance(expr, exprir.BufferExpr): return self.codegen_buffer(expr, renderer)
+
+    def codegen_unary(self, expr, renderer):
+        renderer.init_var("tmp", 0, dtype.float64)
+        if expr.op == Ops.Neg:
+            renderer.ineg("tmp", self.codegen_expr(expr.operand, renderer))
+        elif expr.op == Ops.Pow:
+            renderer.ipow("tmp", self.codegen_expr(expr.operand, renderer))
+        elif expr.op == Ops.Sin:
+            renderer.isin("tmp", self.codegen_expr(expr.operand, renderer))
+        elif expr.op == Ops.Cos:
+            renderer.icos("tmp", self.codegen_expr(expr.operand, renderer))
+        elif expr.op == Ops.Exp:
+            renderer.iexp("tmp", self.codegen_expr(expr.operand, renderer))
+        elif expr.op == Ops.Log:
+            renderer.ilog("tmp", self.codegen_expr(expr.operand, renderer))
+        elif expr.op == Ops.Sqrt:
+            renderer.isqrt("tmp", self.codegen_expr(expr.operand, renderer))
+        return "tmp"
+
+    def codegen_binary(self, expr, renderer):
+        pass
 
     def codegen_reduce(self, expr, renderer):
         renderer.init_var("acc", 0, dtype.float64)
@@ -98,9 +119,17 @@ class PythonRenderer(Renderer):
         self.write(f"{name} = {value}")
 
     def assign(self, l, r):
-        self.write(f"{l} = {r}")
+        return self.write(f"{l} = {r}")
 
     def iadd(self, l, r): self.write(f"{l} += {r}")
+    def ineg(self, l, r): self.write(f"{l} = -({r})")
+    def ipow(self, l, r): self.write(f"{l} = pow({r}, 2)")
+    def isin(self, l, r): self.write(f"{l} = math.sin({r})")
+    def icos(self, l, r): self.write(f"{l} = math.cos({r})")
+    def iexp(self, l, r): self.write(f"{l} = math.exp({r})")
+    def ilog(self, l, r): self.write(f"{l} = math.log({r})")
+    def isqrt(self, l, r): self.write(f"{l} = math.sqrt({r})")
+
 
 class PythonExecutor:
     def compile(self, code):
@@ -128,21 +157,27 @@ def gpu_enabled():
 def lower_and_exec(eir, scheds):
     e = PythonExecutor()
     for func, schedule in zip(eir.funcs, scheds):
-        code = _backend.codegen(func, schedule)
+        kern_name, code = _backend.codegen(func, schedule)
+        print(func, schedule, code)
 
         bufs, fncs = func.inputs()
         params = [func.out_buffer] + [b.src.buffer for b in bufs] + [f.src.out_buffer for f in fncs]
         e.compile(code)
-        e.execute("aaa", params)
+        e.execute(kern_name, params)
 
 if __name__ == "__main__":
     from ndarray import array, _const
-    a = _const([2, 3, 4, 5], [i for i in range(120)])
-    e = a.sum(axis=[0, 2])
+    # a = _const([2, 3, 4, 5], [i for i in range(120)])
+    # e = a.sum(axis=[0, 2])
+    a = _const([2, 3], [i for i in range(6)])
+    b = -a
+    # b = _const([2, 3], [1, 2, 3, 1, 2, 3])
+    # c = a + b
+    d = b.sum(axis=[0])
     # print(e.debug())
-    eir = exprir.convert(e)
+    eir = exprir.convert(d)
     # print(eir)
     scheds = sched.schedule(eir)
     lower_and_exec(eir, scheds)
 
-    print(e.tolist())
+    print(d.tolist())

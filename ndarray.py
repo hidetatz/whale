@@ -185,7 +185,7 @@ class ndarray:
         l, r = self.broadcasted(ndarray.wrap(r))
         return Func(f).forward((l, r))
 
-    def __unary(self, f): return Func(f).forward((self))
+    def __unary(self, f): return Func(f).forward((self,))
     def __reduce(self, f, axis, keepdims):
         if isinstance(axis, int): axis = (axis,)
         if not axis: axis = (list(range(self.ndim)))
