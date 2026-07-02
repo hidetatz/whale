@@ -86,11 +86,47 @@ class Test(unittest.TestCase):
             self.assertEqual(f.tolist(), [1, 2, 3, 1, 2, 3])
 
     def test_reduce(self):
-        with self.subTest("sum"):
+        with self.subTest("sum 0"):
             a = ndarray.array([[1, 2, 3], [4, 5, 6]])
             b = a.sum(axis=0)
             b.materialize()
             self.assertEqual(b.tolist(), [5, 7, 9])
+            self.assertEqual(b.shape, (3,))
+
+        with self.subTest("sum 1"):
+            a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+            b = a.sum(axis=1)
+            b.materialize()
+            self.assertEqual(b.tolist(), [6, 15])
+            self.assertEqual(b.shape, (2,))
+
+        with self.subTest("sum 0,1"):
+            a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
+            b = a.sum(axis=(0, 1))
+            b.materialize()
+            self.assertEqual(b.tolist(), [10, 14, 18])
+            self.assertEqual(b.shape, (3,))
+
+        with self.subTest("sum 0,2"):
+            a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
+            b = a.sum(axis=(0, 2))
+            b.materialize()
+            self.assertEqual(b.tolist(), [12, 30])
+            self.assertEqual(b.shape, (2,))
+
+        with self.subTest("sum 1,2"):
+            a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
+            b = a.sum(axis=(1, 2))
+            b.materialize()
+            self.assertEqual(b.tolist(), [21, 21])
+            self.assertEqual(b.shape, (2,))
+
+        with self.subTest("sum all"):
+            a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
+            b = a.sum()
+            b.materialize()
+            self.assertEqual(b.tolist(), [42])
+            self.assertEqual(b.shape, ())
 
         with self.subTest("add -> sum"):
             a = ndarray.array([[1, 2, 3], [4, 5, 6]])

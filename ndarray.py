@@ -67,7 +67,7 @@ class Func:
         kd = self.attrs["keepdims"]
         if kd: newshape = [1 if i in axis else s for i, s in enumerate(inp.shape)]
         else: newshape = [s for i, s in enumerate(inp.shape) if i not in axis]
-        return ndarray(val=None, dtype=inp.dtype, shape=newshape, strides=None, offset=None, ctx=self)
+        return ndarray(val=None, dtype=inp.dtype, shape=tuple(newshape), strides=None, offset=None, ctx=self)
 
     def _sum_forward(self): return self._reduce_forward()
     def _sum_backward(self): pass # todo

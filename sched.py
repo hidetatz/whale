@@ -44,7 +44,7 @@ class AutoScheduler:
         # baseline implementation
         # The outermost spatial loop: parallelize
         # The innermost spatial loop: vectorize
-        spatials[0].parallel = True
+        if spatials: spatials[0].parallel = True
         if 1 < len(spatials): spatials[-1].vectorize = True
         return Schedule(spatials + reduces)
 
