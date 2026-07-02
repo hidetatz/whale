@@ -94,10 +94,9 @@ class CLikeCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Sqrt: f = l.sqrt
         else: raise RuntimeError(f"unknown unary op: {expr.op}")
 
-        tmpvar = self.tmpvar()
-        self.write(l.assign(tmpvar, "0"))
         result = self.render_expr(expr.operand, args)
-        self.write(l.assign(tmpvar, f(result)))
+        tmpvar = self.tmpvar()
+        self.write(l.init(tmpvar, f(result)))
         return tmpvar
 
     def render_binary(self, expr, args):
@@ -109,16 +108,16 @@ class CLikeCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Truediv: f = l.truediv
         else: raise RuntimeError(f"unknown binary op: {expr.op}")
 
-        tmpvar = self.tmpvar()
-        self.write(l.assign(tmpvar, "0"))
         left, right = self.render_expr(expr.left, args), self.render_expr(expr.right, args)
-        self.write(l.assign(tmpvar, f(left, right)))
+        tmpvar = self.tmpvar()
+        self.write(l.init(tmpvar, f(left, right)))
         return tmpvar
 
     def render_reduce(self, expr, args):
         l = self.lang
 
-        self.write(l.assign("acc", "0"))
+        acc = "acc"
+        self.write(l.init(acc, "0"))
 
         for idx in expr.reduced:
             self.write(l.loop_start(idx.name, 0, idx.extent, 1))
@@ -129,13 +128,13 @@ class CLikeCodeGenerator(CodeGenerator):
         if expr.op == Ops.Sum: f = l.add
         else: raise RuntimeError(f"unknown reduce op: {expr.op}")
 
-        self.write(l.assign("acc", f("acc", result)))
+        self.write(l.assign(acc, f(acc, result)))
 
         for idx in expr.reduced:
             self.unnest()
             self.write(l.loop_end())
 
-        return "acc"
+        return acc
 
     def render_buffer(self, expr, args):
         buf = list(args.keys())[list(args.values()).index(expr)]  # get buffer arg name from BufferExpr instance
@@ -152,7 +151,6 @@ def lower_and_exec(eir, scheds):
     for func, schedule in zip(eir.funcs, scheds):
         codegenerator = CLikeCodeGenerator(b)
         kern_name, code = codegenerator.codegen(func, schedule)
-        print(code)
         bufs, fncs = func.inputs()
         params = [func.out_buffer] + [b.src.buffer for b in bufs] + [f.src.out_buffer for f in fncs]
         b.compile(code)

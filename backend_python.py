@@ -13,6 +13,7 @@ class Python:
     def loop_start(self, index, start, end, step): return f"for {index} in range({start}, {end}, {step}):"
     def loop_end(self): return ""
     def index(self, a, idx): return f"{a}[{idx}]"
+    def init(self, l, r): return f"{l} = {r}"
     def assign(self, l, r): return f"{l} = {r}"
     def neg(self, a): return f"-({a})"
     def pow(self, a): return f"pow({a}, 2)"
