@@ -315,13 +315,3 @@ def convert(arr):
     dfs(f)
 
     return ExprIR(funcs)
-
-if __name__ == "__main__":
-    from ndarray import array
-    a = array([[4, 5, 6], [4, 5, 6]])  # 2, 3
-    b = a.sum(axis=0)
-    c = array([4, 5, 6])  # 2, 3
-    d = array([4, 5, 6])  # 2, 3
-    e = b * c + d
-    print(e.debug())
-    eir = convert(e)

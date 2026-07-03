@@ -165,10 +165,3 @@ def lower_and_exec(eir, scheds):
         params = [func.out_buffer] + [b.src.buffer for b in bufs] + [f.src.out_buffer for f in fncs]
         b.compile(kern_name, code)
         b.execute(kern_name, params)
-
-if __name__ == "__main__":
-    from ndarray import array, _const
-    a = _const([2, 3], [i for i in range(6)])
-    b = a + a
-    b.materialize()
-    print(b.tolist())

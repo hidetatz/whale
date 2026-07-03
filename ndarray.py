@@ -267,9 +267,6 @@ def zeros_like(t):
     return full_like(t, 0)
 
 if __name__ == "__main__":
-    a = array([[1, 2, 3], [4, 5, 6]])
-    b = array([7, 8, 9])
-    c = a + b
-    d = 5
-    e = c * d
-    print(e.debug())
+    a = array([[1, 2, 3], [4, 5, 6]]) + array([[1, 2, 3], [4, 5, 6]])
+    a.materialize()
+    print(a.tolist(), a.shape)

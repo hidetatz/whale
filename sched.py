@@ -72,17 +72,3 @@ class AutoScheduler:
 
 def schedule(eir, scheduler=AutoScheduler):
     return [scheduler.schedule_gpu(func) if backend.gpu_enabled() else scheduler.schedule_cpu(func) for func in eir.funcs]
-
-if __name__ == "__main__":
-    from ndarray import array, _const
-    a = _const([2, 3, 4, 5], [i for i in range(120)])
-    # a = arange([[4, 5, 6], [4, 5, 6]])  # 2, 3, 4, 5
-    # b = array([[4, 5, 6], [4, 5, 6]])  # 2, 3
-    # c = array([[4, 5, 6], [4, 5, 6]])  # 2, 3
-    # d = a + b
-    e = a.sum(axis=[0, 2])
-    # print(e.debug())
-    eir = exprir.convert(e)
-    sched = schedule(eir)
-    print(eir)
-    print(sched)
