@@ -50,19 +50,12 @@ class ClangC:
         os.remove(so)  # loaded, ok to delete the file
         self.kerns[name] = kern
 
-    def ctype(self, dt):
-        if dt == dtype.int32: return ctypes.c_int32
-        elif dt == dtype.int64: return ctypes.c_int64
-        elif dt == dtype.float32: return ctypes.c_float
-        elif dt == dtype.float64: return ctypes.c_double
-        else: raise RuntimeError(f"unknown dtype: {dt}")
-
     def execute(self, name, param_buffs):
         ptr = self.kerns[name]
         kern = getattr(ptr, name)
-        kern.argtypes = [ctypes.POINTER(self.ctype(buf.cpu.dtype)) for buf in param_buffs]
+        kern.argtypes = [ctypes.POINTER(buf.cpu.dtype.ctype()) for buf in param_buffs]
         kern.restype = None  # void
-        params = [(self.ctype(buf.cpu.dtype) * len(buf.cpu.val))(*buf.cpu.val) for buf in param_buffs]
+        params = [(buf.cpu.dtype.ctype() * len(buf.cpu.val))(*buf.cpu.val) for buf in param_buffs]
         kern(*params)
         param_buffs[0].cpu.val[:] = list(params[0])
 
