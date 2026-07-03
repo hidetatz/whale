@@ -5,7 +5,6 @@ class Ops(IntEnum):
 
     _unary_start = auto()
     Neg = auto()
-    Pow = auto()
     Sin = auto()
     Cos = auto()
     Exp = auto()
@@ -18,6 +17,7 @@ class Ops(IntEnum):
     Sub = auto()
     Mul = auto()
     Truediv = auto()
+    Pow = auto()
     _binary_end = auto()
 
     _reduce_start = auto()

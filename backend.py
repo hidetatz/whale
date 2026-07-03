@@ -2,11 +2,12 @@ import math
 from functools import reduce
 
 import buffer
-import dtype
 import exprir
 import sched
+from dtype import DType
 from ops import Ops
 from backend_python import Python
+from backend_clang import ClangC
 
 def strides_from_shape(shape):
     return tuple([math.prod(shape[i + 1 :]) for i in range(len(shape))])
@@ -30,7 +31,7 @@ class CLikeCodeGenerator(CodeGenerator):
 
     def nest(self): self.indent_level += 1
     def unnest(self): self.indent_level -= 1
-    def write(self, code): self.buff.append(f"{self.lang.indent_str() * self.indent_level}{code}{';' if self.lang.require_semicolon() else ''}")
+    def write(self, code): self.buff.append(f"{self.lang.indent_str() * self.indent_level}{code}")
     def tmpvar(self):
         n = f"tmp{self.tmpvar_idx}"
         self.tmpvar_idx += 1
@@ -43,19 +44,22 @@ class CLikeCodeGenerator(CodeGenerator):
     def codegen(self, func, schedule):
         l = self.lang
 
+        for lib in l.default_library(): self.write(l.import_lib(lib))
+
         bufs, fncs = func.inputs()
         kern_name = f"kern_{id(func)}"
         args = {f"{self.argname(buf)}_{i}": buf for i, buf in enumerate(bufs)} | {f"{self.argname(fnc)}_{i}": fnc for i, fnc in enumerate(fncs)}
-        arg_names = ["out"] + list(args.keys())
 
-        self.write(l.kern_start(kern_name, arg_names))
+        arg_names = ["out"] + list(args.keys())
+        arg_types = [func.out_dtype] + [expr.src.dtype if isinstance(expr, exprir.BufferExpr) else expr.src.out_dtype for expr in args.values()]
+        self.write(l.kern_start(kern_name, arg_names, arg_types))
         self.nest()
 
         for idx in func.out_indices:
             self.write(l.loop_start(idx.name, 0, idx.extent, 1))
             self.nest()
 
-        result = self.render_expr(func.expr, args)
+        result = self.render_expr(func.expr, args, func.out_dtype)
         idx = self.arr_idx_calc_expr(func.out_shape, [idx.name for idx in func.out_indices])
         self.write(l.assign(l.index("out", idx), result))
 
@@ -74,15 +78,15 @@ class CLikeCodeGenerator(CodeGenerator):
             case exprir.FuncExpr(): return "fnc"
             case _: raise RuntimeError(f"unexpected arg type: {type(arg)}")
 
-    def render_expr(self, expr, args):
+    def render_expr(self, expr, args, dt):
         match expr:
-            case exprir.UnaryExpr(): return self.render_unary(expr, args)
-            case exprir.BinaryExpr(): return self.render_binary(expr, args)
-            case exprir.ReduceExpr(): return self.render_reduce(expr, args)
-            case exprir.BufferExpr(): return self.render_buffer(expr, args)
+            case exprir.UnaryExpr(): return self.render_unary(expr, args, dt)
+            case exprir.BinaryExpr(): return self.render_binary(expr, args, dt)
+            case exprir.ReduceExpr(): return self.render_reduce(expr, args, dt)
+            case exprir.BufferExpr(): return self.render_buffer(expr, args, dt)
             case _: raise RuntimeError(f"unexpected expr type: {type(expr)}")
 
-    def render_unary(self, expr, args):
+    def render_unary(self, expr, args, dt):
         l = self.lang
 
         if expr.op == Ops.Neg: f = l.neg
@@ -94,12 +98,12 @@ class CLikeCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Sqrt: f = l.sqrt
         else: raise RuntimeError(f"unknown unary op: {expr.op}")
 
-        result = self.render_expr(expr.operand, args)
+        result = self.render_expr(expr.operand, args, dt)
         tmpvar = self.tmpvar()
-        self.write(l.init(tmpvar, f(result)))
+        self.write(l.init(dt, tmpvar, f(result)))
         return tmpvar
 
-    def render_binary(self, expr, args):
+    def render_binary(self, expr, args, dt):
         l = self.lang
 
         if expr.op == Ops.Add: f = l.add
@@ -108,22 +112,22 @@ class CLikeCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Truediv: f = l.truediv
         else: raise RuntimeError(f"unknown binary op: {expr.op}")
 
-        left, right = self.render_expr(expr.left, args), self.render_expr(expr.right, args)
+        left, right = self.render_expr(expr.left, args, dt), self.render_expr(expr.right, args, dt)
         tmpvar = self.tmpvar()
-        self.write(l.init(tmpvar, f(left, right)))
+        self.write(l.init(dt, tmpvar, f(left, right)))
         return tmpvar
 
-    def render_reduce(self, expr, args):
+    def render_reduce(self, expr, args, dt):
         l = self.lang
 
         acc = "acc"
-        self.write(l.init(acc, "0"))
+        self.write(l.init(dt, acc, "0"))
 
         for idx in expr.reduced:
             self.write(l.loop_start(idx.name, 0, idx.extent, 1))
             self.nest()
 
-        result = self.render_expr(expr.operand, args)
+        result = self.render_expr(expr.operand, args, dt)
 
         if expr.op == Ops.Sum: f = l.add
         else: raise RuntimeError(f"unknown reduce op: {expr.op}")
@@ -136,12 +140,12 @@ class CLikeCodeGenerator(CodeGenerator):
 
         return acc
 
-    def render_buffer(self, expr, args):
+    def render_buffer(self, expr, args, dt):
         buf = list(args.keys())[list(args.values()).index(expr)]  # get buffer arg name from BufferExpr instance
         idx = self.arr_idx_calc_expr(expr.src.shape, [idx.idx.name for idx in expr.indices])
         return self.lang.index(buf, idx)
 
-_backend = Python
+_backend = ClangC
 
 def gpu_enabled():
     return _backend.is_gpu()
@@ -153,7 +157,7 @@ def lower_and_exec(eir, scheds):
         kern_name, code = codegenerator.codegen(func, schedule)
         bufs, fncs = func.inputs()
         params = [func.out_buffer] + [b.src.buffer for b in bufs] + [f.src.out_buffer for f in fncs]
-        b.compile(code)
+        b.compile(kern_name, code)
         b.execute(kern_name, params)
 
 if __name__ == "__main__":
