@@ -70,7 +70,7 @@ class Func:
         return ndarray(val=None, dtype=inp.dtype, shape=tuple(newshape), strides=None, offset=None, ctx=self)
 
     def _sum_forward(self): return self._reduce_forward()
-    def _sum_backward(self): pass # todo
+    def _sum_backward(self, grad): pass # todo
 
     # view
 
