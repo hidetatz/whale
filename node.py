@@ -5,7 +5,7 @@ from buffer import Buffer, CPUBuff
 
 class Node:
     def __init__(self, val, dtype, shape, strides, offset, ctx):
-        if val:
+        if val is not None:
             self.buffer = Buffer(cpu=CPUBuff(val, dtype), dev=None)
         else:
             self.buffer = Buffer(cpu=CPUBuff([0] * reduce(operator.mul, shape, 1), dtype), dev=None)
