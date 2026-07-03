@@ -141,7 +141,13 @@ class CLikeCodeGenerator(CodeGenerator):
         return acc
 
     def render_buffer(self, expr, args, dt):
-        buf = list(args.keys())[list(args.values()).index(expr)]  # get buffer arg name from BufferExpr instance
+        # get buffer arg name from BufferExpr.src
+        buf = ""
+        for name, e in args.items():
+            if isinstance(e, exprir.BufferExpr) and e.src is expr.src:
+                buf = name
+                break
+        assert buf != "", "expected buffer is not found in args"
         idx = self.arr_idx_calc_expr(expr.src.shape, [idx.idx.name for idx in expr.indices])
         return self.lang.index(buf, idx)
 
@@ -163,9 +169,6 @@ def lower_and_exec(eir, scheds):
 if __name__ == "__main__":
     from ndarray import array, _const
     a = _const([2, 3], [i for i in range(6)])
-    b = _const([2, 3], [1, 2, 3, 1, 2, 3])
-    c = a + b
-    d = c.sum(axis=[0])
-    c.materialize()
-
-    print(c.tolist())
+    b = a + a
+    b.materialize()
+    print(b.tolist())

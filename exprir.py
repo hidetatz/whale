@@ -291,11 +291,10 @@ def convert(arr):
         if isinstance(e, FuncExpr):
             # fusable?
             # todo: support epilogue/prologue fusion
-            if not has_reduce(e.src.expr) and refcount.get(e.src, 0) == 1:
-                assert len(e.src.out_indices) == len(e.indices) 
+            if isinstance(e.src.expr, BufferExpr) or (not has_reduce(e.src.expr) and refcount.get(e.src, 0) == 1):
+                assert len(e.src.out_indices) == len(e.indices)
                 mp = {oidx: iidx for oidx, iidx in zip(e.src.out_indices, e.indices)}
-                s = subst(e.src.expr, mp)
-                return inline(s)
+                return inline(subst(e.src.expr, mp))
             else:
                 e.src.expr = inline(e.src.expr)
                 return FuncExpr(src=e.src, indices=e.indices)

@@ -99,6 +99,12 @@ class Test(unittest.TestCase):
             f.materialize()
             self.assertEqual(f.tolist(), [1, 2, 3, 1, 2, 3])
 
+        with self.subTest("add same arr"):
+            a = ndarray.arange(6)
+            b = a + a
+            b.materialize()
+            self.assertEqual(b.tolist(), [0, 2, 4, 6, 8, 10])
+
     def test_reduce(self):
         with self.subTest("sum 0"):
             a = ndarray.array([[1, 2, 3], [4, 5, 6]])
