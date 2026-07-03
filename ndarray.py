@@ -135,6 +135,7 @@ class ndarray:
             elif d2 == 1: newshape.append(d1)
             else: raise RuntimeError(f"shapes are not broadcastable: {self.shape} and {r.shape}")
 
+        newshape = tuple(newshape)
         l = self
         if l.shape != newshape: l = l.broadcast_to(newshape)
         if r.shape != newshape: r = r.broadcast_to(newshape)
