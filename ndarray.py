@@ -42,9 +42,6 @@ class Func:
     def _neg_forward(self): return self._elemwise_forward()
     def _neg_backward(self, grad): return -grad
 
-    def _pow_forward(self): return self._elemwise_forward()
-    def _pow_backward(self, grad): return self.attrs["c"] * self.inputs[0] ** (self.attrs["c"] - 1) * grad
-
     # binary
 
     def _add_forward(self): return self._elemwise_forward()
@@ -58,6 +55,9 @@ class Func:
 
     def _truediv_forward(self): return self._elemwise_forward()
     def _truediv_backward(self, grad): return grad / self.inputs[1], grad * (-self.inputs[0] / self.inputs[1] ** 2)
+
+    def _pow_forward(self): return self._elemwise_forward()
+    def _pow_backward(self, grad): return self.inputs[1] * self.inputs[0] ** (self.inputs[1] - 1) * grad
 
     # reduce
 
@@ -198,9 +198,9 @@ class ndarray:
     def __sub__(self, r): return self.__binary(r, Ops.Sub)
     def __mul__(self, r): return self.__binary(r, Ops.Mul)
     def __truediv__(self, r): return self.__binary(r, Ops.Truediv)
+    def __pow__(self, r): return self.__binary(r, Ops.Pow)
 
     def __neg__(self): return self.__unary(Ops.Neg)
-    def __pow__(self): return self.__unary(Ops.Pow)
 
     def sum(self, axis=None, keepdims=False): return self.__reduce(Ops.Sum, axis, keepdims)
 

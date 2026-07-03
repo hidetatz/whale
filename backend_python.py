@@ -17,7 +17,6 @@ class Python:
     def init(self, dt, l, r): return f"{l} = {r}"
     def assign(self, l, r): return f"{l} = {r}"
     def neg(self, a): return f"-({a})"
-    def pow(self, a): return f"pow({a}, 2)"
     def sin(self, a): return f"math.sin({a})"
     def cos(self, a): return f"math.cos({a})"
     def exp(self, a): return f"math.exp({a})"
@@ -27,6 +26,7 @@ class Python:
     def sub(self, l, r): return f"{l} - {r}"
     def mul(self, l, r): return f"{l} * {r}"
     def truediv(self, l, r): return f"{l} / {r}"
+    def pow(self, l, r): return f"pow({l}, {r})"
 
     # exec settings
     def compile(self, name, code): exec(code, self.kerns)

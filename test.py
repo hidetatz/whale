@@ -75,6 +75,20 @@ class Test(unittest.TestCase):
             c.materialize()
             self.assertEqual(c.tolist(), [0, 0, 0, 0, 0, 0])
 
+        with self.subTest("mul"):
+            a = ndarray.arange(6)
+            b = ndarray.full_like(a, 2)
+            c = a * b
+            c.materialize()
+            self.assertEqual(c.tolist(), [0, 2, 4, 6, 8, 10])
+
+        with self.subTest("pow"):
+            a = ndarray.arange(6)
+            b = ndarray.full_like(a, 2)
+            c = a ** b
+            c.materialize()
+            self.assertEqual(c.tolist(), [0, 1, 4, 9, 16, 25])
+
         with self.subTest("add -> sub -> mul -> div"):
             a = ndarray.array([[1, 2, 3], [4, 5, 6]])
             b = ndarray.array([[1, 2, 3], [1, 2, 3]])

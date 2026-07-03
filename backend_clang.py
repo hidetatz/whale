@@ -31,7 +31,6 @@ class ClangC:
     def init(self, dt, l, r): return f"{self.typename(dt)} {l} = {r};"
     def assign(self, l, r): return f"{l} = {r};"
     def neg(self, a): return f"-({a})"
-    def pow(self, a): return f"pow({a}, 2)"
     def sin(self, a): return f"sin({a})"
     def cos(self, a): return f"cos({a})"
     def exp(self, a): return f"exp({a})"
@@ -41,6 +40,7 @@ class ClangC:
     def sub(self, l, r): return f"{l} - {r}"
     def mul(self, l, r): return f"{l} * {r}"
     def truediv(self, l, r): return f"{l} / {r}"
+    def pow(self, l, r): return f"pow({l}, {r})"
 
     # exec settings
     def compile(self, name, code):

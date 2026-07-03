@@ -90,7 +90,6 @@ class CLikeCodeGenerator(CodeGenerator):
         l = self.lang
 
         if expr.op == Ops.Neg: f = l.neg
-        elif expr.op == Ops.Pow: f = l.pow
         elif expr.op == Ops.Sin: f = l.sin
         elif expr.op == Ops.Cos: f = l.cos
         elif expr.op == Ops.Exp: f = l.exp
@@ -110,6 +109,7 @@ class CLikeCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Sub: f = l.sub
         elif expr.op == Ops.Mul: f = l.mul
         elif expr.op == Ops.Truediv: f = l.truediv
+        elif expr.op == Ops.Pow: f = l.pow
         else: raise RuntimeError(f"unknown binary op: {expr.op}")
 
         left, right = self.render_expr(expr.left, args, dt), self.render_expr(expr.right, args, dt)
