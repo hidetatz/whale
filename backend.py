@@ -97,7 +97,7 @@ class CLikeCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Sqrt: f = l.sqrt
         else: raise RuntimeError(f"unknown unary op: {expr.op}")
 
-        result = self.render_expr(expr.operand, args, dt)
+        result = self.render_expr(expr.expr, args, dt)
         tmpvar = self.tmpvar()
         self.write(l.init(dt, tmpvar, f(result)))
         return tmpvar
@@ -112,7 +112,7 @@ class CLikeCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Pow: f = l.pow
         else: raise RuntimeError(f"unknown binary op: {expr.op}")
 
-        left, right = self.render_expr(expr.left, args, dt), self.render_expr(expr.right, args, dt)
+        left, right = self.render_expr(expr.l_expr, args, dt), self.render_expr(expr.r_expr, args, dt)
         tmpvar = self.tmpvar()
         self.write(l.init(dt, tmpvar, f(left, right)))
         return tmpvar
@@ -127,7 +127,7 @@ class CLikeCodeGenerator(CodeGenerator):
             self.write(l.loop_start(idx.name, 0, idx.extent, 1))
             self.nest()
 
-        result = self.render_expr(expr.operand, args, dt)
+        result = self.render_expr(expr.expr, args, dt)
 
         if expr.op == Ops.Sum: f = l.add
         else: raise RuntimeError(f"unknown reduce op: {expr.op}")

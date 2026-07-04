@@ -30,22 +30,22 @@ class ConstExpr:
 @dataclass(eq=False)
 class BinaryExpr:
     op: Ops
-    left: Expr
-    right: Expr
-    def inputs(self): return [self.left, self.right]
+    l_expr: Expr
+    r_expr: Expr
+    def inputs(self): return [self.l_expr, self.r_expr]
 
 @dataclass(eq=False)
 class UnaryExpr:
     op: Ops
-    operand: Expr
-    def inputs(self): return [self.operand]
+    expr: Expr
+    def inputs(self): return [self.expr]
 
 @dataclass(eq=False)
 class ReduceExpr:
     op: Ops
-    operand: Expr
+    expr: Expr
     reduced: list[LoopVar]
-    def inputs(self): return [self.operand]
+    def inputs(self): return [self.expr]
 
 @dataclass(eq=False)
 class FuncExpr:
@@ -86,8 +86,8 @@ class Func:
     def reduced_vars(self):
         def collect(e):
             if isinstance(e, ReduceExpr): return e.reduced
-            if isinstance(e, BinaryExpr): return collect(e.left) + collect(e.right)
-            if isinstance(e, UnaryExpr): return collect(e.operand)
+            if isinstance(e, BinaryExpr): return collect(e.l_expr) + collect(e.r_expr)
+            if isinstance(e, UnaryExpr): return collect(e.expr)
             return []
         return collect(self.expr)
 
@@ -103,9 +103,9 @@ class Func:
                 if e.func not in seen:
                     seen.add(e.func)
                     fncs.append(e)
-            elif isinstance(e, BinaryExpr): walk(e.left); walk(e.right)
-            elif isinstance(e, UnaryExpr): walk(e.operand)
-            elif isinstance(e, ReduceExpr): walk(e.operand)
+            elif isinstance(e, BinaryExpr): walk(e.l_expr); walk(e.r_expr)
+            elif isinstance(e, UnaryExpr): walk(e.expr)
+            elif isinstance(e, ReduceExpr): walk(e.expr)
         walk(self.expr)
         return bufs, fncs
 
@@ -155,14 +155,14 @@ def convert(arr):
         elif a.ctx.op.is_binary():
             e = BinaryExpr(
                 op=a.ctx.op,
-                left=FuncExpr(func=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
-                right=FuncExpr(func=inputs[1], indices=[IndexExpr(idx) for idx in out_loops]),
+                l_expr=FuncExpr(func=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
+                r_expr=FuncExpr(func=inputs[1], indices=[IndexExpr(idx) for idx in out_loops]),
             )
 
         elif a.ctx.op.is_unary():
             e = UnaryExpr(
                 op=a.ctx.op,
-                operand=FuncExpr(func=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
+                expr=FuncExpr(func=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
             )
 
         elif a.ctx.op.is_reduce():
@@ -179,7 +179,7 @@ def convert(arr):
 
             e = ReduceExpr(
                 op=a.ctx.op,
-                operand=FuncExpr(func=inputs[0], indices=input_indices),
+                expr=FuncExpr(func=inputs[0], indices=input_indices),
                 reduced=list(reduced.values()),
             )
 
@@ -203,29 +203,27 @@ def convert(arr):
             if refcount[e.func] == 1:
                 count_refs(e.func.expr, refcount)
         if isinstance(e, BinaryExpr):
-            count_refs(e.left, refcount)
-            count_refs(e.right, refcount)
-        if isinstance(e, UnaryExpr):
-            count_refs(e.operand, refcount)
-        if isinstance(e, ReduceExpr):
-            count_refs(e.operand, refcount)
+            count_refs(e.l_expr, refcount)
+            count_refs(e.r_expr, refcount)
+        if isinstance(e, UnaryExpr): count_refs(e.expr, refcount)
+        if isinstance(e, ReduceExpr): count_refs(e.expr, refcount)
 
     refcount = {}
     count_refs(f.expr, refcount)
 
     def has_reduce(e):
         if isinstance(e, ReduceExpr): return True
-        if isinstance(e, BinaryExpr): return has_reduce(e.left) or has_reduce(e.right)
-        if isinstance(e, UnaryExpr): return has_reduce(e.operand)
+        if isinstance(e, BinaryExpr): return has_reduce(e.l_expr) or has_reduce(e.r_expr)
+        if isinstance(e, UnaryExpr): return has_reduce(e.expr)
         return False # FuncExpr, BufferExpr, IndexExpr, ConstExpr
 
     def subst(e, mapping):
         if isinstance(e, IndexExpr): return mapping.get(e.idx, e)
-        if isinstance(e, BinaryExpr): return BinaryExpr(e.op, subst(e.left, mapping), subst(e.right, mapping))
-        if isinstance(e, UnaryExpr): return UnaryExpr(e.op, subst(e.operand, mapping))
+        if isinstance(e, BinaryExpr): return BinaryExpr(e.op, subst(e.l_expr, mapping), subst(e.r_expr, mapping))
+        if isinstance(e, UnaryExpr): return UnaryExpr(e.op, subst(e.expr, mapping))
         if isinstance(e, FuncExpr): return FuncExpr(e.func, [subst(i, mapping) for i in e.indices])
         if isinstance(e, BufferExpr): return BufferExpr(e.node, [subst(i, mapping) for i in e.indices])
-        if isinstance(e, ReduceExpr): return ReduceExpr(e.op, subst(e.operand, mapping), e.reduced)
+        if isinstance(e, ReduceExpr): return ReduceExpr(e.op, subst(e.expr, mapping), e.reduced)
         return e # ConstExpr
 
     def inline(e):
@@ -239,9 +237,9 @@ def convert(arr):
             else:
                 e.func.expr = inline(e.func.expr)
                 return FuncExpr(func=e.func, indices=e.indices)
-        if isinstance(e, BinaryExpr): return BinaryExpr(op=e.op, left=inline(e.left), right=inline(e.right))
-        if isinstance(e, UnaryExpr): return UnaryExpr(op=e.op, operand=inline(e.operand))
-        if isinstance(e, ReduceExpr): return ReduceExpr(op=e.op, operand=inline(e.operand), reduced=e.reduced)
+        if isinstance(e, BinaryExpr): return BinaryExpr(op=e.op, l_expr=inline(e.l_expr), r_expr=inline(e.r_expr))
+        if isinstance(e, UnaryExpr): return UnaryExpr(op=e.op, expr=inline(e.expr))
+        if isinstance(e, ReduceExpr): return ReduceExpr(op=e.op, expr=inline(e.expr), reduced=e.reduced)
         return e # ConstExpr, IndexExpr, BufferExpr
 
     f = Func(out_loops=f.out_loops, out_shape=f.out_shape, out_dtype=f.out_dtype, expr=inline(f.expr), out_buffer=arr.buffer)
