@@ -237,7 +237,7 @@ def convert(arr):
                 mp = {oidx: iidx for oidx, iidx in zip(e.func.out_loops, e.indices)}
                 return inline(subst(e.func.expr, mp))
             else:
-                e.func.expr = inline(e.src.expr)
+                e.func.expr = inline(e.func.expr)
                 return FuncExpr(func=e.func, indices=e.indices)
         if isinstance(e, BinaryExpr): return BinaryExpr(op=e.op, left=inline(e.left), right=inline(e.right))
         if isinstance(e, UnaryExpr): return UnaryExpr(op=e.op, operand=inline(e.operand))
