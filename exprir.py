@@ -19,7 +19,7 @@ class LoopVar:
 
 @dataclass(eq=False)
 class IndexExpr:
-    idx: LoopVar
+    loopvar: LoopVar
     def inputs(self): return []
 
 @dataclass(eq=False)
@@ -132,7 +132,7 @@ def convert(arr):
         #
 
         if a.ctx.op.is_const():
-            e = BufferExpr(node=a.node, indices=[IndexExpr(idx) for idx in out_loops])
+            e = BufferExpr(node=a.node, indices=[IndexExpr(l) for l in out_loops])
 
         elif a.ctx.op.is_view():
             if a.ctx.op == Ops.Broadcast:
@@ -155,14 +155,14 @@ def convert(arr):
         elif a.ctx.op.is_binary():
             e = BinaryExpr(
                 op=a.ctx.op,
-                l_expr=FuncExpr(func=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
-                r_expr=FuncExpr(func=inputs[1], indices=[IndexExpr(idx) for idx in out_loops]),
+                l_expr=FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops]),
+                r_expr=FuncExpr(func=inputs[1], indices=[IndexExpr(l) for l in out_loops]),
             )
 
         elif a.ctx.op.is_unary():
             e = UnaryExpr(
                 op=a.ctx.op,
-                expr=FuncExpr(func=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
+                expr=FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops]),
             )
 
         elif a.ctx.op.is_reduce():
@@ -197,49 +197,61 @@ def convert(arr):
     # fuse Funcs
     #
 
-    def count_refs(e, refcount):
-        if isinstance(e, FuncExpr):
-            refcount[e.func] = refcount.get(e.func, 0) + 1
-            if refcount[e.func] == 1: count_refs(e.func.expr, refcount)
-        else:
-            for inp in e.inputs(): count_refs(inp, refcount)
-
-    # count Func reference count
-    refcount = {}
-    count_refs(f.expr, refcount)
-
     def has_reduce(e):
         if isinstance(e, ReduceExpr): return True
         if isinstance(e, BinaryExpr): return has_reduce(e.l_expr) or has_reduce(e.r_expr)
         if isinstance(e, UnaryExpr): return has_reduce(e.expr)
         return False # FuncExpr, BufferExpr, IndexExpr, ConstExpr
 
-    def subst(e, mapping):
-        if isinstance(e, IndexExpr): return mapping.get(e.idx, e)
-        if isinstance(e, BinaryExpr): return BinaryExpr(e.op, subst(e.l_expr, mapping), subst(e.r_expr, mapping))
-        if isinstance(e, UnaryExpr): return UnaryExpr(e.op, subst(e.expr, mapping))
-        if isinstance(e, FuncExpr): return FuncExpr(e.func, [subst(i, mapping) for i in e.indices])
-        if isinstance(e, BufferExpr): return BufferExpr(e.node, [subst(i, mapping) for i in e.indices])
-        if isinstance(e, ReduceExpr): return ReduceExpr(e.op, subst(e.expr, mapping), e.reduced)
+    def replace_index(e, index_replace) -> Expr:
+        if isinstance(e, IndexExpr): return index_replace[e.loopvar]
+        if isinstance(e, BinaryExpr): return BinaryExpr(e.op, replace_index(e.l_expr, index_replace), replace_index(e.r_expr, index_replace))
+        if isinstance(e, UnaryExpr): return UnaryExpr(e.op, replace_index(e.expr, index_replace))
+        if isinstance(e, FuncExpr): return FuncExpr(e.func, [replace_index(i, index_replace) for i in e.indices])
+        if isinstance(e, BufferExpr): return BufferExpr(e.node, [replace_index(i, index_replace) for i in e.indices])
+        if isinstance(e, ReduceExpr): return ReduceExpr(e.op, replace_index(e.expr, index_replace), e.reduced)
         return e # ConstExpr
 
-    def inline(e):
+    # count Func reference count
+    def count_refs(e, rc):
         if isinstance(e, FuncExpr):
-            # fusable?
-            # todo: support epilogue/prologue fusion
-            if isinstance(e.func.expr, BufferExpr) or (not has_reduce(e.func.expr) and refcount.get(e.func, 0) == 1):
-                assert len(e.func.out_loops) == len(e.indices)
-                mp = {oidx: iidx for oidx, iidx in zip(e.func.out_loops, e.indices)}
-                return inline(subst(e.func.expr, mp))
-            else:
-                e.func.expr = inline(e.func.expr)
-                return FuncExpr(func=e.func, indices=e.indices)
-        if isinstance(e, BinaryExpr): return BinaryExpr(op=e.op, l_expr=inline(e.l_expr), r_expr=inline(e.r_expr))
-        if isinstance(e, UnaryExpr): return UnaryExpr(op=e.op, expr=inline(e.expr))
-        if isinstance(e, ReduceExpr): return ReduceExpr(op=e.op, expr=inline(e.expr), reduced=e.reduced)
-        return e # ConstExpr, IndexExpr, BufferExpr
+            rc[e.func] = rc.get(e.func, 0) + 1
+            if rc[e.func] == 1: count_refs(e.func.expr, rc)
+        else:
+            for inp in e.inputs(): count_refs(inp, rc)
 
-    f = Func(out_loops=f.out_loops, out_shape=f.out_shape, out_dtype=f.out_dtype, expr=inline(f.expr), out_buffer=arr.buffer)
+    refcount = {}
+    count_refs(f.expr, refcount)
+
+    def try_fuse(e):
+        match e:
+            case ConstExpr() | IndexExpr() | BufferExpr(): return e # no parents to fuse, just return
+            # for unary, binary, reduce, they are not Func so try to fuse their parents
+            case UnaryExpr(): return UnaryExpr(op=e.op, expr=try_fuse(e.expr))
+            case BinaryExpr(): return BinaryExpr(op=e.op, l_expr=try_fuse(e.l_expr), r_expr=try_fuse(e.r_expr))
+            case ReduceExpr(): return ReduceExpr(op=e.op, expr=try_fuse(e.expr), reduced=e.reduced)
+            case FuncExpr():
+                is_buffer = isinstance(e.func.expr, BufferExpr) # buffer reference is always fusable
+                contains_reduce = has_reduce(e.func.expr)
+                referenced_only1 = refcount[e.func] == 1
+                fusable = is_buffer or (not contains_reduce and referenced_only1)
+
+                if not fusable:
+                    e.func.expr = try_fuse(e.func.expr)
+                    return FuncExpr(func=e.func, indices=e.indices)
+
+                # fuse is achieved to replace a fusable FuncExpr with the FuncExpr.func.expr. This removes the kernel boundary which is expressed by
+                # Func instance.
+                # On the replacement, the FuncExpr.func.expr indices must also be replaced with FuncExpr.func.out_loops indices.
+                # index_replace = {LoopVar from original func (which should be replaced from): Index expr from internal expr to be fused (replaced to)}
+                index_replace = {loopvar: idxexpr for loopvar, idxexpr in zip(e.func.out_loops, e.indices)}
+                # replace the indices in FuncExpr.expr with outer Func out_loops
+                fused_expr = replace_index(e.func.expr, index_replace)
+                return try_fuse(fused_expr)
+
+            case _: raise RuntimeError(f"unhandled expr: {type(e)}")
+
+    f = Func(out_loops=f.out_loops, out_shape=f.out_shape, out_dtype=f.out_dtype, expr=try_fuse(f.expr), out_buffer=arr.buffer)
 
     funcs = []
     seen = set()

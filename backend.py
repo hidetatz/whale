@@ -51,19 +51,19 @@ class CLikeCodeGenerator(CodeGenerator):
         args = {f"{self.argname(buf)}_{i}": buf for i, buf in enumerate(bufs)} | {f"{self.argname(fnc)}_{i}": fnc for i, fnc in enumerate(fncs)}
 
         arg_names = ["out"] + list(args.keys())
-        arg_types = [func.out_dtype] + [expr.node.dtype if isinstance(expr, exprir.BufferExpr) else expr.src.out_dtype for expr in args.values()]
+        arg_types = [func.out_dtype] + [expr.node.dtype if isinstance(expr, exprir.BufferExpr) else expr.func.out_dtype for expr in args.values()]
         self.write(l.kern_start(kern_name, arg_names, arg_types))
         self.nest()
 
-        for idx in func.out_loops:
-            self.write(l.loop_start(idx.name, 0, idx.extent, 1))
+        for lv in func.out_loops:
+            self.write(l.loop_start(lv.name, 0, lv.extent, 1))
             self.nest()
 
         result = self.render_expr(func.expr, args, func.out_dtype)
-        idx = self.arr_idx_calc_expr(func.out_shape, [idx.name for idx in func.out_loops])
+        idx = self.arr_idx_calc_expr(func.out_shape, [lv.name for lv in func.out_loops])
         self.write(l.assign(l.index("out", idx), result))
 
-        for idx in func.out_loops:
+        for lv in func.out_loops:
             self.unnest()
             self.write(l.loop_end())
 
@@ -148,7 +148,7 @@ class CLikeCodeGenerator(CodeGenerator):
                 buf = name
                 break
         assert buf != "", "expected buffer is not found in args"
-        idx = self.arr_idx_calc_expr(expr.node.shape, [idx.idx.name for idx in expr.indices])
+        idx = self.arr_idx_calc_expr(expr.node.shape, [idx.loopvar.name for idx in expr.indices])
         return self.lang.index(buf, idx)
 
 _backend = ClangC
