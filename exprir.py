@@ -194,20 +194,17 @@ def convert(arr):
     f = arr_to_func(arr, {})
 
     #
-    # fuse Funcs if possible
-    # 
+    # fuse Funcs
+    #
 
     def count_refs(e, refcount):
         if isinstance(e, FuncExpr):
             refcount[e.func] = refcount.get(e.func, 0) + 1
-            if refcount[e.func] == 1:
-                count_refs(e.func.expr, refcount)
-        if isinstance(e, BinaryExpr):
-            count_refs(e.l_expr, refcount)
-            count_refs(e.r_expr, refcount)
-        if isinstance(e, UnaryExpr): count_refs(e.expr, refcount)
-        if isinstance(e, ReduceExpr): count_refs(e.expr, refcount)
+            if refcount[e.func] == 1: count_refs(e.func.expr, refcount)
+        else:
+            for inp in e.inputs(): count_refs(inp, refcount)
 
+    # count Func reference count
     refcount = {}
     count_refs(f.expr, refcount)
 
