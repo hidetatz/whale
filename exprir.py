@@ -77,8 +77,8 @@ Expr = IndexExpr | ConstExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | 
 
 @dataclass(eq=False)
 class Func:
-    out_indices: list[LoopVar]
-    out_shape: list[int]
+    out_indices: list[LoopVar]  # loop index to form this func result
+    out_shape: list[int] # shape of this func result
     out_dtype: DType
     expr: Expr
     out_buffer: Buffer
@@ -143,15 +143,7 @@ def repr_tree(tree, indent="  ", parent_str="parents"):
 
     return f(0, tree)
 
-@dataclass
-class ExprIR:
-    funcs: list[Func] # topo-sorted
-
 def convert(arr):
-    #
-    # convert ndarray into Func one by one
-    # 
-
     def _lower(a, cache):
         def loopvar_name(i, prefix=""):
             names = "ijklmnpq"
@@ -314,4 +306,4 @@ def convert(arr):
         funcs.append(_f)
     dfs(f)
 
-    return ExprIR(funcs)
+    return funcs

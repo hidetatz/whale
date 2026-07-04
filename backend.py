@@ -156,9 +156,9 @@ _backend = ClangC
 def gpu_enabled():
     return _backend.is_gpu()
 
-def lower_and_exec(eir, scheds):
+def lower_and_exec(funcs, scheds):
     b = _backend()
-    for func, schedule in zip(eir.funcs, scheds):
+    for func, schedule in zip(funcs, scheds):
         codegenerator = CLikeCodeGenerator(b)
         kern_name, code = codegenerator.codegen(func, schedule)
         bufs, fncs = func.inputs()

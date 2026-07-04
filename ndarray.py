@@ -175,9 +175,9 @@ class ndarray:
                 x.grad = gx if x.grad is None else x.grad + gx
 
     def materialize(self):
-        eir = exprir.convert(self)
-        scheds = sched.schedule(eir)
-        backend.lower_and_exec(eir, scheds)
+        funcs = exprir.convert(self)
+        scheds = sched.schedule(funcs)
+        backend.lower_and_exec(funcs, scheds)
 
     def tolist(self):
         if self.buffer.cpu is None: self._to_cpu()

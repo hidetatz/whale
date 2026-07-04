@@ -70,5 +70,5 @@ class AutoScheduler:
         ]
         return Schedule(tiled_spatials + reduces)
 
-def schedule(eir, scheduler=AutoScheduler):
-    return [scheduler.schedule_gpu(func) if backend.gpu_enabled() else scheduler.schedule_cpu(func) for func in eir.funcs]
+def schedule(funcs, scheduler=AutoScheduler):
+    return [scheduler.schedule_gpu(func) if backend.gpu_enabled() else scheduler.schedule_cpu(func) for func in funcs]
