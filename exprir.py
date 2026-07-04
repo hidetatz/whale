@@ -190,8 +190,7 @@ def convert(arr):
         memo[a] = f
         return f
 
-    memo = {}
-    f = arr_to_func(arr, memo)
+    f = arr_to_func(arr, {})
 
     #
     # fuse Funcs if possible
