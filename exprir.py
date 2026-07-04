@@ -190,6 +190,7 @@ def convert(arr):
         memo[a] = f
         return f
 
+    # create func tree from arr
     f = arr_to_func(arr, {})
 
     #
