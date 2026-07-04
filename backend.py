@@ -1,16 +1,11 @@
-import math
 from functools import reduce
 
 import buffer
 import exprir
-import sched
-from dtype import DType
+import util
 from ops import Ops
 from backend_python import Python
 from backend_clang import ClangC
-
-def strides_from_shape(shape):
-    return tuple([math.prod(shape[i + 1 :]) for i in range(len(shape))])
 
 class CodeGenerator:
     def __init__(self, lang):
@@ -39,7 +34,7 @@ class CLikeCodeGenerator(CodeGenerator):
 
     def arr_idx_calc_expr(self, shape, names):
         if not shape: return "0"
-        return reduce(self.lang.add, [self.lang.mul(name, st) for name, st in zip(names, strides_from_shape(shape))])
+        return reduce(self.lang.add, [self.lang.mul(name, st) for name, st in zip(names, util.strides_from_shape(shape))])
 
     def codegen(self, func, schedule):
         l = self.lang

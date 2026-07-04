@@ -2,9 +2,6 @@ import math
 from dataclasses import dataclass
 from enum import IntEnum, auto
 
-import exprir
-import backend
-
 class LoopKind(IntEnum):
     Spatial = auto()
     Reduce = auto()
@@ -70,5 +67,5 @@ class AutoScheduler:
         ]
         return Schedule(tiled_spatials + reduces)
 
-def schedule(funcs, scheduler=AutoScheduler):
-    return [scheduler.schedule_gpu(func) if backend.gpu_enabled() else scheduler.schedule_cpu(func) for func in funcs]
+def schedule(funcs, gpu, scheduler=AutoScheduler):
+    return [scheduler.schedule_gpu(func) if gpu else scheduler.schedule_cpu(func) for func in funcs]

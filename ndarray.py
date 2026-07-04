@@ -5,6 +5,7 @@ import backend
 import exprir
 import node
 import sched
+import util
 from ops import Ops
 from dtype import int32, int64, float32, float64
 from buffer import Buffer, CPUBuff
@@ -176,7 +177,7 @@ class ndarray:
 
     def materialize(self):
         funcs = exprir.convert(self)
-        scheds = sched.schedule(funcs)
+        scheds = sched.schedule(funcs, backend.gpu_enabled())
         backend.codegen_and_exec(funcs, scheds)
 
     def tolist(self):
@@ -226,7 +227,7 @@ class ndarray:
 
 def _const(shape, val):
     dtype = int64 if val and type(val[0]) is int else float64
-    strides = tuple([math.prod(shape[i + 1 :]) for i in range(len(shape))])
+    strides = util.strides_from_shape(shape)
     return ndarray(val, dtype, shape, strides, 0, Func(Ops.Const))
 
 def array(val):
