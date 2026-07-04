@@ -49,9 +49,9 @@ class ReduceExpr:
 
 @dataclass(eq=False)
 class FuncExpr:
-    src: Func
+    func: Func
     indices: list[Expr]
-    def inputs(self): return [self.src]
+    def inputs(self): return [self.func]
 
 @dataclass(eq=False)
 class BufferExpr:
@@ -100,8 +100,8 @@ class Func:
                     seen.add(e.node)
                     bufs.append(e)
             elif isinstance(e, FuncExpr):
-                if e.src not in seen:
-                    seen.add(e.src)
+                if e.func not in seen:
+                    seen.add(e.func)
                     fncs.append(e)
             elif isinstance(e, BinaryExpr): walk(e.left); walk(e.right)
             elif isinstance(e, UnaryExpr): walk(e.operand)
@@ -150,19 +150,19 @@ def convert(arr):
             else:
                 raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
 
-            e = FuncExpr(src=inputs[0], indices=new_view_indices)
+            e = FuncExpr(func=inputs[0], indices=new_view_indices)
                 
         elif a.ctx.op.is_binary():
             e = BinaryExpr(
                 op=a.ctx.op,
-                left=FuncExpr(src=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
-                right=FuncExpr(src=inputs[1], indices=[IndexExpr(idx) for idx in out_loops]),
+                left=FuncExpr(func=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
+                right=FuncExpr(func=inputs[1], indices=[IndexExpr(idx) for idx in out_loops]),
             )
 
         elif a.ctx.op.is_unary():
             e = UnaryExpr(
                 op=a.ctx.op,
-                operand=FuncExpr(src=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
+                operand=FuncExpr(func=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
             )
 
         elif a.ctx.op.is_reduce():
@@ -179,7 +179,7 @@ def convert(arr):
 
             e = ReduceExpr(
                 op=a.ctx.op,
-                operand=FuncExpr(src=inputs[0], indices=input_indices),
+                operand=FuncExpr(func=inputs[0], indices=input_indices),
                 reduced=list(reduced.values()),
             )
 
@@ -199,9 +199,9 @@ def convert(arr):
 
     def count_refs(e, refcount):
         if isinstance(e, FuncExpr):
-            refcount[e.src] = refcount.get(e.src, 0) + 1
-            if refcount[e.src] == 1:
-                count_refs(e.src.expr, refcount)
+            refcount[e.func] = refcount.get(e.func, 0) + 1
+            if refcount[e.func] == 1:
+                count_refs(e.func.expr, refcount)
         if isinstance(e, BinaryExpr):
             count_refs(e.left, refcount)
             count_refs(e.right, refcount)
@@ -223,7 +223,7 @@ def convert(arr):
         if isinstance(e, IndexExpr): return mapping.get(e.idx, e)
         if isinstance(e, BinaryExpr): return BinaryExpr(e.op, subst(e.left, mapping), subst(e.right, mapping))
         if isinstance(e, UnaryExpr): return UnaryExpr(e.op, subst(e.operand, mapping))
-        if isinstance(e, FuncExpr): return FuncExpr(e.src, [subst(i, mapping) for i in e.indices])
+        if isinstance(e, FuncExpr): return FuncExpr(e.func, [subst(i, mapping) for i in e.indices])
         if isinstance(e, BufferExpr): return BufferExpr(e.node, [subst(i, mapping) for i in e.indices])
         if isinstance(e, ReduceExpr): return ReduceExpr(e.op, subst(e.operand, mapping), e.reduced)
         return e # ConstExpr
@@ -232,13 +232,13 @@ def convert(arr):
         if isinstance(e, FuncExpr):
             # fusable?
             # todo: support epilogue/prologue fusion
-            if isinstance(e.src.expr, BufferExpr) or (not has_reduce(e.src.expr) and refcount.get(e.src, 0) == 1):
-                assert len(e.src.out_loops) == len(e.indices)
-                mp = {oidx: iidx for oidx, iidx in zip(e.src.out_loops, e.indices)}
-                return inline(subst(e.src.expr, mp))
+            if isinstance(e.func.expr, BufferExpr) or (not has_reduce(e.func.expr) and refcount.get(e.func, 0) == 1):
+                assert len(e.func.out_loops) == len(e.indices)
+                mp = {oidx: iidx for oidx, iidx in zip(e.func.out_loops, e.indices)}
+                return inline(subst(e.func.expr, mp))
             else:
-                e.src.expr = inline(e.src.expr)
-                return FuncExpr(src=e.src, indices=e.indices)
+                e.func.expr = inline(e.src.expr)
+                return FuncExpr(func=e.func, indices=e.indices)
         if isinstance(e, BinaryExpr): return BinaryExpr(op=e.op, left=inline(e.left), right=inline(e.right))
         if isinstance(e, UnaryExpr): return UnaryExpr(op=e.op, operand=inline(e.operand))
         if isinstance(e, ReduceExpr): return ReduceExpr(op=e.op, operand=inline(e.operand), reduced=e.reduced)
