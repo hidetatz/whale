@@ -135,7 +135,6 @@ def convert(arr):
             e = BufferExpr(node=a.node, indices=[IndexExpr(idx) for idx in out_loops])
 
         elif a.ctx.op.is_view():
-            src = inputs[0]
             if a.ctx.op == Ops.Broadcast:
                 srcshape = a.ctx.inputs[0].shape
                 dstshape = a.shape
@@ -151,7 +150,7 @@ def convert(arr):
             else:
                 raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
 
-            e = FuncExpr(src=src, indices=new_view_indices)
+            e = FuncExpr(src=inputs[0], indices=new_view_indices)
                 
         elif a.ctx.op.is_binary():
             e = BinaryExpr(
