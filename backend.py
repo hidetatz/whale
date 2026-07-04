@@ -51,7 +51,7 @@ class CLikeCodeGenerator(CodeGenerator):
         args = {f"{self.argname(buf)}_{i}": buf for i, buf in enumerate(bufs)} | {f"{self.argname(fnc)}_{i}": fnc for i, fnc in enumerate(fncs)}
 
         arg_names = ["out"] + list(args.keys())
-        arg_types = [func.out_dtype] + [expr.src.dtype if isinstance(expr, exprir.BufferExpr) else expr.src.out_dtype for expr in args.values()]
+        arg_types = [func.out_dtype] + [expr.node.dtype if isinstance(expr, exprir.BufferExpr) else expr.src.out_dtype for expr in args.values()]
         self.write(l.kern_start(kern_name, arg_names, arg_types))
         self.nest()
 
@@ -141,14 +141,14 @@ class CLikeCodeGenerator(CodeGenerator):
         return acc
 
     def render_buffer(self, expr, args, dt):
-        # get buffer arg name from BufferExpr.src
+        # get buffer arg name from BufferExpr.node
         buf = ""
         for name, e in args.items():
-            if isinstance(e, exprir.BufferExpr) and e.src is expr.src:
+            if isinstance(e, exprir.BufferExpr) and e.node is expr.node:
                 buf = name
                 break
         assert buf != "", "expected buffer is not found in args"
-        idx = self.arr_idx_calc_expr(expr.src.shape, [idx.idx.name for idx in expr.indices])
+        idx = self.arr_idx_calc_expr(expr.node.shape, [idx.idx.name for idx in expr.indices])
         return self.lang.index(buf, idx)
 
 _backend = ClangC
@@ -162,6 +162,6 @@ def codegen_and_exec(funcs, scheds):
         codegenerator = CLikeCodeGenerator(b)
         kern_name, code = codegenerator.codegen(func, schedule)
         bufs, fncs = func.inputs()
-        params = [func.out_buffer] + [b.src.buffer for b in bufs] + [f.src.out_buffer for f in fncs]
+        params = [func.out_buffer] + [b.node.buffer for b in bufs] + [f.node.out_buffer for f in fncs]
         b.compile(kern_name, code)
         b.execute(kern_name, params)

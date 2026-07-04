@@ -55,7 +55,7 @@ class FuncExpr:
 
 @dataclass(eq=False)
 class BufferExpr:
-    src: Node
+    node: Node
     indices: list[Expr]
     def inputs(self): return []
 
@@ -96,8 +96,8 @@ class Func:
         seen = set()
         def walk(e):
             if isinstance(e, BufferExpr):
-                if e.src not in seen:
-                    seen.add(e.src)
+                if e.node not in seen:
+                    seen.add(e.node)
                     bufs.append(e)
             elif isinstance(e, FuncExpr):
                 if e.src not in seen:
@@ -127,8 +127,12 @@ def convert(arr):
         # convert array inputs into func recursively
         inputs = [arr_to_func(inp, memo) for inp in a.ctx.inputs]
 
+        #
+        # make expr from ndarray dependent inputs
+        #
+
         if a.ctx.op.is_const():
-            e = BufferExpr(src=a.node, indices=[IndexExpr(idx) for idx in out_loops])
+            e = BufferExpr(node=a.node, indices=[IndexExpr(idx) for idx in out_loops])
 
         elif a.ctx.op.is_view():
             src = inputs[0]
@@ -221,7 +225,7 @@ def convert(arr):
         if isinstance(e, BinaryExpr): return BinaryExpr(e.op, subst(e.left, mapping), subst(e.right, mapping))
         if isinstance(e, UnaryExpr): return UnaryExpr(e.op, subst(e.operand, mapping))
         if isinstance(e, FuncExpr): return FuncExpr(e.src, [subst(i, mapping) for i in e.indices])
-        if isinstance(e, BufferExpr): return BufferExpr(e.src, [subst(i, mapping) for i in e.indices])
+        if isinstance(e, BufferExpr): return BufferExpr(e.node, [subst(i, mapping) for i in e.indices])
         if isinstance(e, ReduceExpr): return ReduceExpr(e.op, subst(e.operand, mapping), e.reduced)
         return e # ConstExpr
 
