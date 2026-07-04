@@ -21,15 +21,11 @@ class LoopVar:
 class IndexExpr:
     idx: LoopVar
     def inputs(self): return []
-    def parents(self): return self.inputs()
-    def print_oneline(self): return f"IndexExpr({self.idx})"
 
 @dataclass(eq=False)
 class ConstExpr:
     val: int
     def inputs(self): return []
-    def parents(self): return self.inputs()
-    def print_oneline(self): return f"ConstExpr({self.val})"
 
 @dataclass(eq=False)
 class BinaryExpr:
@@ -37,16 +33,12 @@ class BinaryExpr:
     left: Expr
     right: Expr
     def inputs(self): return [self.left, self.right]
-    def parents(self): return self.inputs()
-    def print_oneline(self): return f"BinaryExpr({self.op})"
 
 @dataclass(eq=False)
 class UnaryExpr:
     op: Ops
     operand: Expr
     def inputs(self): return [self.operand]
-    def parents(self): return self.inputs()
-    def print_oneline(self): return f"UnaryExpr({self.op})"
 
 @dataclass(eq=False)
 class ReduceExpr:
@@ -54,24 +46,18 @@ class ReduceExpr:
     operand: Expr
     reduced: list[LoopVar]
     def inputs(self): return [self.operand]
-    def parents(self): return self.inputs()
-    def print_oneline(self): return f"ReduceExpr({self.op}:{self.reduced})"
 
 @dataclass(eq=False)
 class FuncExpr:
     src: Func
     indices: list[Expr]
     def inputs(self): return [self.src]
-    def parents(self): return self.inputs()
-    def print_oneline(self): return f"FuncExpr()"
 
 @dataclass(eq=False)
 class BufferExpr:
     src: Node
     indices: list[Expr]
     def inputs(self): return []
-    def parents(self): return self.inputs()
-    def print_oneline(self): return f"BufferExpr(indices={self.indices})"
 
 Expr = IndexExpr | ConstExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
 
@@ -122,26 +108,6 @@ class Func:
             elif isinstance(e, ReduceExpr): walk(e.operand)
         walk(self.expr)
         return bufs, fncs
-
-    def parents(self): return [self.expr]
-    def print_oneline(self): return f"Func({self.out_indices}_{self.out_shape})"
-
-    def __repr__(self):
-        return repr_tree(self, parent_str="expr")
-
-def repr_tree(tree, indent="  ", parent_str="parents"):
-    def f(depth, t):
-        indentstr = indent * depth
-        trail_comma = "," if depth != 0 else ""
-
-        parents = t.parents()
-        if not parents:
-            return f"{indentstr}{t.print_oneline()}{trail_comma}"
-
-        inputs = "[\n" + "\n".join([f(depth + 1, p) for p in parents]) + f"\n{indentstr}]"
-        return f"{indentstr}{t.print_oneline().rstrip(')')} {parent_str}: {inputs}{trail_comma}"
-
-    return f(0, tree)
 
 def convert(arr):
     def _lower(a, cache):
