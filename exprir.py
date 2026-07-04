@@ -15,7 +15,7 @@ class LoopVar:
 
 #
 # Expressions
-# 
+#
 
 @dataclass(eq=False)
 class IndexExpr:
@@ -231,9 +231,9 @@ def convert(arr):
     count_refs(f.expr, refcount)
 
     def has_reduce(e):
-        if isinstance(e, ReduceExpr): return True                                                                                                                                                                                                                                           
+        if isinstance(e, ReduceExpr): return True
         if isinstance(e, BinaryExpr): return has_reduce(e.left) or has_reduce(e.right)
-        if isinstance(e, UnaryExpr): return has_reduce(e.operand)                                                                                                                                                                                                                           
+        if isinstance(e, UnaryExpr): return has_reduce(e.operand)
         return False # FuncExpr, BufferExpr, IndexExpr, ConstExpr
 
     def subst(e, mapping):
