@@ -38,7 +38,7 @@ class Schedule:
 class AutoScheduler:
     @staticmethod
     def schedule_cpu(f):
-        spatials = [LoopSched(lv.name, lv.extent, LoopKind.Spatial) for lv in f.out_indices]
+        spatials = [LoopSched(lv.name, lv.extent, LoopKind.Spatial) for lv in f.out_loops]
         reduces = [LoopSched(lv.name, lv.extent, LoopKind.Reduce) for lv in f.reduced_vars()]
 
         # baseline implementation
@@ -50,7 +50,7 @@ class AutoScheduler:
 
     @staticmethod
     def schedule_gpu(f):
-        spatials = [LoopSched(lv.name, lv.extent, LoopKind.Spatial) for lv in f.out_indices]
+        spatials = [LoopSched(lv.name, lv.extent, LoopKind.Spatial) for lv in f.out_loops]
         reduces = [LoopSched(lv.name, lv.extent, LoopKind.Reduce) for lv in f.reduced_vars()]
 
         # baseline implementation

@@ -55,15 +55,15 @@ class CLikeCodeGenerator(CodeGenerator):
         self.write(l.kern_start(kern_name, arg_names, arg_types))
         self.nest()
 
-        for idx in func.out_indices:
+        for idx in func.out_loops:
             self.write(l.loop_start(idx.name, 0, idx.extent, 1))
             self.nest()
 
         result = self.render_expr(func.expr, args, func.out_dtype)
-        idx = self.arr_idx_calc_expr(func.out_shape, [idx.name for idx in func.out_indices])
+        idx = self.arr_idx_calc_expr(func.out_shape, [idx.name for idx in func.out_loops])
         self.write(l.assign(l.index("out", idx), result))
 
-        for idx in func.out_indices:
+        for idx in func.out_loops:
             self.unnest()
             self.write(l.loop_end())
 
@@ -156,7 +156,7 @@ _backend = ClangC
 def gpu_enabled():
     return _backend.is_gpu()
 
-def lower_and_exec(funcs, scheds):
+def codegen_and_exec(funcs, scheds):
     b = _backend()
     for func, schedule in zip(funcs, scheds):
         codegenerator = CLikeCodeGenerator(b)

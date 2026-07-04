@@ -177,7 +177,7 @@ class ndarray:
     def materialize(self):
         funcs = exprir.convert(self)
         scheds = sched.schedule(funcs)
-        backend.lower_and_exec(funcs, scheds)
+        backend.codegen_and_exec(funcs, scheds)
 
     def tolist(self):
         if self.buffer.cpu is None: self._to_cpu()

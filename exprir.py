@@ -63,7 +63,7 @@ Expr = IndexExpr | ConstExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | 
 
 @dataclass(eq=False)
 class Func:
-    out_indices: list[LoopVar]  # loop index to form this func result
+    out_loops: list[LoopVar]  # loop index to form this func result
     out_shape: list[int] # shape of this func result
     out_dtype: DType
     expr: Expr
@@ -110,105 +110,85 @@ class Func:
         return bufs, fncs
 
 def convert(arr):
-    def _lower(a, cache):
-        def loopvar_name(i, prefix=""):
-            names = "ijklmnpq"
-            idx = names[i] if i < len(names) else f"v{i}"
-            return f"{prefix}{idx}"
+    def loopvar_name(i, prefix=""):
+        names = "ijklmnpq"
+        idx = names[i] if i < len(names) else f"v{i}"
+        return f"{prefix}{idx}"
 
-        indices = [LoopVar(s, loopvar_name(i)) for i, s in enumerate(a.shape)]
+    # Converts ndarray to Func one by one using dfs.
+    # Fusion does not happen here.
+    def arr_to_func(a, memo):
+        # this is needed for the ndarray referenced more than once
+        if a in memo: return memo[a]
+
+        # make out_loops from array shape.
+        out_loops = [LoopVar(s, loopvar_name(i)) for i, s in enumerate(a.shape)]
+
+        # convert array inputs into func recursively
+        inputs = [arr_to_func(inp, memo) for inp in a.ctx.inputs]
 
         if a.ctx.op.is_const():
-            return Func(
-                out_indices=indices,
-                out_shape=a.shape,
-                out_dtype=a.dtype,
-                expr=BufferExpr(src=a.node, indices=[IndexExpr(idx) for idx in indices]),
-                out_buffer=a.buffer,
-            )
+            e = BufferExpr(src=a.node, indices=[IndexExpr(idx) for idx in out_loops])
 
-        inputs = [lower(inp, cache) for inp in a.ctx.inputs]
-        
-        if a.ctx.op.is_view():
+        elif a.ctx.op.is_view():
             src = inputs[0]
             if a.ctx.op == Ops.Broadcast:
                 srcshape = a.ctx.inputs[0].shape
                 dstshape = a.shape
                 # ignore padded dim, replace originally-1 dim with 0
-                new_view_indices = [ConstExpr(0) if s == 1 else IndexExpr(d) for s, d in zip(srcshape, indices[len(dstshape) - len(srcshape):])]
+                new_view_indices = [ConstExpr(0) if s == 1 else IndexExpr(d) for s, d in zip(srcshape, out_loops[len(dstshape) - len(srcshape):])]
             elif a.ctx.op == Ops.Transpose:
                 # axes is a map from output axis -> input axis.
                 # to calculate index, input -> output map is needed, so inverts
                 axes = a.ctx.attrs["axes"]
                 inv = [0] * len(axes)
                 for i, ax in enumerate(axes): inv[ax] = i
-                new_view_indices = [IndexExpr(indices[inv[i]]) for i in range(len(axes))]
+                new_view_indices = [IndexExpr(out_loops[inv[i]]) for i in range(len(axes))]
             else:
                 raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
 
-            return Func(out_indices=indices, out_shape=a.shape, out_dtype=a.dtype, expr=FuncExpr(src=src, indices=new_view_indices), out_buffer=a.buffer)
+            e = FuncExpr(src=src, indices=new_view_indices)
                 
-
-        if a.ctx.op.is_binary():
-            return Func(
-                out_indices=indices,
-                out_shape=a.shape,
-                out_dtype=a.dtype,
-                expr=BinaryExpr(
-                    op=a.ctx.op,
-                    left=FuncExpr(src=inputs[0], indices=[IndexExpr(idx) for idx in indices]),
-                    right=FuncExpr(src=inputs[1], indices=[IndexExpr(idx) for idx in indices]),
-                ),
-                out_buffer=a.buffer,
+        elif a.ctx.op.is_binary():
+            e = BinaryExpr(
+                op=a.ctx.op,
+                left=FuncExpr(src=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
+                right=FuncExpr(src=inputs[1], indices=[IndexExpr(idx) for idx in out_loops]),
             )
 
-        if a.ctx.op.is_unary():
-            return Func(
-                out_indices=indices,
-                out_shape=a.shape,
-                out_dtype=a.dtype,
-                expr=UnaryExpr(
-                    op=a.ctx.op,
-                    operand=FuncExpr(src=inputs[0], indices=[IndexExpr(idx) for idx in indices]),
-                ),
-                out_buffer=a.buffer,
+        elif a.ctx.op.is_unary():
+            e = UnaryExpr(
+                op=a.ctx.op,
+                operand=FuncExpr(src=inputs[0], indices=[IndexExpr(idx) for idx in out_loops]),
             )
 
-        if a.ctx.op.is_reduce():
+        elif a.ctx.op.is_reduce():
             axis = a.ctx.attrs["axis"]
             keepdims = a.ctx.attrs["keepdims"]
             # create LoopVars for reduced axis {axis: LoopVar(size for the axis)}
             reduced = {ax: LoopVar(a.ctx.inputs[0].shape[ax], loopvar_name(i, prefix="r")) for i, ax in enumerate(sorted(axis))}
 
-            # pick up the non-reduced axis loopvars from out_indices.
+            # pick up the non-reduced axis loopvars from out_loops.
             # if not keepdims, the indices only contains the spatial indices.
-            spatial_loopvars = iter(lv for i, lv in enumerate(indices) if i not in axis) if keepdims else iter(indices)
+            spatial_loopvars = iter(lv for i, lv in enumerate(out_loops) if i not in axis) if keepdims else iter(out_loops)
             # create input indices from pre-created loopvars.
             input_indices = [IndexExpr(reduced[dim] if dim in axis else next(spatial_loopvars)) for dim in range(a.ctx.inputs[0].ndim)]
 
-            return Func(
-                out_indices=indices,
-                out_shape=a.shape,
-                out_dtype=a.dtype,
-                expr=ReduceExpr(
-                    op=a.ctx.op,
-                    operand=FuncExpr(src=inputs[0], indices=input_indices),
-                    reduced=list(reduced.values()),
-                ),
-                out_buffer=a.buffer,
+            e = ReduceExpr(
+                op=a.ctx.op,
+                operand=FuncExpr(src=inputs[0], indices=input_indices),
+                reduced=list(reduced.values()),
             )
 
-        raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
+        else:
+            raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
 
-    def lower(a, cache):
-        # this is needed for the ndarray referenced more than once
-        if a in cache: return cache[a]
-        f = _lower(a, cache)
-        cache[a] = f
+        f = Func(out_loops=out_loops, out_shape=a.shape, out_dtype=a.dtype, expr=e, out_buffer=a.buffer)
+        memo[a] = f
         return f
 
-    cache = {}
-    f = lower(arr, cache)
+    memo = {}
+    f = arr_to_func(arr, memo)
 
     #
     # fuse Funcs if possible
@@ -250,8 +230,8 @@ def convert(arr):
             # fusable?
             # todo: support epilogue/prologue fusion
             if isinstance(e.src.expr, BufferExpr) or (not has_reduce(e.src.expr) and refcount.get(e.src, 0) == 1):
-                assert len(e.src.out_indices) == len(e.indices)
-                mp = {oidx: iidx for oidx, iidx in zip(e.src.out_indices, e.indices)}
+                assert len(e.src.out_loops) == len(e.indices)
+                mp = {oidx: iidx for oidx, iidx in zip(e.src.out_loops, e.indices)}
                 return inline(subst(e.src.expr, mp))
             else:
                 e.src.expr = inline(e.src.expr)
@@ -261,7 +241,7 @@ def convert(arr):
         if isinstance(e, ReduceExpr): return ReduceExpr(op=e.op, operand=inline(e.operand), reduced=e.reduced)
         return e # ConstExpr, IndexExpr, BufferExpr
 
-    f = Func(out_indices=f.out_indices, out_shape=f.out_shape, out_dtype=f.out_dtype, expr=inline(f.expr), out_buffer=arr.buffer)
+    f = Func(out_loops=f.out_loops, out_shape=f.out_shape, out_dtype=f.out_dtype, expr=inline(f.expr), out_buffer=arr.buffer)
 
     funcs = []
     seen = set()
