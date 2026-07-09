@@ -1,3 +1,4 @@
+import os
 from functools import reduce
 
 import buffer
@@ -146,12 +147,14 @@ class CLikeCodeGenerator(CodeGenerator):
         idx = self.arr_idx_calc_expr(expr.node.shape, [idx.loopvar.name for idx in expr.indices])
         return self.lang.index(buf, idx)
 
-_backend = ClangC
+def detect():
+    b = os.environ.get("WHALE_BACKEND", "PYTHON")
+    match b:
+        case "CLANG_C": return ClangC
+        case "PYTHON": return Python
+        case _: raise RuntimeError(f"unknown WHALE_BACKEND: {b}")
 
-def gpu_enabled():
-    return _backend.is_gpu()
-
-def codegen_and_exec(funcs, scheds):
+def codegen_and_exec(funcs, scheds, _backend):
     b = _backend()
     for func, schedule in zip(funcs, scheds):
         codegenerator = CLikeCodeGenerator(b)

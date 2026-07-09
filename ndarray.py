@@ -177,8 +177,9 @@ class ndarray:
 
     def materialize(self):
         funcs = exprir.convert(self)
-        scheds = sched.schedule(funcs, backend.gpu_enabled())
-        backend.codegen_and_exec(funcs, scheds)
+        b = backend.detect()
+        scheds = sched.schedule(funcs, b.is_gpu())
+        backend.codegen_and_exec(funcs, scheds, b)
 
     def tolist(self):
         if self.buffer.cpu is None: self._to_cpu()
