@@ -8,6 +8,7 @@ import ndarray
 class Test(unittest.TestCase):
     def test_backends(self):
         backends = ["PYTHON", "CLANG_C", "CUDA"]
+        if os.environ.get("TEST_SHORT", "0") == "1": backends = ["PYTHON"]
 
         for b in backends:
             with self.subTest(b=b):
@@ -177,6 +178,50 @@ class Test(unittest.TestCase):
                     c = (a + b).sum(axis=0)
                     c.materialize()
                     self.assertEqual(c.tolist(), [7, 11, 15])
+
+                #
+                # broadcast
+                #
+
+                with self.subTest("(2, 3) * (3,) -> (2, 3)"):
+                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+                    b = ndarray.array([2, 2, 2])
+                    c = a * b
+                    c.materialize()
+                    self.assertEqual(c.shape, (2, 3))
+                    self.assertEqual(c.tolist(), [2, 4, 6, 8, 10, 12])
+
+                with self.subTest("(2, 3) * (1, 1) -> (2, 3)"):
+                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+                    b = ndarray.array([[2]])
+                    c = a * b
+                    c.materialize()
+                    self.assertEqual(c.shape, (2, 3))
+                    self.assertEqual(c.tolist(), [2, 4, 6, 8, 10, 12])
+
+                with self.subTest("(2, 3) * (1, 1, 1) -> (1, 2, 3)"):
+                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+                    b = ndarray.array([[[2]]])
+                    c = a * b
+                    c.materialize()
+                    self.assertEqual(c.shape, (1, 2, 3))
+                    self.assertEqual(c.tolist(), [2, 4, 6, 8, 10, 12])
+
+                with self.subTest("sum -> broadcast"):
+                    a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
+                    b = a.sum(axis=(1,)) # [[5, 7, 9], [5, 7, 9]]
+                    c = b * ndarray.array([2])
+                    c.materialize()
+                    self.assertEqual(b.shape, (2, 3))
+                    self.assertEqual(c.shape, (2, 3))
+                    self.assertEqual(c.tolist(), [10, 14, 18, 10, 14, 18])
+
+                with self.subTest("(2, 3) * (2,) -> error"):
+                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+                    b = ndarray.array([2, 2])
+                    with self.assertRaises(RuntimeError) as context:
+                        c = a * b
+                    self.assertTrue("shapes are not broadcastable" in str(context.exception))
 
 if __name__ == '__main__':
     unittest.main()

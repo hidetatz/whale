@@ -82,6 +82,7 @@ class CLikeCodeGenerator(CodeGenerator):
             case exprir.BinaryExpr(): return self.render_binary(expr, args, dt)
             case exprir.ReduceExpr(): return self.render_reduce(expr, args, dt)
             case exprir.BufferExpr(): return self.render_buffer(expr, args, dt)
+            case exprir.FuncExpr(): return self.render_func(expr, args, dt)
             case _: raise RuntimeError(f"unexpected expr type: {type(expr)}")
 
     def render_unary(self, expr, args, dt):
@@ -146,8 +147,18 @@ class CLikeCodeGenerator(CodeGenerator):
                 buf = name
                 break
         assert buf != "", "expected buffer is not found in args"
-        idx = self.arr_idx_calc_expr(expr.node.shape, [idx.loopvar.name for idx in expr.indices])
+        idx = self.arr_idx_calc_expr(expr.node.shape, [idx.loopvar.name if isinstance(idx, exprir.IndexExpr) else str(idx.val) for idx in expr.indices])
         return self.lang.index(buf, idx)
+
+    def render_func(self, expr, args, dt):
+        fnc = ""
+        for name, e in args.items():
+            if isinstance(e, exprir.FuncExpr) and e.func is expr.func:
+                fnc = name
+                break
+        assert fnc != "", "expected func result is not found in args"
+        idx = self.arr_idx_calc_expr(expr.func.out_shape, [idx.loopvar.name if isinstance(idx, exprir.IndexExpr) else str(idx.val) for idx in expr.indices])
+        return self.lang.index(fnc, idx)
 
 def detect(_b):
     match _b:
@@ -176,15 +187,14 @@ def codegen_and_exec(funcs, scheds):
         codegenerator = CLikeCodeGenerator(b)
         kern_name, code = codegenerator.codegen(func, schedule)
         bufs, fncs = func.inputs()
-        params = [func.out_buffer] + [b.node.buffer for b in bufs] + [f.node.out_buffer for f in fncs]
+        params = [func.out_buffer] + [buf.node.buffer for buf in bufs] + [f.func.out_buffer for f in fncs]
         b.compile(kern_name, code)
 
         if b.is_gpu():
             for i, p in enumerate(params):
-                if p.dev is None: p.dev = DevBuff()
-                # memalloc
-                ptr = b.memalloc(p.length, p.dtype.ctype())
-                p.dev.ptr = ptr
+                if p.dev.ptr is None:
+                    # memalloc
+                    p.dev.ptr = b.memalloc(p.length, p.dtype.ctype())
 
                 # memcpy
                 if i != 0 and p.cpu is not None: b.memcpy_htod(p.dev.ptr, p.cpu.val, p.length, p.dtype.ctype())

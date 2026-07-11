@@ -138,7 +138,7 @@ def convert(arr):
             if a.ctx.op == Ops.Broadcast:
                 srcshape = a.ctx.inputs[0].shape
                 dstshape = a.shape
-                # ignore padded dim, replace originally-1 dim with 0
+                # read broadcasted dimension as 0
                 new_view_indices = [ConstExpr(0) if s == 1 else IndexExpr(d) for s, d in zip(srcshape, out_loops[len(dstshape) - len(srcshape):])]
             elif a.ctx.op == Ops.Transpose:
                 # axes is a map from output axis -> input axis.
