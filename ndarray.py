@@ -1,6 +1,7 @@
 import math
 import weakref
 
+from buffer import CPUBuff
 import backend
 import exprir
 import node
@@ -8,7 +9,6 @@ import sched
 import util
 from ops import Ops
 from dtype import int32, int64, float32, float64
-from buffer import Buffer, CPUBuff
 
 class Func:
     def __init__(self, op):
@@ -177,12 +177,12 @@ class ndarray:
 
     def materialize(self):
         funcs = exprir.convert(self)
-        b = backend.detect()
-        scheds = sched.schedule(funcs, b.is_gpu())
-        backend.codegen_and_exec(funcs, scheds, b)
+        scheds = sched.schedule(funcs, backend.is_gpu())
+        backend.codegen_and_exec(funcs, scheds)
 
     def tolist(self):
-        if self.buffer.cpu is None: self._to_cpu()
+        if self.buffer.cpu is None:
+            self.buffer.cpu = CPUBuff(backend.to_cpu(self.buffer))
         return self.buffer.cpu.val
 
     def __binary(self, r, f):
@@ -267,8 +267,3 @@ def ones_like(t):
 
 def zeros_like(t):
     return full_like(t, 0)
-
-if __name__ == "__main__":
-    a = array([[1, 2, 3], [4, 5, 6]]) + array([[1, 2, 3], [4, 5, 6]])
-    a.materialize()
-    print(a.tolist(), a.shape)

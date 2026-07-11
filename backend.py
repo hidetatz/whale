@@ -5,8 +5,10 @@ import buffer
 import exprir
 import util
 from ops import Ops
-from backend_python import Python
+from buffer import DevBuff
 from backend_clang import ClangC
+from backend_cuda import CUDA
+from backend_python import Python
 
 class CodeGenerator:
     def __init__(self, lang):
@@ -147,19 +149,48 @@ class CLikeCodeGenerator(CodeGenerator):
         idx = self.arr_idx_calc_expr(expr.node.shape, [idx.loopvar.name for idx in expr.indices])
         return self.lang.index(buf, idx)
 
-def detect():
-    b = os.environ.get("WHALE_BACKEND", "PYTHON")
-    match b:
-        case "CLANG_C": return ClangC
-        case "PYTHON": return Python
+def detect(_b):
+    match _b:
+        case "CLANG_C": return ClangC()
+        case "CUDA": return CUDA()
+        case "PYTHON": return Python()
         case _: raise RuntimeError(f"unknown WHALE_BACKEND: {b}")
 
-def codegen_and_exec(funcs, scheds, _backend):
-    b = _backend()
+b = detect(os.environ.get("WHALE_BACKEND", "PYTHON"))
+
+def set_backend(_b):
+    new_b = detect(_b)
+    global b
+    b = new_b
+
+def is_gpu(): return b.is_gpu()
+
+def to_cpu(buff):
+    return b.memcpy_dtoh(buff.dev.ptr, buff.length, buff.dtype.ctype())
+
+def free(ptr):
+    b.free(ptr)
+
+def codegen_and_exec(funcs, scheds):
     for func, schedule in zip(funcs, scheds):
         codegenerator = CLikeCodeGenerator(b)
         kern_name, code = codegenerator.codegen(func, schedule)
         bufs, fncs = func.inputs()
         params = [func.out_buffer] + [b.node.buffer for b in bufs] + [f.node.out_buffer for f in fncs]
         b.compile(kern_name, code)
+
+        if b.is_gpu():
+            for i, p in enumerate(params):
+                if p.dev is None: p.dev = DevBuff()
+                # memalloc
+                ptr = b.memalloc(p.length, p.dtype.ctype())
+                p.dev.ptr = ptr
+
+                # memcpy
+                if i != 0 and p.cpu is not None: b.memcpy_htod(p.dev.ptr, p.cpu.val, p.length, p.dtype.ctype())
+        else:
+            for i, p in enumerate(params):
+                if p.cpu is None:
+                    p.cpu = buffer.CPUBuff([0] * p.length)
+
         b.execute(kern_name, params)

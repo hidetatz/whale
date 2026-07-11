@@ -53,9 +53,9 @@ class ClangC:
     def execute(self, name, param_buffs):
         ptr = self.kerns[name]
         kern = getattr(ptr, name)
-        kern.argtypes = [ctypes.POINTER(buf.cpu.dtype.ctype()) for buf in param_buffs]
+        kern.argtypes = [ctypes.POINTER(buf.dtype.ctype()) for buf in param_buffs]
         kern.restype = None  # void
-        params = [(buf.cpu.dtype.ctype() * len(buf.cpu.val))(*buf.cpu.val) for buf in param_buffs]
+        params = [(buf.dtype.ctype() * len(buf.cpu.val))(*buf.cpu.val) for buf in param_buffs]
         kern(*params)
         param_buffs[0].cpu.val[:] = list(params[0])
 

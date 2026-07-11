@@ -1,27 +1,12 @@
 import os
-import time
-from dataclasses import dataclass
-from typing import Any
-from ctypes import CDLL, byref, c_double, c_float, c_int, c_longlong, c_void_p, cast, pointer, sizeof
+import subprocess
+import tempfile
+from ctypes import byref, cast, sizeof, c_void_p, c_int
+from ctypes import CDLL
 
-from dtype import int32, int64, float32, float64
-from buffer import CPUBuff, DevBuff
+import dtype
 
-@dataclass
-class Kernel:
-    name: str
-    src: str
-    ptr: c_void_p
-
-#
-# backend
-# 
-
-@dataclass
-class Backend:
-    pass
-
-class CUDA(Backend):
+class CUDA:
     def __init__(self):
         self.libcuda = CDLL("libcuda.so")
         self.cuda("cuInit", 0)
@@ -34,72 +19,74 @@ class CUDA(Backend):
         self.cuda("cuCtxCreate", byref(ctx), 0, self.device_handle)
         self.ctx = ctx
 
-    def __del__(self):
-        if self.ctx:
-            self.cuda("cuCtxDestroy", self.ctx)
-            self.ctx = None
+        self.kerns = {}
+
+    @classmethod
+    def is_gpu(cls): return True
+
+    def typename(self, dt):
+        if dt == dtype.int32: return "int32_t"
+        elif dt == dtype.int64: return "int64_t"
+        elif dt == dtype.float32: return "float"
+        elif dt == dtype.float64: return "double"
+        else: raise RuntimeError(f"unknown dtype: {dt}")
 
     def cuda(self, f, *args):
         fn = getattr(self.libcuda, f)
         result = fn(*args)
         if result != 0: raise RuntimeError(f"{f}: {result}")
 
-    def name(self): return "cuda"
+    def __del__(self):
+        if self.ctx:
+            self.cuda("cuCtxDestroy", self.ctx)
+            self.ctx = None
 
-    def memalloc(self, length, dtype):
-        ptr = c_void_p()
-        self.cuda("cuMemAlloc", byref(ptr), sizeof(dtype.ctype()) * length)
-        return ptr
+    # lang settings
+    def import_lib(self, lib): return f"#include <{lib}>"
+    def default_library(self): return ["stdint.h", "math.h"]
+    def indent_str(self): return "    "
+    def kern_start(self, name, arg_names, arg_types): return f"extern \"C\" __global__ void {name}({", ".join([f'{self.typename(tp)}* {nm}' for nm, tp in zip(arg_names, arg_types)])}) {{"
+    def kern_end(self): return "}"
+    def loop_start(self, index, start, end, step): return f"for (int {index} = {start}; {index} < {end}; {index} += {step}) {{"
+    def loop_end(self): return "}"
+    def index(self, a, idx): return f"{a}[{idx}]"
+    def init(self, dt, l, r): return f"{self.typename(dt)} {l} = {r};"
+    def assign(self, l, r): return f"{l} = {r};"
+    def neg(self, a): return f"-({a})"
+    def sin(self, a): return f"sin({a})"
+    def cos(self, a): return f"cos({a})"
+    def exp(self, a): return f"exp({a})"
+    def log(self, a): return f"log({a})"
+    def sqrt(self, a): return f"sqrt({a})"
+    def add(self, l, r): return f"{l} + {r}"
+    def sub(self, l, r): return f"{l} - {r}"
+    def mul(self, l, r): return f"{l} * {r}"
+    def truediv(self, l, r): return f"{l} / {r}"
+    def pow(self, l, r): return f"pow({l}, {r})"
 
-    def free(self, ptr):
-        self.cuda("cuMemFree", ptr)
-
-    def memcpy_htod(self, dst, val, length, dtype):
-        ctype = dtype.ctype()
-        self.cuda("cuMemcpyHtoD", dst, (ctype * length)(*val), sizeof(ctype) * length)
-
-    def memcpy_dtoh(self, src, length, dtype):
-        ctype = dtype.ctype()
-        out = (ctype * length)()
-        self.cuda("cuMemcpyDtoH", out, src, sizeof(ctype) * length)
-        return [out[i] for i in range(length)]
-
-    def compile(self, name, src):
-        fname = f"/tmp/wh_kern_cuda_{name}_{int(time.time())}"
-
-        # compile cuda src to ptx
-        with open(f"{fname}.cu", "w") as f:
-            f.write(src)
-
-        result = os.system(f"nvcc --ptx {fname}.cu -o {fname}.ptx")
-        if result != 0:
-            raise RuntimeError(f"nvcc --ptx failed: {result}")
-
-        with open(f"{fname}.ptx", "rb") as f:
-            ptx_src = f.read()
-
-        os.remove(f"{fname}.cu")
-        os.remove(f"{fname}.ptx")
-
+    # exec settings
+    def compile(self, name, code):
+        with tempfile.NamedTemporaryFile(suffix=".ptx", delete=False) as f: ptx = f.name
+        subprocess.run(["nvcc", "-ptx", "-x", "cu", "-", "-o", ptx], input=code, check=True, text=True)
+        with open(f"{ptx}", "rb") as f: ptx_src = f.read()
+        os.remove(ptx)
         # load ptx as module
         mod = c_void_p()
         self.cuda("cuModuleLoadData", byref(mod), ptx_src)
         ptr = c_void_p()
         self.cuda("cuModuleGetFunction", byref(ptr), mod, name.encode("utf-8"))
+        self.kerns[name] = ptr
 
-        return ptr
+    def execute(self, name, param_buffs):
+        kern_ptr = self.kerns[name]
+        params = (c_void_p * len(param_buffs))()
+        for i, p in enumerate(param_buffs):
+            params[i] = cast(byref(p.dev.ptr), c_void_p)
 
-    def invoke(self, ptr, grid, block, _params):
-        params = (c_void_p * len(_params))()
-        for i, p in enumerate(_params):
-            if type(p) is DevBuff:
-                params[i] = cast(byref(p.ptr), c_void_p)
-            elif type(p) is int:
-                params[i] = cast(pointer(c_int(p)), c_void_p)
-            else:
-                raise TypeError(f"unexpected kern param type {type(p)}")
+        grid = (1, 1, 1)
+        block = (32, 1, 1)
 
-        self.cuda("cuLaunchKernel", ptr, *grid, *block,
+        self.cuda("cuLaunchKernel", kern_ptr, *grid, *block,
             0, # sharedMemBytes
             None, # hStream
             params,
@@ -107,139 +94,20 @@ class CUDA(Backend):
         )
         self.cuda("cuCtxSynchronize")
 
-cuda = CUDA()
+        # param_buffs[0].cpu.val[:] = list(params[0])
 
-#
-# instruction
-# 
+    def memalloc(self, length, ctype):
+        ptr = c_void_p()
+        self.cuda("cuMemAlloc", byref(ptr), sizeof(ctype) * length)
+        return ptr
 
-@dataclass
-class MemallocD:
-    dst: DevBuff
-    length: int
+    def free(self, ptr):
+        self.cuda("cuMemFree", ptr)
 
-@dataclass
-class MemcpyHtoD:
-    dst: DevBuff
-    src: CPUBuff
-    length: int
+    def memcpy_htod(self, dst, src, length, ctype):
+        self.cuda("cuMemcpyHtoD", dst, (ctype * length)(*src), sizeof(ctype) * length)
 
-@dataclass
-class MemcpyDtoH:
-    dst: CPUBuff
-    src: DevBuff
-    length: int
-
-@dataclass
-class InvokeKernel:
-    name: str
-    params: list[Any]
-    grid: tuple = (1, 1, 1)
-    block: tuple = (32, 1, 1)
-
-@dataclass
-class BackendIR:
-    backend: Backend
-    steps: list[Any]
-
-sum2d_axis0 = """
-extern "C" __global__ void sum2d_axis0(
-    float* in0,
-    float* out,
-    int out_size,
-    int in0_stride0,
-    int in0_stride1,
-    int axis0_size
-) {
-    int out_idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (out_idx >= out_size) return;
-    int64_t acc = 0;
-    for (int axis0_idx = 0; axis0_idx < axis0_size; axis0_idx++) {
-        acc += in0[axis0_idx * in0_stride0 + out_idx * in0_stride1];
-    }
-    out[out_idx] = acc;
-} 
-"""
-
-fuse1d_add_mul = """
-extern "C" __global__ void fuse1d_add_mul(
-    float* in0,
-    float* in1,
-    float* in2,
-    float* out,
-    int out_size
-) {
-    int out_idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (out_idx >= out_size) return;
-    int tmp = 0;
-    tmp = in0[out_idx] + in1[out_idx];
-    tmp = tmp * in2[out_idx];
-    out[out_idx] = tmp;
-}
-"""
-
-class Executor:
-    def __init__(self, backend, kernels):
-        self.backend = backend
-        self.kernels = {k.name: k for k in kernels}
-
-    def execute(self, steps):
-        for step in steps:
-            match step:
-                case MemallocD():
-                    step.dst.ptr = self.backend.memalloc(step.length, step.dst.dtype)
-                case MemcpyHtoD():
-                    self.backend.memcpy_htod(step.dst.ptr, step.src.val, step.length, step.dst.dtype)
-                case MemcpyDtoH():
-                    step.dst.val = self.backend.memcpy_dtoh(step.src.ptr, step.length, step.dst.dtype)
-                case InvokeKernel():
-                    kern = self.kernels[step.name]
-                    self.backend.invoke(kern.ptr, step.grid, step.block, step.params)
-
-if __name__ == "__main__":
-    # a = Tensor([[1, 2, 3], [1, 2, 3]])
-    # b = Tensor([4, 5, 6])
-    # c = Tensor(10)
-    # d = a.sum(axis=0)
-    # e = b + d
-    # f = e * c
-    # f.materialize()
-    a = CPUBuff([1.0, 2.0, 3.0, 1.0, 2.0, 3.0], dtype=float32)
-    a_dev = DevBuff(dtype=a.dtype)
-
-    b = CPUBuff([4.0, 5.0, 6.0], dtype=float32)
-    b_dev = DevBuff(dtype=b.dtype)
-
-    c = CPUBuff([10.0, 10.0, 10.0], dtype=float32)
-    c_dev = DevBuff(dtype=c.dtype)
-
-    d_dev = DevBuff(dtype=a_dev.dtype)
-    f_dev = DevBuff(dtype=d_dev.dtype)
-    f = CPUBuff(dtype=f_dev.dtype)
-
-    ir = BackendIR(
-        backend=cuda,
-        steps=[
-            MemallocD(dst=a_dev, length=6),
-            MemcpyHtoD(dst=a_dev, src=a, length=6),
-            MemallocD(dst=b_dev, length=3),
-            MemcpyHtoD(dst=b_dev, src=b, length=3),
-            MemallocD(dst=c_dev, length=3),
-            MemcpyHtoD(dst=c_dev, src=c, length=3),
-            MemallocD(dst=d_dev, length=3),
-            InvokeKernel(name="sum2d_axis0", params=[a_dev, d_dev, 3, 3, 1, 2]),
-            MemallocD(dst=f_dev, length=3),
-            InvokeKernel(name="fuse1d_add_mul", params=[b_dev, d_dev, c_dev, f_dev, 3]),
-            MemcpyDtoH(src=f_dev, dst=f, length=3),
-        ],
-    )
-
-    kernels = [
-        Kernel("sum2d_axis0", sum2d_axis0, cuda.compile("sum2d_axis0", sum2d_axis0)),
-        Kernel("fuse1d_add_mul", fuse1d_add_mul, cuda.compile("fuse1d_add_mul", fuse1d_add_mul)),
-    ]
-
-    e = Executor(ir.backend, kernels)
-    e.execute(ir.steps)
-
-    print(f.val)
+    def memcpy_dtoh(self, src, length, ctype):
+        out = (ctype * length)()
+        self.cuda("cuMemcpyDtoH", out, src, sizeof(ctype) * length)
+        return [out[i] for i in range(length)]

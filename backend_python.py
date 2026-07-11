@@ -30,4 +30,5 @@ class Python:
 
     # exec settings
     def compile(self, name, code): exec(code, self.kerns)
-    def execute(self, name, param_buffs): self.kerns[name](*[buff.cpu.val for buff in param_buffs])
+    def execute(self, name, param_buffs):
+        self.kerns[name](*[buff.cpu.val for buff in param_buffs])

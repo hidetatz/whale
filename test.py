@@ -2,14 +2,16 @@ import os
 import unittest
 from unittest import mock
 
+import backend
 import ndarray
 
 class Test(unittest.TestCase):
     def test_backends(self):
-        backends = ["PYTHON", "CLANG_C"]
+        backends = ["PYTHON", "CLANG_C", "CUDA"]
 
         for b in backends:
-            with self.subTest(b=b), mock.patch.dict(os.environ, {"WHALE_BACKEND": b}):
+            with self.subTest(b=b):
+                backend.set_backend(b)
 
                 #
                 # construction

@@ -58,6 +58,9 @@ class AutoScheduler:
             spatials[1].gpu_threads = True
             return Schedule(spatials + reduces)
 
+        if not spatials:
+            return Schedule(reduces)
+
         # If there's only one spatial loop, tile it into two and apply block/thread
         threads = 256
         s = spatials[0]
