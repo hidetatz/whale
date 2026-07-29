@@ -1,6 +1,7 @@
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum, auto
+from typing import Literal
 
 class LoopKind(IntEnum):
     Spatial = auto()
@@ -10,65 +11,159 @@ class LoopKind(IntEnum):
     def __str__(self): return self.name
 
 @dataclass
+class LoopVar:
+    extent: int = 0
+    name: str = ""
+
+@dataclass
+class SplitLoop:
+    orig: LoopVar
+    o: LoopVar
+    i: LoopVar
+    # split factor: inner loop runs from zero to the factor.
+    factor: int
+
+@dataclass
+class Sequential: pass
+
+@dataclass
+class Parallel: pass
+
+@dataclass
+class Vectorize: pass
+
+@dataclass
+class Unroll:
+    factor: int
+
+@dataclass
+class GPUBlock:
+    index: Literal["x", "y", "z"]
+
+@dataclass
+class GPUThread:
+    index: Literal["x", "y", "z"]
+
+type LoopExec = Sequential | Parallel | Vectorize | Unroll | GPUBlock | GPUThread
+
+@dataclass
 class LoopSched:
-    name: str
-    extent: int
+    lv: LoopVar
     kind: LoopKind
-
-    # cpu
-    parallel: bool | None = None
-    vectorize: bool | None = None
-    tile: int | None = None
-    unroll: int | None = None
-
-    # gpu
-    gpu_blocks: int | None = None
-    gpu_threads: int | None = None
+    exec: LoopExec
 
     def __repr__(self):
-        return f"{self.name}:{self.kind}({self.extent})"
+        return f"{self.lv.name}:{self.kind}({self.lv.extent})"
 
 @dataclass
 class Schedule:
-    scheds: list[LoopSched]
+    loops: list[LoopSched]
+    splits: list[SplitLoop]
+
+class SchedulerFunc:
+    def __init__(self, efunc):
+        spatials = [LoopSched(LoopVar(lv.extent, lv.name), LoopKind.Spatial, Sequential()) for lv in efunc.out_loops]
+        reduces = [LoopSched(LoopVar(lv.extent, lv.name), LoopKind.Reduce, Sequential()) for lv in efunc.reduced_vars()]
+        self.loops = spatials + reduces
+        self.splits = []
+
+    def split(self, lv, outer, inner, factor):
+        assert lv.extent % factor == 0, "invalid split factor" # TailStrategy is not implemented yet
+        outer.extent = int(lv.extent / factor)
+        outer.name = f"{lv.name}__o"
+
+        inner.extent = factor
+        inner.name = f"{lv.name}__i"
+
+        self.splits.append(SplitLoop(lv, outer, inner, factor))
+        idx = self._index(lv)
+        kind = self.loops[idx].kind
+        self.loops[idx:idx+1] = [LoopSched(outer, kind), LoopSched(inner, kind)]
+        return self
+
+    def reorder(self, *lvs):
+        indices = sorted([self._index(lv) for lv in lvs], reverse=True)
+        for i, lv in zip(indices, lvs):
+            self.loops[i].lv = lv
+        return self
+
+    def parallel(self, lv):
+        self._find(lv).exec = Parallel()
+        return self
+
+    def vectorize(self, lv):
+        self._find(lv).exec = Vectorize()
+        return self
+
+    def unroll(self, lv, factor):
+        self._find(lv).exec = Unroll(factor)
+        return self
+
+    def tile(self, x, y, xo, yo, xi, yi, xfactor, yfactor):
+        self.split(x, xo, xi, xfactor)
+        self.split(y, yo, yi, yfactor)
+        self.reorder(xi, yi, xo, yo)
+        return self
+
+    def gpu_blocks(self, lv, index):
+        self._find(lv).exec = GPUBlock(index)
+        return self
+
+    def gpu_threads(self, lv, index):
+        self._find(lv).exec = GPUThread(index)
+        return self
+
+    def schedule(self): return Schedule(self.loops, self.splits)
+
+    def spatial_loops(self):
+        return [l.lv for l in self.loops if l.kind == LoopKind.Spatial]
+
+    def _index(self, lv):
+        for i, l in enumerate(self.loops):
+            if l.lv == lv: return i
+        raise RuntimeError("loopvar not found in loops")
+
+    def _find(self, lv):
+        return self.loops[self._index(lv)]
 
 class AutoScheduler:
     @staticmethod
-    def schedule_cpu(f):
-        spatials = [LoopSched(lv.name, lv.extent, LoopKind.Spatial) for lv in f.out_loops]
-        reduces = [LoopSched(lv.name, lv.extent, LoopKind.Reduce) for lv in f.reduced_vars()]
+    def schedule_cpu(sf):
+        spatials = sf.spatial_loops()
 
         # baseline implementation
         # The outermost spatial loop: parallelize
         # The innermost spatial loop: vectorize
-        if spatials: spatials[0].parallel = True
-        if 1 < len(spatials): spatials[-1].vectorize = True
-        return Schedule(spatials + reduces)
+        if spatials: sf.parallel(spatials[0])
+        if 1 < len(spatials): sf.vectorize(spatials[-1])
 
     @staticmethod
-    def schedule_gpu(f):
-        spatials = [LoopSched(lv.name, lv.extent, LoopKind.Spatial) for lv in f.out_loops]
-        reduces = [LoopSched(lv.name, lv.extent, LoopKind.Reduce) for lv in f.reduced_vars()]
+    def schedule_gpu(sf):
+        spatials = sf.spatial_loops()
+        if not spatials: return
 
         # baseline implementation
         # The outermost spatial loop: block parallel
         # The 2nd outermost spatial loop: thread parallel
         if 1 < len(spatials):
-            spatials[0].gpu_blocks = True
-            spatials[1].gpu_threads = True
-            return Schedule(spatials + reduces)
-
-        if not spatials:
-            return Schedule(reduces)
+            sf.gpu_blocks(spatials[0], "x").gpu_threads(spatials[1], "x")
+            return
 
         # If there's only one spatial loop, tile it into two and apply block/thread
-        threads = 256
-        s = spatials[0]
-        tiled_spatials = [
-            LoopSched(f"{s.name}_outer", math.ceil(s.extent / threads), LoopKind.Spatial, gpu_blocks=True),
-            LoopSched(f"{s.name}_inner", threads, LoopKind.Spatial, gpu_threads=True),
-        ]
-        return Schedule(tiled_spatials + reduces)
+        io = LoopVar()
+        ii = LoopVar()
+        sf.split(spatials[0], io, ii, 256)
+        sf.gpu_blocks(io, "x").gpu_threads(ii, "x")
 
 def schedule(funcs, gpu, scheduler=AutoScheduler):
-    return [scheduler.schedule_gpu(func) if gpu else scheduler.schedule_cpu(func) for func in funcs]
+    scheds = []
+    for f in funcs:
+        sf = SchedulerFunc(f)
+        if gpu:
+            scheduler.schedule_gpu(sf)
+        else:
+            scheduler.schedule_cpu(sf)
+
+        scheds.append(sf.schedule())
+
+    return scheds
