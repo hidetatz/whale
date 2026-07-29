@@ -78,7 +78,7 @@ class SchedulerFunc:
         self.splits.append(SplitLoop(lv, outer, inner, factor))
         idx = self._index(lv)
         kind = self.loops[idx].kind
-        self.loops[idx:idx+1] = [LoopSched(outer, kind), LoopSched(inner, kind)]
+        self.loops[idx:idx+1] = [LoopSched(outer, kind, Sequential()), LoopSched(inner, kind, Sequential())]
         return self
 
     def reorder(self, *lvs):
@@ -152,7 +152,7 @@ class AutoScheduler:
         # If there's only one spatial loop, tile it into two and apply block/thread
         io = LoopVar()
         ii = LoopVar()
-        sf.split(spatials[0], io, ii, 256)
+        sf.split(spatials[0], io, ii, spatials[0].extent / 2)
         sf.gpu_blocks(io, "x").gpu_threads(ii, "x")
 
 def schedule(funcs, gpu, scheduler=AutoScheduler):
