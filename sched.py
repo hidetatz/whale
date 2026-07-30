@@ -152,7 +152,7 @@ class AutoScheduler:
         # If there's only one spatial loop, tile it into two and apply block/thread
         io = LoopVar()
         ii = LoopVar()
-        sf.split(spatials[0], io, ii, spatials[0].extent / 2)
+        sf.split(spatials[0], io, ii, int(spatials[0].extent / 2))
         sf.gpu_blocks(io, "x").gpu_threads(ii, "x")
 
 def schedule(funcs, gpu, scheduler=AutoScheduler):

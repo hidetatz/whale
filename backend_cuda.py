@@ -47,7 +47,16 @@ class CUDA:
     def indent_str(self): return "    "
     def kern_start(self, name, arg_names, arg_types): return f"extern \"C\" __global__ void {name}({", ".join([f'{self.typename(tp)}* {nm}' for nm, tp in zip(arg_names, arg_types)])}) {{"
     def kern_end(self): return "}"
-    def loop_start(self, index, start, end, step): return f"for (int {index} = {start}; {index} < {end}; {index} += {step}) {{"
+    def sequential_loop_start(self, index, start, end, step): return f"for (int {index} = {start}; {index} < {end}; {index} += {step}) {{"
+    def parallel_loop_start(self, index, start, end, step): raise RuntimeError("cuda backend cannot handle parallel loop: use gpu_blocks/threads instead!")
+    def vectorized_loop_start(self, index, start, end, step): raise RuntimeError("cuda backend cannot handle vectorized loop: use gpu_blocks/threads instead!")
+    def unrolled_loop_start(self, index, start, end, step, factor):
+        return [
+            f"#pragma unroll {factor}",
+            self.sequential_loop_start(index, start, end, step),
+        ]
+    def gpu_block_index(self, index, start, end, step, idx): return self.init(dtype.int64, index, f"blockIdx.{idx}")
+    def gpu_thread_index(self, index, start, end, step, idx): return self.init(dtype.int64, index, f"threadIdx.{idx}")
     def loop_end(self): return "}"
     def index(self, a, idx): return f"{a}[{idx}]"
     def init(self, dt, l, r): return f"{self.typename(dt)} {l} = {r};"
@@ -77,14 +86,11 @@ class CUDA:
         self.cuda("cuModuleGetFunction", byref(ptr), mod, name.encode("utf-8"))
         self.kerns[name] = ptr
 
-    def execute(self, name, param_buffs):
+    def execute(self, name, param_buffs, grid, block):
         kern_ptr = self.kerns[name]
         params = (c_void_p * len(param_buffs))()
         for i, p in enumerate(param_buffs):
             params[i] = cast(byref(p.dev.ptr), c_void_p)
-
-        grid = (1, 1, 1)
-        block = (32, 1, 1)
 
         self.cuda("cuLaunchKernel", kern_ptr, *grid, *block,
             0, # sharedMemBytes

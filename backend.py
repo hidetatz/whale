@@ -239,9 +239,20 @@ def codegen_and_exec(funcs, scheds):
 
                 # memcpy
                 if i != 0 and p.cpu is not None: b.memcpy_htod(p.dev.ptr, p.cpu.val, p.length, p.dtype.ctype())
+
+            dim = {"x": 0, "y": 1, "z": 2}
+            grid = [1, 1, 1]
+            block = [1, 1, 1]
+
+            for l in schedule.loops:
+                if isinstance(l.exec, sched.GPUBlock):
+                    grid[dim[l.exec.index]] = l.lv.extent
+                elif isinstance(l.exec, sched.GPUThread):
+                    block[dim[l.exec.index]] = l.lv.extent
+            b.execute(kern_name, params, tuple(grid), tuple(block))
         else:
             for i, p in enumerate(params):
                 if p.cpu is None:
                     p.cpu = buffer.CPUBuff([0] * p.length)
 
-        b.execute(kern_name, params)
+            b.execute(kern_name, params)
