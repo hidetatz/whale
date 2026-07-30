@@ -12,6 +12,12 @@ class Python:
     def kern_start(self, name, arg_names, arg_types): return f"def {name}({', '.join(arg_names)}):"
     def kern_end(self): return ""
     def loop_start(self, index, start, end, step): return f"for {index} in range({start}, {end}, {step}):"
+    def sequential_loop_start(self, index, start, end, step): return self.loop_start(index, start, end, step)
+    def parallel_loop_start(self, index, start, end, step): return self.loop_start(index, start, end, step)
+    def vectorized_loop_start(self, index, start, end, step): return self.loop_start(index, start, end, step)
+    def unrolled_loop_start(self, index, start, end, step, factor):return self.loop_start(index, start, end, step)
+    def gpu_block_index(self, index, start, end, step, idx): raise RuntimeError("Python backend cannot handle gpu blocks!")
+    def gpu_thread_index(self, index, start, end, step, idx): raise RuntimeError("Python backend cannot handle gpu blocks!")
     def loop_end(self): return ""
     def index(self, a, idx): return f"{a}[{idx}]"
     def init(self, dt, l, r): return f"{l} = {r}"

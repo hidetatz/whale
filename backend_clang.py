@@ -25,7 +25,24 @@ class ClangC:
     def indent_str(self): return "    "
     def kern_start(self, name, arg_names, arg_types): return f"void {name}({", ".join([f'{self.typename(tp)}* {nm}' for nm, tp in zip(arg_names, arg_types)])}) {{"
     def kern_end(self): return "}"
-    def loop_start(self, index, start, end, step): return f"for (int {index} = {start}; {index} < {end}; {index} += {step}) {{"
+    def sequential_loop_start(self, index, start, end, step): return f"for (int {index} = {start}; {index} < {end}; {index} += {step}) {{"
+    def parallel_loop_start(self, index, start, end, step):
+        return [
+            "#pragma omp parallel for",
+            self.sequential_loop_start(index, start, end, step),
+        ]
+    def vectorized_loop_start(self, index, start, end, step):
+        return [
+            "#pragma clang loop vectorize(enable)",
+            self.sequential_loop_start(index, start, end, step),
+        ]
+    def unrolled_loop_start(self, index, start, end, step, factor):
+        return [
+            f"#pragma clang loop unroll_count({factor})",
+            self.sequential_loop_start(index, start, end, step),
+        ]
+    def gpu_block_index(self, index, start, end, step, idx): raise RuntimeError("clang backend cannot handle gpu blocks!")
+    def gpu_thread_index(self, index, start, end, step, idx): raise RuntimeError("clang backend cannot handle gpu blocks!")
     def loop_end(self): return "}"
     def index(self, a, idx): return f"{a}[{idx}]"
     def init(self, dt, l, r): return f"{self.typename(dt)} {l} = {r};"
@@ -45,7 +62,7 @@ class ClangC:
     # exec settings
     def compile(self, name, code):
         with tempfile.NamedTemporaryFile(suffix=".so", delete=False) as f: so = f.name
-        subprocess.run(["clang", "-x", "c", "-", "-O2", "-shared", "-fPIC", "-o", so, "-lm"], input=code, check=True, text=True)
+        subprocess.run(["clang", "-x", "c", "-", "-O2", "-shared", "-fPIC", "-fopenmp", "-o", so, "-lm"], input=code, check=True, text=True)
         kern = ctypes.CDLL(so)
         os.remove(so)  # loaded, ok to delete the file
         self.kerns[name] = kern

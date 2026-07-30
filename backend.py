@@ -2,7 +2,9 @@ import os
 from functools import reduce
 
 import buffer
+import dtype
 import exprir
+import sched
 import util
 from ops import Ops
 from buffer import DevBuff
@@ -29,7 +31,12 @@ class CLikeCodeGenerator(CodeGenerator):
 
     def nest(self): self.indent_level += 1
     def unnest(self): self.indent_level -= 1
-    def write(self, code): self.buff.append(f"{self.lang.indent_str() * self.indent_level}{code}")
+    def writeln(self, ln): self.buff.append(f"{self.lang.indent_str() * self.indent_level}{ln}")
+    def write(self, code):
+        if isinstance(code, str): self.writeln(code)
+        elif isinstance(code, list):
+            for l in code: self.writeln(l)
+        else: raise RuntimeError(f"cannot handle in codegen: {code}")
     def tmpvar(self):
         n = f"tmp{self.tmpvar_idx}"
         self.tmpvar_idx += 1
@@ -53,17 +60,17 @@ class CLikeCodeGenerator(CodeGenerator):
         self.write(l.kern_start(kern_name, arg_names, arg_types))
         self.nest()
 
-        for lv in func.out_loops:
-            self.write(l.loop_start(lv.name, 0, lv.extent, 1))
-            self.nest()
+        loop_finish_fn = self.render_loop(schedule)
+
+        # extract original loop from split outer and inner
+        for sp in schedule.splits:
+            self.write(l.init(dtype.int64, sp.orig.name, l.add(l.mul(sp.o.name, sp.factor), sp.i.name)))
 
         result = self.render_expr(func.expr, args, func.out_dtype)
         idx = self.arr_idx_calc_expr(func.out_shape, [lv.name for lv in func.out_loops])
         self.write(l.assign(l.index("out", idx), result))
 
-        for lv in func.out_loops:
-            self.unnest()
-            self.write(l.loop_end())
+        loop_finish_fn()
 
         self.unnest()
         self.write(l.kern_end())
@@ -75,6 +82,40 @@ class CLikeCodeGenerator(CodeGenerator):
             case exprir.BufferExpr(): return "buf"
             case exprir.FuncExpr(): return "fnc"
             case _: raise RuntimeError(f"unexpected arg type: {type(arg)}")
+
+    def render_loop(self, schedule):
+        loopcnt = 0
+        for l in schedule.loops:
+            if l.kind != sched.LoopKind.Spatial: continue
+            looped = True
+            match l.exec:
+                case sched.Sequential():
+                    lp = self.lang.sequential_loop_start(l.lv.name, 0, l.lv.extent, 1)
+                case sched.Parallel():
+                    lp = self.lang.parallel_loop_start(l.lv.name, 0, l.lv.extent, 1)
+                case sched.Vectorize():
+                    lp = self.lang.vectorized_loop_start(l.lv.name, 0, l.lv.extent, 1)
+                case sched.Unroll():
+                    lp = self.lang.unrolled_loop_start(l.lv.name, 0, l.lv.extent, 1, l.exec.factor)
+                case sched.GPUBlock():
+                    lp = self.lang.gpu_block_index(l.lv.name, 0, l.lv.extent, 1, l.exec.index)
+                    looped = False
+                case sched.GPUThread():
+                    lp = self.lang.gpu_thread_index(l.lv.name, 0, l.lv.extent, 1, l.exec.index)
+                    looped = False
+
+            self.write(lp)
+
+            if looped:
+                loopcnt += 1
+                self.nest()
+
+        def loop_finish():
+            for i in range(loopcnt):
+                self.unnest()
+                self.write(self.lang.loop_end())
+
+        return loop_finish
 
     def render_expr(self, expr, args, dt):
         match expr:
@@ -123,7 +164,7 @@ class CLikeCodeGenerator(CodeGenerator):
         self.write(l.init(dt, acc, "0"))
 
         for idx in expr.reduced:
-            self.write(l.loop_start(idx.name, 0, idx.extent, 1))
+            self.write(l.sequential_loop_start(idx.name, 0, idx.extent, 1)) # for now reduce loop is not scheduled
             self.nest()
 
         result = self.render_expr(expr.expr, args, dt)
