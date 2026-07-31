@@ -4,44 +4,19 @@ import tempfile
 from ctypes import byref, cast, sizeof, c_void_p, c_int
 from ctypes import CDLL
 
+import compiler
+import executor
+import langspec
 import dtype
+from kernel import Kernel
 
-class CUDA:
-    def __init__(self):
-        self.libcuda = CDLL("libcuda.so")
-        self.cuda("cuInit", 0)
-
-        dev = c_int()
-        self.cuda("cuDeviceGet", byref(dev), 0)
-        self.device_handle = dev.value
-
-        ctx = c_void_p()
-        self.cuda("cuCtxCreate", byref(ctx), 0, self.device_handle)
-        self.ctx = ctx
-
-        self.kerns = {}
-
-    @classmethod
-    def is_gpu(cls): return True
-
+class CUDALangSpec(langspec.HighLevelLangSpec):
     def typename(self, dt):
         if dt == dtype.int32: return "int32_t"
         elif dt == dtype.int64: return "int64_t"
         elif dt == dtype.float32: return "float"
         elif dt == dtype.float64: return "double"
         else: raise RuntimeError(f"unknown dtype: {dt}")
-
-    def cuda(self, f, *args):
-        fn = getattr(self.libcuda, f)
-        result = fn(*args)
-        if result != 0: raise RuntimeError(f"{f}: {result}")
-
-    def __del__(self):
-        if self.ctx:
-            self.cuda("cuCtxDestroy", self.ctx)
-            self.ctx = None
-
-    # lang settings
     def import_lib(self, lib): return f"#include <{lib}>"
     def default_library(self): return ["stdint.h", "math.h"]
     def indent_str(self): return "    "
@@ -75,6 +50,33 @@ class CUDA:
     def truediv(self, l, r): return f"{l} / {r}"
     def pow(self, l, r): return f"pow({l}, {r})"
 
+class CUDA:
+    def __init__(self):
+        self.libcuda = CDLL("libcuda.so")
+        self.exec("cuInit", 0)
+
+        dev = c_int()
+        self.exec("cuDeviceGet", byref(dev), 0)
+        self.device_handle = dev.value
+
+        ctx = c_void_p()
+        self.exec("cuCtxCreate", byref(ctx), 0, self.device_handle)
+        self.ctx = ctx
+
+    def exec(self, f, *args):
+        fn = getattr(self.libcuda, f)
+        result = fn(*args)
+        if result != 0: raise RuntimeError(f"{f}: {result}")
+
+    def __del__(self):
+        if self.ctx:
+            self.exec("cuCtxDestroy", self.ctx)
+            self.ctx = None
+
+class CUDACompiler(compiler.Compiler):
+    def __init__(self, cuda):
+        self.cuda = cuda
+
     # exec settings
     def compile(self, name, code):
         with tempfile.NamedTemporaryFile(suffix=".ptx", delete=False) as f: ptx = f.name
@@ -83,39 +85,41 @@ class CUDA:
         os.remove(ptx)
         # load ptx as module
         mod = c_void_p()
-        self.cuda("cuModuleLoadData", byref(mod), ptx_src)
+        self.cuda.exec("cuModuleLoadData", byref(mod), ptx_src)
         ptr = c_void_p()
-        self.cuda("cuModuleGetFunction", byref(ptr), mod, name.encode("utf-8"))
-        self.kerns[name] = ptr
+        self.cuda.exec("cuModuleGetFunction", byref(ptr), mod, name.encode("utf-8"))
+        return Kernel(ptr)
 
-    def execute(self, name, param_buffs, grid, block):
-        kern_ptr = self.kerns[name]
-        params = (c_void_p * len(param_buffs))()
-        for i, p in enumerate(param_buffs):
-            params[i] = cast(byref(p.dev.ptr), c_void_p)
+class CUDAExecutor(executor.GPUExecutor):
+    def __init__(self, cuda):
+        self.cuda = cuda
 
-        self.cuda("cuLaunchKernel", kern_ptr, *grid, *block,
+    def execute(self, kern: Kernel, params: list[buffer.Buffer], grid: tuple[int, int, int], block: tuple[int, int, int]):
+        kern_ptr = kern.bin
+        c_params = (c_void_p * len(params))()
+        for i, p in enumerate(params):
+            c_params[i] = cast(byref(p.dev.ptr), c_void_p)
+
+        self.cuda.exec("cuLaunchKernel", kern_ptr, *grid, *block,
             0, # sharedMemBytes
             None, # hStream
-            params,
+            c_params,
             None, # extra
         )
-        self.cuda("cuCtxSynchronize")
-
-        # param_buffs[0].cpu.val[:] = list(params[0])
+        self.cuda.exec("cuCtxSynchronize")
 
     def memalloc(self, length, ctype):
         ptr = c_void_p()
-        self.cuda("cuMemAlloc", byref(ptr), sizeof(ctype) * length)
+        self.cuda.exec("cuMemAlloc", byref(ptr), sizeof(ctype) * length)
         return ptr
 
     def free(self, ptr):
-        self.cuda("cuMemFree", ptr)
+        self.cuda.exec("cuMemFree", ptr)
 
     def memcpy_htod(self, dst, src, length, ctype):
-        self.cuda("cuMemcpyHtoD", dst, (ctype * length)(*src), sizeof(ctype) * length)
+        self.cuda.exec("cuMemcpyHtoD", dst, (ctype * length)(*src), sizeof(ctype) * length)
 
     def memcpy_dtoh(self, src, length, ctype):
         out = (ctype * length)()
-        self.cuda("cuMemcpyDtoH", out, src, sizeof(ctype) * length)
+        self.cuda.exec("cuMemcpyDtoH", out, src, sizeof(ctype) * length)
         return [out[i] for i in range(length)]

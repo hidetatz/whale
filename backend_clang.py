@@ -3,23 +3,19 @@ import os
 import subprocess
 import tempfile
 
+import compiler
+import executor
+import langspec
 import dtype
+from kernel import Kernel
 
-class ClangC:
-    def __init__(self):
-        self.kerns = {}
-
-    @classmethod
-    def is_gpu(cls): return False
-
+class ClangLangSpec(langspec.HighLevelLangSpec):
     def typename(self, dt):
         if dt == dtype.int32: return "int32_t"
         elif dt == dtype.int64: return "int64_t"
         elif dt == dtype.float32: return "float"
         elif dt == dtype.float64: return "double"
         else: raise RuntimeError(f"unknown dtype: {dt}")
-
-    # lang settings
     def import_lib(self, lib): return f"#include <{lib}>"
     def default_library(self): return ["stdint.h", "math.h"]
     def indent_str(self): return "    "
@@ -61,20 +57,21 @@ class ClangC:
     def truediv(self, l, r): return f"{l} / {r}"
     def pow(self, l, r): return f"pow({l}, {r})"
 
-    # exec settings
-    def compile(self, name, code):
+class ClangCompiler(compiler.Compiler):
+    def compile(self, name: str, code: str):
         with tempfile.NamedTemporaryFile(suffix=".so", delete=False) as f: so = f.name
         subprocess.run(["clang", "-x", "c", "-", "-O2", "-shared", "-fPIC", "-fopenmp", "-o", so, "-lm"], input=code, check=True, text=True)
         kern = ctypes.CDLL(so)
         os.remove(so)  # loaded, ok to delete the file
-        self.kerns[name] = kern
+        kern_fn = getattr(kern, name)
+        return Kernel(kern_fn)
 
-    def execute(self, name, param_buffs):
-        ptr = self.kerns[name]
-        kern = getattr(ptr, name)
-        kern.argtypes = [ctypes.POINTER(buf.dtype.ctype()) for buf in param_buffs]
-        kern.restype = None  # void
-        params = [(buf.dtype.ctype() * len(buf.cpu.val))(*buf.cpu.val) for buf in param_buffs]
-        kern(*params)
-        param_buffs[0].cpu.val[:] = list(params[0])
+class ClangExecutor(executor.CPUExecutor):
+    def execute(self, kern: Kernel, params: list[buffer.Buffer]):
+        kern_fn = kern.bin
+        kern_fn.argtypes = [ctypes.POINTER(p.dtype.ctype()) for p in params]
+        kern_fn.restype = None  # void
+        c_params = [(buf.dtype.ctype() * len(buf.cpu.val))(*buf.cpu.val) for buf in params]
+        kern_fn(*c_params)
+        params[0].cpu.val[:] = list(c_params[0])
 

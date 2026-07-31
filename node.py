@@ -1,5 +1,5 @@
-from functools import reduce
 import operator
+from functools import reduce
 
 import backend
 from buffer import Buffer, CPUBuff, DevBuff

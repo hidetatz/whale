@@ -1,262 +1,102 @@
 import os
-from functools import reduce
+from abc import ABC, abstractmethod
 
 import buffer
-import dtype
 import exprir
 import sched
-import util
-from ops import Ops
-from buffer import DevBuff
-from backend_clang import ClangC
-from backend_cuda import CUDA
-from backend_python import Python
+from codegen import CodeGenerator, HighLevelLangCodeGenerator
+from executor import Executor, CPUExecutor, GPUExecutor
+from kernel import Kernel
+from backend_clang import ClangLangSpec, ClangCompiler, ClangExecutor
+from backend_cuda import CUDALangSpec, CUDACompiler, CUDAExecutor, CUDA
+from backend_python import PythonLangSpec, PythonCompiler, PythonExecutor
 
-class CodeGenerator:
-    def __init__(self, lang):
-        self.lang = lang
-        self.buff = []
+class Backend(ABC):
+    def __str__(self): return self.__class__.__name__
+    def __repr__(self): return self.__class__.__name__
 
-    def w(self, line): self.buff.append(line)
-    def render(self): return "\n".join(self.buff)
+    def __init__(self, codegenerator: CodeGenerator, compiler: Compiler, executor: Executor):
+        self.codegenerator = codegenerator
+        self.compiler = compiler
+        self.executor = executor
 
-    def codegen(self, func, schedule):
-        pass
+    def codegen(self, func, schedule, inputs): return self.codegenerator.codegen(func, schedule, inputs)
+    def compile(self, name: str, code: str): return self.compiler.compile(name, code)
 
-class CLikeCodeGenerator(CodeGenerator):
-    def __init__(self, lang):
-        self.indent_level = 0
-        self.tmpvar_idx = 0
-        super().__init__(lang)
+    @abstractmethod
+    def is_gpu(self): ...
 
-    def nest(self): self.indent_level += 1
-    def unnest(self): self.indent_level -= 1
-    def writeln(self, ln): self.buff.append(f"{self.lang.indent_str() * self.indent_level}{ln}")
-    def write(self, code):
-        if isinstance(code, str): self.writeln(code)
-        elif isinstance(code, list):
-            for l in code: self.writeln(l)
-        else: raise RuntimeError(f"cannot handle in codegen: {code}")
-    def tmpvar(self):
-        n = f"tmp{self.tmpvar_idx}"
-        self.tmpvar_idx += 1
-        return n
+    @abstractmethod
+    def invoke_kernel(self, kern: Kernel, params: list[buffer.Buffer]): pass
 
-    def arr_idx_calc_expr(self, shape, names):
-        if not shape: return "0"
-        return reduce(self.lang.add, [self.lang.mul(name, st) for name, st in zip(names, util.strides_from_shape(shape))])
+class CPUBackend(Backend):
+    def __init__(self, codegenerator: CodeGenerator, compiler: Compiler, executor: CPUExecutor):
+        super().__init__(codegenerator, compiler, executor)
 
-    def codegen(self, func, schedule):
-        l = self.lang
+    def invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]):
+        for i, p in enumerate(params):
+            if p.cpu is None:
+                p.cpu = buffer.CPUBuff([0] * p.length)
 
-        for lib in l.default_library(): self.write(l.import_lib(lib))
+        self.executor.execute(kern, params)
 
-        bufs, fncs = func.inputs()
-        kern_name = f"kern_{id(func)}"
-        args = {f"{self.argname(buf)}_{i}": buf for i, buf in enumerate(bufs)} | {f"{self.argname(fnc)}_{i}": fnc for i, fnc in enumerate(fncs)}
+class GPUBackend(Backend):
+    def __init__(self, codegenerator: CodeGenerator, compiler: Compiler, executor: GPUExecutor):
+        super().__init__(codegenerator, compiler, executor)
 
-        arg_names = ["out"] + list(args.keys())
-        arg_types = [func.out_dtype] + [expr.node.dtype if isinstance(expr, exprir.BufferExpr) else expr.func.out_dtype for expr in args.values()]
-        self.write(l.kern_start(kern_name, arg_names, arg_types))
-        self.nest()
+    def invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]):
+        e = self.executor
+        for i, p in enumerate(params):
+            if p.dev.ptr is None:
+                # memalloc
+                p.dev.ptr = e.memalloc(p.length, p.dtype.ctype())
 
-        loop_finish_fn = self.render_loop(schedule)
+            # memcpy
+            if i != 0 and p.cpu is not None: e.memcpy_htod(p.dev.ptr, p.cpu.val, p.length, p.dtype.ctype())
 
-        # extract original loop from split outer and inner
-        for sp in schedule.splits:
-            self.write(l.init(dtype.int64, sp.orig.name, l.add(l.mul(sp.o.name, sp.factor), sp.i.name)))
+        dim = {"x": 0, "y": 1, "z": 2}
+        grid = [1, 1, 1]
+        block = [1, 1, 1]
 
-        for sp in schedule.splits:
-            if sp.tail_guard_required:
-                self.write(l.guard(l.greater_than(sp.orig.extent, sp.orig.name)))
-
-        result = self.render_expr(func.expr, args, func.out_dtype)
-        idx = self.arr_idx_calc_expr(func.out_shape, [lv.name for lv in func.out_loops])
-        self.write(l.assign(l.index("out", idx), result))
-
-        loop_finish_fn()
-
-        self.unnest()
-        self.write(l.kern_end())
-
-        return kern_name, self.render()
-
-    def argname(self, arg):
-        match arg:
-            case exprir.BufferExpr(): return "buf"
-            case exprir.FuncExpr(): return "fnc"
-            case _: raise RuntimeError(f"unexpected arg type: {type(arg)}")
-
-    def render_loop(self, schedule):
-        loopcnt = 0
         for l in schedule.loops:
-            if l.kind != sched.LoopKind.Spatial: continue
-            looped = True
-            match l.exec:
-                case sched.Sequential():
-                    lp = self.lang.sequential_loop_start(l.lv.name, 0, l.lv.extent, 1)
-                case sched.Parallel():
-                    lp = self.lang.parallel_loop_start(l.lv.name, 0, l.lv.extent, 1)
-                case sched.Vectorize():
-                    lp = self.lang.vectorized_loop_start(l.lv.name, 0, l.lv.extent, 1)
-                case sched.Unroll():
-                    lp = self.lang.unrolled_loop_start(l.lv.name, 0, l.lv.extent, 1, l.exec.factor)
-                case sched.GPUBlock():
-                    lp = self.lang.gpu_block_index(l.lv.name, 0, l.lv.extent, 1, l.exec.index)
-                    looped = False
-                case sched.GPUThread():
-                    lp = self.lang.gpu_thread_index(l.lv.name, 0, l.lv.extent, 1, l.exec.index)
-                    looped = False
+            if isinstance(l.exec, sched.GPUBlock):
+                grid[dim[l.exec.index]] = l.lv.extent
+            elif isinstance(l.exec, sched.GPUThread):
+                block[dim[l.exec.index]] = l.lv.extent
 
-            self.write(lp)
+        e.execute(kern, params, tuple(grid), tuple(block))
 
-            if looped:
-                loopcnt += 1
-                self.nest()
+class PythonBackend(CPUBackend):
+    def __init__(self):
+        super().__init__(HighLevelLangCodeGenerator(PythonLangSpec()), PythonCompiler(), PythonExecutor())
+    def is_gpu(self): return False
 
-        def loop_finish():
-            for i in range(loopcnt):
-                self.unnest()
-                self.write(self.lang.loop_end())
+class ClangBackend(CPUBackend):
+    def __init__(self):
+        super().__init__(HighLevelLangCodeGenerator(ClangLangSpec()), ClangCompiler(), ClangExecutor())
+    def is_gpu(self): return False
 
-        return loop_finish
+class CUDABackend(GPUBackend):
+    def __init__(self):
+        c = CUDA()
+        super().__init__(HighLevelLangCodeGenerator(CUDALangSpec()), CUDACompiler(c), CUDAExecutor(c))
+    def is_gpu(self): return True
 
-    def render_expr(self, expr, args, dt):
-        match expr:
-            case exprir.UnaryExpr(): return self.render_unary(expr, args, dt)
-            case exprir.BinaryExpr(): return self.render_binary(expr, args, dt)
-            case exprir.ReduceExpr(): return self.render_reduce(expr, args, dt)
-            case exprir.BufferExpr(): return self.render_buffer(expr, args, dt)
-            case exprir.FuncExpr(): return self.render_func(expr, args, dt)
-            case _: raise RuntimeError(f"unexpected expr type: {type(expr)}")
-
-    def render_unary(self, expr, args, dt):
-        l = self.lang
-
-        if expr.op == Ops.Neg: f = l.neg
-        elif expr.op == Ops.Sin: f = l.sin
-        elif expr.op == Ops.Cos: f = l.cos
-        elif expr.op == Ops.Exp: f = l.exp
-        elif expr.op == Ops.Log: f = l.log
-        elif expr.op == Ops.Sqrt: f = l.sqrt
-        else: raise RuntimeError(f"unknown unary op: {expr.op}")
-
-        result = self.render_expr(expr.expr, args, dt)
-        tmpvar = self.tmpvar()
-        self.write(l.init(dt, tmpvar, f(result)))
-        return tmpvar
-
-    def render_binary(self, expr, args, dt):
-        l = self.lang
-
-        if expr.op == Ops.Add: f = l.add
-        elif expr.op == Ops.Sub: f = l.sub
-        elif expr.op == Ops.Mul: f = l.mul
-        elif expr.op == Ops.Truediv: f = l.truediv
-        elif expr.op == Ops.Pow: f = l.pow
-        else: raise RuntimeError(f"unknown binary op: {expr.op}")
-
-        left, right = self.render_expr(expr.l_expr, args, dt), self.render_expr(expr.r_expr, args, dt)
-        tmpvar = self.tmpvar()
-        self.write(l.init(dt, tmpvar, f(left, right)))
-        return tmpvar
-
-    def render_reduce(self, expr, args, dt):
-        l = self.lang
-
-        acc = "acc"
-        self.write(l.init(dt, acc, "0"))
-
-        for idx in expr.reduced:
-            self.write(l.sequential_loop_start(idx.name, 0, idx.extent, 1)) # for now reduce loop is not scheduled
-            self.nest()
-
-        result = self.render_expr(expr.expr, args, dt)
-
-        if expr.op == Ops.Sum: f = l.add
-        else: raise RuntimeError(f"unknown reduce op: {expr.op}")
-
-        self.write(l.assign(acc, f(acc, result)))
-
-        for idx in expr.reduced:
-            self.unnest()
-            self.write(l.loop_end())
-
-        return acc
-
-    def render_buffer(self, expr, args, dt):
-        # get buffer arg name from BufferExpr.node
-        buf = ""
-        for name, e in args.items():
-            if isinstance(e, exprir.BufferExpr) and e.node is expr.node:
-                buf = name
-                break
-        assert buf != "", "expected buffer is not found in args"
-        idx = self.arr_idx_calc_expr(expr.node.shape, [idx.loopvar.name if isinstance(idx, exprir.IndexExpr) else str(idx.val) for idx in expr.indices])
-        return self.lang.index(buf, idx)
-
-    def render_func(self, expr, args, dt):
-        fnc = ""
-        for name, e in args.items():
-            if isinstance(e, exprir.FuncExpr) and e.func is expr.func:
-                fnc = name
-                break
-        assert fnc != "", "expected func result is not found in args"
-        idx = self.arr_idx_calc_expr(expr.func.out_shape, [idx.loopvar.name if isinstance(idx, exprir.IndexExpr) else str(idx.val) for idx in expr.indices])
-        return self.lang.index(fnc, idx)
-
-def detect(_b):
-    match _b:
-        case "CLANG_C": return ClangC()
-        case "CUDA": return CUDA()
-        case "PYTHON": return Python()
+def detect(b):
+    match b:
+        case "CLANG": return ClangBackend()
+        case "CUDA": return CUDABackend()
+        case "PYTHON": return PythonBackend()
         case _: raise RuntimeError(f"unknown WHALE_BACKEND: {b}")
 
-b = detect(os.environ.get("WHALE_BACKEND", "PYTHON"))
-
-def set_backend(_b):
-    new_b = detect(_b)
-    global b
-    b = new_b
-
-def is_gpu(): return b.is_gpu()
+bcknd = detect(os.environ.get("WHALE_BACKEND", "PYTHON"))
 
 def to_cpu(buff):
-    return b.memcpy_dtoh(buff.dev.ptr, buff.length, buff.dtype.ctype())
+    return bcknd.executor.memcpy_dtoh(buff.dev.ptr, buff.length, buff.dtype.ctype())
 
 def free(ptr):
-    b.free(ptr)
+    bcknd.executor.free(ptr)
 
-def codegen_and_exec(funcs, scheds):
-    for func, schedule in zip(funcs, scheds):
-        codegenerator = CLikeCodeGenerator(b)
-        kern_name, code = codegenerator.codegen(func, schedule)
-        bufs, fncs = func.inputs()
-        params = [func.out_buffer] + [buf.node.buffer for buf in bufs] + [f.func.out_buffer for f in fncs]
-        b.compile(kern_name, code)
-
-        if b.is_gpu():
-            for i, p in enumerate(params):
-                if p.dev.ptr is None:
-                    # memalloc
-                    p.dev.ptr = b.memalloc(p.length, p.dtype.ctype())
-
-                # memcpy
-                if i != 0 and p.cpu is not None: b.memcpy_htod(p.dev.ptr, p.cpu.val, p.length, p.dtype.ctype())
-
-            dim = {"x": 0, "y": 1, "z": 2}
-            grid = [1, 1, 1]
-            block = [1, 1, 1]
-
-            for l in schedule.loops:
-                if isinstance(l.exec, sched.GPUBlock):
-                    grid[dim[l.exec.index]] = l.lv.extent
-                elif isinstance(l.exec, sched.GPUThread):
-                    block[dim[l.exec.index]] = l.lv.extent
-            b.execute(kern_name, params, tuple(grid), tuple(block))
-        else:
-            for i, p in enumerate(params):
-                if p.cpu is None:
-                    p.cpu = buffer.CPUBuff([0] * p.length)
-
-            b.execute(kern_name, params)
+def reset(b):
+    global bcknd
+    bcknd = detect(b)

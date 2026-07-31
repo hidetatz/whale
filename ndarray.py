@@ -1,12 +1,13 @@
 import math
 import weakref
 
-from buffer import CPUBuff
 import backend
 import exprir
+import materialize
 import node
 import sched
 import util
+from buffer import CPUBuff
 from ops import Ops
 from dtype import int32, int64, float32, float64
 
@@ -176,9 +177,7 @@ class ndarray:
                 x.grad = gx if x.grad is None else x.grad + gx
 
     def materialize(self):
-        funcs = exprir.convert(self)
-        scheds = sched.schedule(funcs, backend.is_gpu())
-        backend.codegen_and_exec(funcs, scheds)
+        materialize.materialize(self)
 
     def tolist(self):
         if self.buffer.cpu is None:

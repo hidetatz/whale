@@ -7,12 +7,12 @@ import ndarray
 
 class Test(unittest.TestCase):
     def test_backends(self):
-        backends = ["PYTHON", "CLANG_C", "CUDA"]
+        backends = ["PYTHON", "CLANG", "CUDA"]
         if os.environ.get("TEST_SHORT", "0") == "1": backends = ["PYTHON"]
 
         for b in backends:
             with self.subTest(b=b):
-                backend.set_backend(b)
+                backend.reset(b)
 
                 #
                 # construction

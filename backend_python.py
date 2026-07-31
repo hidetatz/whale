@@ -1,11 +1,9 @@
-class Python:
-    def __init__(self):
-        self.kerns = {}
+import compiler
+import executor
+import langspec
+from kernel import Kernel
 
-    @classmethod
-    def is_gpu(cls): return False
-
-    # lang settings
+class PythonLangSpec(langspec.HighLevelLangSpec):
     def import_lib(self, lib): return f"import {lib}"
     def default_library(self): return ["math"]
     def indent_str(self): return "    "
@@ -36,7 +34,12 @@ class Python:
     def truediv(self, l, r): return f"{l} / {r}"
     def pow(self, l, r): return f"pow({l}, {r})"
 
-    # exec settings
-    def compile(self, name, code): exec(code, self.kerns)
-    def execute(self, name, param_buffs):
-        self.kerns[name](*[buff.cpu.val for buff in param_buffs])
+class PythonCompiler(compiler.Compiler):
+    def compile(self, name: str, code: str):
+        ns = {}
+        exec(code, ns)
+        return Kernel(ns[name])
+
+class PythonExecutor(executor.CPUExecutor):
+    def execute(self, kern: Kernel, params: list[buffer.Buffer]):
+        kern.bin(*[p.cpu.val for p in params])

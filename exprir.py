@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from node import Node
 
 from buffer import Buffer
 from dtype import DType, int64
@@ -55,7 +54,7 @@ class FuncExpr:
 
 @dataclass(eq=False)
 class BufferExpr:
-    node: Node
+    node: 'node.Node'
     indices: list[Expr]
     def inputs(self): return []
 
