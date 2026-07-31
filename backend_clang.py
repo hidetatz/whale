@@ -44,6 +44,8 @@ class ClangC:
     def gpu_block_index(self, index, start, end, step, idx): raise RuntimeError("clang backend cannot handle gpu blocks!")
     def gpu_thread_index(self, index, start, end, step, idx): raise RuntimeError("clang backend cannot handle gpu blocks!")
     def loop_end(self): return "}"
+    def guard(self, cond): return [f"if ({cond}) {{", "return;", "}"]
+    def greater_than(self, l, r): return f"{l} <= {r}"
     def index(self, a, idx): return f"{a}[{idx}]"
     def init(self, dt, l, r): return f"{self.typename(dt)} {l} = {r};"
     def assign(self, l, r): return f"{l} = {r};"

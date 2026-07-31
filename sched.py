@@ -22,6 +22,7 @@ class SplitLoop:
     i: LoopVar
     # split factor: inner loop runs from zero to the factor.
     factor: int
+    tail_guard_required: bool
 
 @dataclass
 class Sequential: pass
@@ -68,14 +69,14 @@ class SchedulerFunc:
         self.splits = []
 
     def split(self, lv, outer, inner, factor):
-        assert lv.extent % factor == 0, "invalid split factor" # TailStrategy is not implemented yet
-        outer.extent = int(lv.extent / factor)
+        outer.extent = math.ceil(lv.extent / factor)
         outer.name = f"{lv.name}__o"
 
         inner.extent = factor
         inner.name = f"{lv.name}__i"
 
-        self.splits.append(SplitLoop(lv, outer, inner, factor))
+        tail_guard_required = lv.extent % factor != 0
+        self.splits.append(SplitLoop(lv, outer, inner, factor, tail_guard_required))
         idx = self._index(lv)
         kind = self.loops[idx].kind
         self.loops[idx:idx+1] = [LoopSched(outer, kind, Sequential()), LoopSched(inner, kind, Sequential())]
@@ -109,9 +110,17 @@ class SchedulerFunc:
         self._find(lv).exec = GPUBlock(index)
         return self
 
+    def gpu_blocks_x(self, lv): return self.gpu_blocks(lv, "x")
+    def gpu_blocks_y(self, lv): return self.gpu_blocks(lv, "y")
+    def gpu_blocks_z(self, lv): return self.gpu_blocks(lv, "z")
+
     def gpu_threads(self, lv, index):
         self._find(lv).exec = GPUThread(index)
         return self
+
+    def gpu_threads_x(self, lv): return self.gpu_threads(lv, "x")
+    def gpu_threads_y(self, lv): return self.gpu_threads(lv, "y")
+    def gpu_threads_z(self, lv): return self.gpu_threads(lv, "z")
 
     def schedule(self): return Schedule(self.loops, self.splits)
 
@@ -131,10 +140,10 @@ class AutoScheduler:
     def schedule_cpu(sf):
         spatials = sf.spatial_loops()
 
-        # baseline implementation
         # The outermost spatial loop: parallelize
-        # The innermost spatial loop: vectorize
         if spatials: sf.parallel(spatials[0])
+
+        # The innermost spatial loop: vectorize
         if 1 < len(spatials): sf.vectorize(spatials[-1])
 
     @staticmethod
@@ -142,18 +151,27 @@ class AutoScheduler:
         spatials = sf.spatial_loops()
         if not spatials: return
 
-        # baseline implementation
-        # The outermost spatial loop: block parallel
-        # The 2nd outermost spatial loop: thread parallel
-        if 1 < len(spatials):
-            sf.gpu_blocks(spatials[0], "x").gpu_threads(spatials[1], "x")
-            return
+        block_size = 256
 
-        # If there's only one spatial loop, tile it into two and apply block/thread
-        io = LoopVar()
-        ii = LoopVar()
-        sf.split(spatials[0], io, ii, int(spatials[0].extent / 2))
-        sf.gpu_blocks(io, "x").gpu_threads(ii, "x")
+        n = len(spatials)
+
+        io, ii = LoopVar(), LoopVar()
+
+        if n == 1:
+            sf.split(spatials[0], io, ii, block_size)
+            sf.gpu_blocks_x(io).gpu_threads_x(ii)
+
+        elif n == 2:
+            sf.split(spatials[1], io, ii, block_size)
+            sf.gpu_blocks_x(spatials[0]).gpu_blocks_y(io).gpu_threads_x(ii)
+
+        elif n == 3:
+            sf.split(spatials[2], io, ii, block_size)
+            sf.gpu_blocks_x(spatials[0]).gpu_blocks_y(spatials[1]).gpu_blocks_z(io).gpu_threads_x(ii)
+
+        else:
+            sf.split(spatials[-1], io, ii, block_size)
+            sf.gpu_blocks_x(io).gpu_threads_x(ii)
 
 def schedule(funcs, gpu, scheduler=AutoScheduler):
     scheds = []

@@ -66,6 +66,10 @@ class CLikeCodeGenerator(CodeGenerator):
         for sp in schedule.splits:
             self.write(l.init(dtype.int64, sp.orig.name, l.add(l.mul(sp.o.name, sp.factor), sp.i.name)))
 
+        for sp in schedule.splits:
+            if sp.tail_guard_required:
+                self.write(l.guard(l.greater_than(sp.orig.extent, sp.orig.name)))
+
         result = self.render_expr(func.expr, args, func.out_dtype)
         idx = self.arr_idx_calc_expr(func.out_shape, [lv.name for lv in func.out_loops])
         self.write(l.assign(l.index("out", idx), result))
