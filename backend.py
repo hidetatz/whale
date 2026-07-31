@@ -24,9 +24,6 @@ class Backend(ABC):
     def compile(self, name: str, code: str): return self.compiler.compile(name, code)
 
     @abstractmethod
-    def is_gpu(self): ...
-
-    @abstractmethod
     def invoke_kernel(self, kern: Kernel, params: list[buffer.Buffer]): pass
 
 class CPUBackend(Backend):
@@ -69,18 +66,15 @@ class GPUBackend(Backend):
 class PythonBackend(CPUBackend):
     def __init__(self):
         super().__init__(HighLevelLangCodeGenerator(PythonLangSpec()), PythonCompiler(), PythonExecutor())
-    def is_gpu(self): return False
 
 class ClangBackend(CPUBackend):
     def __init__(self):
         super().__init__(HighLevelLangCodeGenerator(ClangLangSpec()), ClangCompiler(), ClangExecutor())
-    def is_gpu(self): return False
 
 class CUDABackend(GPUBackend):
     def __init__(self):
         c = CUDA()
         super().__init__(HighLevelLangCodeGenerator(CUDALangSpec()), CUDACompiler(c), CUDAExecutor(c))
-    def is_gpu(self): return True
 
 def detect(b):
     match b:

@@ -22,7 +22,7 @@ class Materializer:
 
         # if DEBUG: debug.debug_funcs(funcs)
 
-        scheds = sched.schedule(funcs, backend.bcknd.is_gpu())
+        scheds = sched.schedule(funcs, isinstance(backend.bcknd, backend.GPUBackend))
 
         # if DEBUG: debug.debug_scheds(scheds)
 
