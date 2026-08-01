@@ -1,11 +1,11 @@
 import math
 import weakref
+from typing import override
 
 import backend
-import exprir
+import debug
 import materialize
 import node
-import sched
 import util
 from buffer import CPUBuff
 from ops import Ops
@@ -96,7 +96,7 @@ class Func:
         perm = sorted(range(len(self.attrs["axes"])), key=self.attrs["axes"].__getitem__)
         return grad.transpose(*perm)
 
-class ndarray:
+class ndarray(debug.DebuggableTree):
     def __init__(self, val, dtype, shape, strides, offset, ctx):
         self.node = node.Node(val, dtype, shape, strides, offset, ctx)
         self.grad = None
@@ -205,21 +205,13 @@ class ndarray:
 
     def sum(self, axis=None, keepdims=False): return self.__reduce(Ops.Sum, axis, keepdims)
 
-    def debug_oneline(self):
-        return f"ndarray({self.ctx.op.name if self.ctx else 'Input'} {self.shape}_{self.strides}_{self.offset} cpubuff:{'o' if self.node.buffer.cpu else 'x'} devbuff:{'o' if self.node.buffer.dev else 'x'})"
+    @override
+    def label(self):
+        return f"{self.ctx.op.name if self.ctx else "Input"} {self.shape} {self.strides} {self.offset} {self.dtype} cpu:{self.buffer.cpu} dev:{self.buffer.dev}"
 
-    def debug(self):
-        def f(depth, arr):
-            indent = "  " * depth
-            trail_comma = "," if depth != 0 else ""
-
-            if not arr.ctx or not arr.ctx.inputs:
-                return f"{indent}{arr.debug_oneline()}{trail_comma}"
-
-            inputs = "[\n" + "\n".join([f(depth + 1, i) for i in arr.ctx.inputs]) + f"\n{indent}]"
-            return f"{indent}{arr.debug_oneline().rstrip(')')} inputs: {inputs}{trail_comma}"
-
-        return f(0, self)
+    @override
+    def children(self):
+        return list(self.ctx.inputs) if self.ctx and self.ctx.inputs else []
 
 #
 # factories

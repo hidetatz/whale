@@ -1,5 +1,7 @@
 from dataclasses import dataclass
+from typing import override
 
+import debug
 from buffer import Buffer
 from dtype import DType, int64
 from ops import Ops
@@ -17,51 +19,79 @@ class LoopVar:
 #
 
 @dataclass(eq=False)
-class IndexExpr:
+class IndexExpr(debug.DebuggableTree):
     loopvar: LoopVar
     def inputs(self): return []
+    @override
+    def label(self): return f"IndexExpr: {self.loopvar}"
+    @override
+    def children(self): return self.inputs()
 
 @dataclass(eq=False)
-class ConstExpr:
+class ConstExpr(debug.DebuggableTree):
     val: int
     def inputs(self): return []
+    @override
+    def label(self): f"ConstExpr: {self.val}"
+    @override
+    def children(self): return self.inputs()
 
 @dataclass(eq=False)
-class BinaryExpr:
+class BinaryExpr(debug.DebuggableTree):
     op: Ops
     l_expr: Expr
     r_expr: Expr
     def inputs(self): return [self.l_expr, self.r_expr]
+    @override
+    def label(self): return f"BinaryExpr: {self.op}"
+    @override
+    def children(self): return self.inputs()
 
 @dataclass(eq=False)
-class UnaryExpr:
+class UnaryExpr(debug.DebuggableTree):
     op: Ops
     expr: Expr
     def inputs(self): return [self.expr]
+    @override
+    def label(self): return f"UnaryExpr: {self.op}"
+    @override
+    def children(self): return self.inputs()
 
 @dataclass(eq=False)
-class ReduceExpr:
+class ReduceExpr(debug.DebuggableTree):
     op: Ops
     expr: Expr
     reduced: list[LoopVar]
     def inputs(self): return [self.expr]
+    @override
+    def label(self): return f"ReduceExpr: {self.op}, reduceidx={self.reduced}"
+    @override
+    def children(self): return self.inputs()
 
 @dataclass(eq=False)
-class FuncExpr:
+class FuncExpr(debug.DebuggableTree):
     func: Func
     indices: list[Expr]
     def inputs(self): return [self.func]
+    @override
+    def label(self): return f"FuncExpr: idx={self.indices}"
+    @override
+    def children(self): return self.inputs()
 
 @dataclass(eq=False)
-class BufferExpr:
+class BufferExpr(debug.DebuggableTree):
     node: 'node.Node'
     indices: list[Expr]
     def inputs(self): return []
+    @override
+    def label(self): return f"BufferExpr: cpu={self.node.buffer.cpu} dev={self.node.buffer.dev}"
+    @override
+    def children(self): return self.inputs()
 
 Expr = IndexExpr | ConstExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
 
 @dataclass(eq=False)
-class Func:
+class Func(debug.DebuggableTree):
     out_loops: list[LoopVar]  # loop index to form this func result
     out_shape: list[int] # shape of this func result
     out_dtype: DType
@@ -107,6 +137,11 @@ class Func:
             elif isinstance(e, ReduceExpr): walk(e.expr)
         walk(self.expr)
         return bufs, fncs
+
+    @override
+    def label(self): return f"Func: {self.out_loops} {self.out_dtype}"
+    @override
+    def children(self): return [self.expr]
 
 def convert(arr):
     def loopvar_name(i, prefix=""):

@@ -8,7 +8,7 @@ class CPUBuff:
     def __repr__(self):
         if not self.val: return "None"
         if len(self.val) < 4: return f"{self.val} ({len(self.val)} items)"
-        return f"[{self.val[0]}, {self.val[1]}, ... {self.val[-1]}] ({len(self.val)} items)"
+        return f"[{self.val[0]}, {self.val[1]}, ... {self.val[-1]}] (len={len(self.val)})"
 
 class DevBuff:
     def __init__(self, ptr=None):

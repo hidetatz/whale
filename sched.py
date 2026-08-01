@@ -1,7 +1,9 @@
 import math
 from dataclasses import dataclass, field
 from enum import IntEnum, auto
-from typing import Literal
+from typing import Literal, override
+
+from debug import DebuggableTree
 
 class LoopKind(IntEnum):
     Spatial = auto()
@@ -15,14 +17,22 @@ class LoopVar:
     extent: int = 0
     name: str = ""
 
+    def __repr__(self):
+        return f"{self.name}:{self.extent}"
+
 @dataclass
-class SplitLoop:
+class SplitLoop(DebuggableTree):
     orig: LoopVar
     o: LoopVar
     i: LoopVar
     # split factor: inner loop runs from zero to the factor.
     factor: int
     tail_guard_required: bool
+
+    @override
+    def label(self): return f"SplitLoop: {self.orig} -> {self.o}, {self.i}"
+    @override
+    def children(self): return []
 
 @dataclass
 class Sequential: pass
@@ -48,18 +58,28 @@ class GPUThread:
 type LoopExec = Sequential | Parallel | Vectorize | Unroll | GPUBlock | GPUThread
 
 @dataclass
-class LoopSched:
+class LoopSched(DebuggableTree):
     lv: LoopVar
     kind: LoopKind
     exec: LoopExec
 
+    @override
+    def label(self): return self.__repr__()
+    @override
+    def children(self): return []
+
     def __repr__(self):
-        return f"{self.lv.name}:{self.kind}({self.lv.extent})"
+        return f"{self.lv} ({self.kind})"
 
 @dataclass
-class Schedule:
+class Schedule(DebuggableTree):
     loops: list[LoopSched]
     splits: list[SplitLoop]
+
+    @override
+    def label(self): return "Schedule"
+    @override
+    def children(self): return self.loops + self.splits
 
 class SchedulerFunc:
     def __init__(self, efunc):
