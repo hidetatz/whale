@@ -30,9 +30,9 @@ class SplitLoop(DebuggableTree):
     tail_guard_required: bool
 
     @override
-    def label(self): return f"SplitLoop: {self.orig} -> {self.o}, {self.i}"
+    def debug_str(self): return f"SplitLoop: {self.orig} -> {self.o}, {self.i}"
     @override
-    def children(self): return []
+    def debug_children(self): return []
 
 @dataclass
 class Sequential: pass
@@ -64,9 +64,9 @@ class LoopSched(DebuggableTree):
     exec: LoopExec
 
     @override
-    def label(self): return self.__repr__()
+    def debug_str(self): return self.__repr__()
     @override
-    def children(self): return []
+    def debug_children(self): return []
 
     def __repr__(self):
         return f"{self.lv} ({self.kind})"
@@ -77,9 +77,9 @@ class Schedule(DebuggableTree):
     splits: list[SplitLoop]
 
     @override
-    def label(self): return "Schedule"
+    def debug_str(self): return "Schedule"
     @override
-    def children(self): return self.loops + self.splits
+    def debug_children(self): return self.loops + self.splits
 
 class SchedulerFunc:
     def __init__(self, efunc):

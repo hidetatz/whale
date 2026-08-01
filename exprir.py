@@ -23,18 +23,18 @@ class IndexExpr(debug.DebuggableTree):
     loopvar: LoopVar
     def inputs(self): return []
     @override
-    def label(self): return f"IndexExpr: {self.loopvar}"
+    def debug_str(self): return f"IndexExpr: {self.loopvar}"
     @override
-    def children(self): return self.inputs()
+    def debug_children(self): return self.inputs()
 
 @dataclass(eq=False)
 class ConstExpr(debug.DebuggableTree):
     val: int
     def inputs(self): return []
     @override
-    def label(self): f"ConstExpr: {self.val}"
+    def debug_str(self): f"ConstExpr: {self.val}"
     @override
-    def children(self): return self.inputs()
+    def debug_children(self): return self.inputs()
 
 @dataclass(eq=False)
 class BinaryExpr(debug.DebuggableTree):
@@ -43,9 +43,9 @@ class BinaryExpr(debug.DebuggableTree):
     r_expr: Expr
     def inputs(self): return [self.l_expr, self.r_expr]
     @override
-    def label(self): return f"BinaryExpr: {self.op}"
+    def debug_str(self): return f"BinaryExpr: {self.op}"
     @override
-    def children(self): return self.inputs()
+    def debug_children(self): return self.inputs()
 
 @dataclass(eq=False)
 class UnaryExpr(debug.DebuggableTree):
@@ -53,9 +53,9 @@ class UnaryExpr(debug.DebuggableTree):
     expr: Expr
     def inputs(self): return [self.expr]
     @override
-    def label(self): return f"UnaryExpr: {self.op}"
+    def debug_str(self): return f"UnaryExpr: {self.op}"
     @override
-    def children(self): return self.inputs()
+    def debug_children(self): return self.inputs()
 
 @dataclass(eq=False)
 class ReduceExpr(debug.DebuggableTree):
@@ -64,9 +64,9 @@ class ReduceExpr(debug.DebuggableTree):
     reduced: list[LoopVar]
     def inputs(self): return [self.expr]
     @override
-    def label(self): return f"ReduceExpr: {self.op}, reduceidx={self.reduced}"
+    def debug_str(self): return f"ReduceExpr: {self.op}, reduceidx={self.reduced}"
     @override
-    def children(self): return self.inputs()
+    def debug_children(self): return self.inputs()
 
 @dataclass(eq=False)
 class FuncExpr(debug.DebuggableTree):
@@ -74,9 +74,9 @@ class FuncExpr(debug.DebuggableTree):
     indices: list[Expr]
     def inputs(self): return [self.func]
     @override
-    def label(self): return f"FuncExpr: idx={self.indices}"
+    def debug_str(self): return f"FuncExpr: idx={self.indices}"
     @override
-    def children(self): return self.inputs()
+    def debug_children(self): return self.inputs()
 
 @dataclass(eq=False)
 class BufferExpr(debug.DebuggableTree):
@@ -84,9 +84,9 @@ class BufferExpr(debug.DebuggableTree):
     indices: list[Expr]
     def inputs(self): return []
     @override
-    def label(self): return f"BufferExpr: cpu={self.node.buffer.cpu} dev={self.node.buffer.dev}"
+    def debug_str(self): return f"BufferExpr: cpu={self.node.buffer.cpu} dev={self.node.buffer.dev}"
     @override
-    def children(self): return self.inputs()
+    def debug_children(self): return self.inputs()
 
 Expr = IndexExpr | ConstExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
 
@@ -139,9 +139,9 @@ class Func(debug.DebuggableTree):
         return bufs, fncs
 
     @override
-    def label(self): return f"Func: {self.out_loops} {self.out_dtype}"
+    def debug_str(self): return f"Func: {self.out_loops} {self.out_dtype}"
     @override
-    def children(self): return [self.expr]
+    def debug_children(self): return [self.expr]
 
 def convert(arr):
     def loopvar_name(i, prefix=""):
