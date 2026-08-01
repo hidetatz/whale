@@ -10,19 +10,8 @@ import langspec
 import dtype
 from kernel import Kernel
 
-class CUDALangSpec(langspec.HighLevelLangSpec):
-    def typename(self, dt):
-        if dt == dtype.int32: return "int32_t"
-        elif dt == dtype.int64: return "int64_t"
-        elif dt == dtype.float32: return "float"
-        elif dt == dtype.float64: return "double"
-        else: raise RuntimeError(f"unknown dtype: {dt}")
-    def import_lib(self, lib): return f"#include <{lib}>"
-    def default_library(self): return ["stdint.h", "math.h"]
-    def indent_str(self): return "    "
+class CUDALangSpec(langspec.CCompatibleLangSpec):
     def kern_start(self, name, arg_names, arg_types): return f"extern \"C\" __global__ void {name}({", ".join([f'{self.typename(tp)}* {nm}' for nm, tp in zip(arg_names, arg_types)])}) {{"
-    def kern_end(self): return "}"
-    def sequential_loop_start(self, index, start, end, step): return f"for (int {index} = {start}; {index} < {end}; {index} += {step}) {{"
     def parallel_loop_start(self, index, start, end, step): raise RuntimeError("cuda backend cannot handle parallel loop: use gpu_blocks/threads instead!")
     def vectorized_loop_start(self, index, start, end, step): raise RuntimeError("cuda backend cannot handle vectorized loop: use gpu_blocks/threads instead!")
     def unrolled_loop_start(self, index, start, end, step, factor):
@@ -32,25 +21,6 @@ class CUDALangSpec(langspec.HighLevelLangSpec):
         ]
     def gpu_block_index(self, index, start, end, step, idx): return self.init(dtype.int64, index, f"blockIdx.{idx}")
     def gpu_thread_index(self, index, start, end, step, idx): return self.init(dtype.int64, index, f"threadIdx.{idx}")
-    def loop_end(self): return "}"
-    def if_start(self, cond): return f"if ({cond}) {{"
-    def if_end(self): return "}"
-    def return_function(self): return "return;"
-    def greater_than(self, l, r): return f"{l} <= {r}"
-    def index(self, a, idx): return f"{a}[{idx}]"
-    def init(self, dt, l, r): return f"{self.typename(dt)} {l} = {r};"
-    def assign(self, l, r): return f"{l} = {r};"
-    def neg(self, a): return f"-({a})"
-    def sin(self, a): return f"sin({a})"
-    def cos(self, a): return f"cos({a})"
-    def exp(self, a): return f"exp({a})"
-    def log(self, a): return f"log({a})"
-    def sqrt(self, a): return f"sqrt({a})"
-    def add(self, l, r): return f"{l} + {r}"
-    def sub(self, l, r): return f"{l} - {r}"
-    def mul(self, l, r): return f"{l} * {r}"
-    def truediv(self, l, r): return f"{l} / {r}"
-    def pow(self, l, r): return f"pow({l}, {r})"
 
 class CUDA:
     def __init__(self):
