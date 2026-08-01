@@ -62,7 +62,11 @@ class HighLevelLangCodeGenerator(CodeGenerator):
 
         for sp in schedule.splits:
             if sp.tail_guard_required:
-                self.write(l.guard(l.greater_than(sp.orig.extent, sp.orig.name)))
+                self.write(l.if_start(l.greater_than(sp.orig.extent, sp.orig.name)))
+                self.nest()
+                self.write(l.return_function())
+                self.unnest()
+                self.write(l.if_end())
 
         result = self.render_expr(func.expr, args, func.out_dtype)
         idx = self.arr_idx_calc_expr(func.out_shape, [lv.name for lv in func.out_loops])

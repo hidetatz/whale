@@ -33,7 +33,9 @@ class CUDALangSpec(langspec.HighLevelLangSpec):
     def gpu_block_index(self, index, start, end, step, idx): return self.init(dtype.int64, index, f"blockIdx.{idx}")
     def gpu_thread_index(self, index, start, end, step, idx): return self.init(dtype.int64, index, f"threadIdx.{idx}")
     def loop_end(self): return "}"
-    def guard(self, cond): return [f"if ({cond}) {{", "return;", "}"]
+    def if_start(self, cond): return f"if ({cond}) {{"
+    def if_end(self): return "}"
+    def return_function(self): return "return;"
     def greater_than(self, l, r): return f"{l} <= {r}"
     def index(self, a, idx): return f"{a}[{idx}]"
     def init(self, dt, l, r): return f"{self.typename(dt)} {l} = {r};"
