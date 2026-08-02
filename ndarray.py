@@ -205,13 +205,14 @@ class ndarray(debug.DebuggableTree):
 
     def sum(self, axis=None, keepdims=False): return self.__reduce(Ops.Sum, axis, keepdims)
 
-    @override
-    def debug_str(self):
-        return f"{self.ctx.op.name if self.ctx else "Input"} {self.shape} {self.strides} {self.offset} {self.dtype} cpu:{self.buffer.cpu} dev:{self.buffer.dev}"
+    def __repr__(self): return f"<ndarray {str(self)}>"
+
+    # todo: consider materialize
+    def __str__(self):
+        return f"{self.ctx.op.name if self.ctx else "Input"} shape={self.shape} strides={self.strides} offset={self.offset} dtype={self.dtype} cpu={self.buffer.cpu} dev={self.buffer.dev}"
 
     @override
-    def debug_children(self):
-        return list(self.ctx.inputs) if self.ctx and self.ctx.inputs else []
+    def debug_children(self): return list(self.ctx.inputs) if self.ctx and self.ctx.inputs else []
 
 #
 # factories

@@ -5,98 +5,111 @@ import debug
 from buffer import Buffer
 from dtype import DType, int64
 from ops import Ops
+from util import strjoin
 
-@dataclass
-class LoopVar:
-    extent: int
-    name: str = "" # for debug
-    def __hash__(self): return id(self)
-    def __eq__(self, other): return self is other
-    def __repr__(self): return f"{self.name}({self.extent})" if self.name else f"LoopVar{self.extent}"
+class LoopIndex:
+    def __init__(self, name: str, extent: int):
+        self.name = name
+        self.extent = extent
+
+    def __str__(self): return f"{self.name}:{self.extent}"
 
 #
 # Expressions
 #
 
-@dataclass(eq=False)
 class IndexExpr(debug.DebuggableTree):
-    loopvar: LoopVar
+    def __init__(self, idx: LoopIndex):
+        self.loopvar = idx
+
     def inputs(self): return []
-    @override
-    def debug_str(self): return f"IndexExpr: {self.loopvar}"
+
+    def __str__(self): return f"IndexExpr({self.loopvar})"
+
     @override
     def debug_children(self): return self.inputs()
 
-@dataclass(eq=False)
 class ConstExpr(debug.DebuggableTree):
-    val: int
+    def __init__(self, val: int):
+        self.val = val
+
     def inputs(self): return []
-    @override
-    def debug_str(self): f"ConstExpr: {self.val}"
+
+    def __str__(self): return f"ConstExpr({self.val})"
     @override
     def debug_children(self): return self.inputs()
 
-@dataclass(eq=False)
 class BinaryExpr(debug.DebuggableTree):
-    op: Ops
-    l_expr: Expr
-    r_expr: Expr
+    def __init__(self, op: Ops, l: Expr, r: Expr):
+        self.op = op
+        self.l_expr = l
+        self.r_expr = r
+
     def inputs(self): return [self.l_expr, self.r_expr]
-    @override
-    def debug_str(self): return f"BinaryExpr: {self.op}"
+
+    def __str__(self): return f"BinaryExpr({self.op})"
+
     @override
     def debug_children(self): return self.inputs()
 
-@dataclass(eq=False)
 class UnaryExpr(debug.DebuggableTree):
-    op: Ops
-    expr: Expr
+    def __init__(self, op: Ops, expr: Expr):
+        self.op = op
+        self.expr = expr
+
     def inputs(self): return [self.expr]
-    @override
-    def debug_str(self): return f"UnaryExpr: {self.op}"
+
+    def __str__(self): return f"UnaryExpr({self.op})"
+
     @override
     def debug_children(self): return self.inputs()
 
-@dataclass(eq=False)
 class ReduceExpr(debug.DebuggableTree):
-    op: Ops
-    expr: Expr
-    reduced: list[LoopVar]
+    def __init__(self, op: Ops, expr: Expr, reduced: list[LoopIndex]):
+        self.op = op
+        self.expr = expr
+        self.reduced = reduced
+
     def inputs(self): return [self.expr]
-    @override
-    def debug_str(self): return f"ReduceExpr: {self.op}, reduceidx={self.reduced}"
+
+    def __str__(self): return f"ReduceExpr({self.op} reduced={strjoin(', ', self.reduced)})"
+
     @override
     def debug_children(self): return self.inputs()
 
-@dataclass(eq=False)
 class FuncExpr(debug.DebuggableTree):
-    func: Func
-    indices: list[Expr]
+    def __init__(self, func: Func, indices: list[Expr]):
+        self.func = func
+        self.indices = indices
+
     def inputs(self): return [self.func]
-    @override
-    def debug_str(self): return f"FuncExpr: idx={self.indices}"
+
+    def __str__(self): return f"FuncExpr(indices=[{strjoin(', ', self.indices)}])"
+
     @override
     def debug_children(self): return self.inputs()
 
-@dataclass(eq=False)
 class BufferExpr(debug.DebuggableTree):
-    node: 'node.Node'
-    indices: list[Expr]
+    def __init__(self, node: 'node.Node', indices: list[Expr]):
+        self.node = node
+        self.indices = indices
+
     def inputs(self): return []
-    @override
-    def debug_str(self): return f"BufferExpr: cpu={self.node.buffer.cpu} dev={self.node.buffer.dev}"
+
+    def __str__(self): return f"BufferExpr(indices=[{strjoin(', ', self.indices)}], cpu={self.node.buffer.cpu}, dev={self.node.buffer.dev})"
+
     @override
     def debug_children(self): return self.inputs()
 
 Expr = IndexExpr | ConstExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
 
-@dataclass(eq=False)
 class Func(debug.DebuggableTree):
-    out_loops: list[LoopVar]  # loop index to form this func result
-    out_shape: list[int] # shape of this func result
-    out_dtype: DType
-    expr: Expr
-    out_buffer: Buffer
+    def __init__(self, out_loops: list[LoopIndex], out_shape: list[int], out_dtype: DType, expr: Expr, out_buffer: Buffer):
+        self.out_loops = out_loops
+        self.out_shape = out_shape
+        self.out_dtype = out_dtype
+        self.expr = expr
+        self.out_buffer = out_buffer
 
     def dependent_funcs(self):
         deps = []
@@ -138,8 +151,8 @@ class Func(debug.DebuggableTree):
         walk(self.expr)
         return bufs, fncs
 
-    @override
-    def debug_str(self): return f"Func: {self.out_loops} {self.out_dtype}"
+    def __str__(self): return f"Func(out_loops=[{strjoin(', ', self.out_loops)}] {self.out_dtype}"
+
     @override
     def debug_children(self): return [self.expr]
 
@@ -156,7 +169,7 @@ def convert(arr):
         if a in memo: return memo[a]
 
         # make out_loops from array shape.
-        out_loops = [LoopVar(s, loopvar_name(i)) for i, s in enumerate(a.shape)]
+        out_loops = [LoopIndex(loopvar_name(i), s) for i, s in enumerate(a.shape)]
 
         # convert array inputs into func recursively
         inputs = [arr_to_func(inp, memo) for inp in a.ctx.inputs]
@@ -189,8 +202,8 @@ def convert(arr):
         elif a.ctx.op.is_binary():
             e = BinaryExpr(
                 op=a.ctx.op,
-                l_expr=FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops]),
-                r_expr=FuncExpr(func=inputs[1], indices=[IndexExpr(l) for l in out_loops]),
+                l=FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops]),
+                r=FuncExpr(func=inputs[1], indices=[IndexExpr(l) for l in out_loops]),
             )
 
         elif a.ctx.op.is_unary():
@@ -202,8 +215,8 @@ def convert(arr):
         elif a.ctx.op.is_reduce():
             axis = a.ctx.attrs["axis"]
             keepdims = a.ctx.attrs["keepdims"]
-            # create LoopVars for reduced axis {axis: LoopVar(size for the axis)}
-            reduced = {ax: LoopVar(a.ctx.inputs[0].shape[ax], loopvar_name(i, prefix="r")) for i, ax in enumerate(sorted(axis))}
+            # create LoopIndices for reduced axis {axis: LoopIndex(size for the axis)}
+            reduced = {ax: LoopIndex(loopvar_name(i, prefix="r"), a.ctx.inputs[0].shape[ax], ) for i, ax in enumerate(sorted(axis))}
 
             # pick up the non-reduced axis loopvars from out_loops.
             # if not keepdims, the indices only contains the spatial indices.
@@ -262,7 +275,7 @@ def convert(arr):
             case ConstExpr() | IndexExpr() | BufferExpr(): return e # no parents to fuse, just return
             # for unary, binary, reduce, they are not Func so try to fuse their parents
             case UnaryExpr(): return UnaryExpr(op=e.op, expr=try_fuse(e.expr))
-            case BinaryExpr(): return BinaryExpr(op=e.op, l_expr=try_fuse(e.l_expr), r_expr=try_fuse(e.r_expr))
+            case BinaryExpr(): return BinaryExpr(op=e.op, l=try_fuse(e.l_expr), r=try_fuse(e.r_expr))
             case ReduceExpr(): return ReduceExpr(op=e.op, expr=try_fuse(e.expr), reduced=e.reduced)
             case FuncExpr():
                 is_buffer = isinstance(e.func.expr, BufferExpr) # buffer reference is always fusable
@@ -277,7 +290,7 @@ def convert(arr):
                 # fuse is achieved to replace a fusable FuncExpr with the FuncExpr.func.expr. This removes the kernel boundary which is expressed by
                 # Func instance.
                 # On the replacement, the FuncExpr.func.expr indices must also be replaced with FuncExpr.func.out_loops indices.
-                # index_replace = {LoopVar from original func (which should be replaced from): Index expr from internal expr to be fused (replaced to)}
+                # index_replace = {LoopIndex from original func (which should be replaced from): Index expr from internal expr to be fused (replaced to)}
                 index_replace = {loopvar: idxexpr for loopvar, idxexpr in zip(e.func.out_loops, e.indices)}
                 # replace the indices in FuncExpr.expr with outer Func out_loops
                 fused_expr = replace_index(e.func.expr, index_replace)

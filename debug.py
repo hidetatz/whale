@@ -14,14 +14,12 @@ def dbg(msg: str):
 
 class DebuggableTree(ABC):
     @abstractmethod
-    def debug_str(self): ...
-    @abstractmethod
     def debug_children(self): ...
 
 def dbg_tree(t: DebuggableTree):
     def f(_t, depth=0, prefix="        ", last=True):
         connector = "└─ " if last else "├─ "
-        line = prefix + (connector if depth > 0 else "") + _t.debug_str()
+        line = prefix + (connector if depth > 0 else "") + _t.__str__()
         children = _t.debug_children()
         child_prefix = prefix + ("   " if last else "│  ")
         child_lines = [f(c, depth+1, child_prefix, i==len(children)-1) for i, c in enumerate(children)]

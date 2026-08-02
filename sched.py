@@ -9,16 +9,15 @@ class LoopKind(IntEnum):
     Spatial = auto()
     Reduce = auto()
 
-    def __repr__(self): return self.name
     def __str__(self): return self.name
 
-@dataclass
 class LoopVar:
-    extent: int = 0
-    name: str = ""
+    def __init__(self, name: str, extent: int):
+        self.name = name
+        self.extent = extent
 
-    def __repr__(self):
-        return f"{self.name}:{self.extent}"
+    def __str__(self): return f"{self.name}:{self.extent}"
+    def __repr__(self): return f"LoopVar(name={self.name}, extent={self.extent})"
 
 @dataclass
 class SplitLoop(DebuggableTree):
@@ -29,78 +28,71 @@ class SplitLoop(DebuggableTree):
     factor: int
     tail_guard_required: bool
 
-    @override
-    def debug_str(self): return f"SplitLoop: {self.orig} -> {self.o}, {self.i}"
+    def __str__(self): return f"SplitLoop: {self.orig} -> {self.o}, {self.i}"
+
     @override
     def debug_children(self): return []
 
-@dataclass
-class Sequential: pass
+class LoopExec:
+    def __str__(self): return self.__class__.__name__
 
-@dataclass
-class Parallel: pass
+class Sequential(LoopExec): pass
+class Parallel(LoopExec): pass
+class Vectorize(LoopExec): pass
 
-@dataclass
-class Vectorize: pass
+class Unroll(LoopExec):
+    def __init__(self, factor: int):
+        self.factor = factor
+    def __str__(self): return super().__str__() + f"({self.factor})"
 
-@dataclass
-class Unroll:
-    factor: int
+class GPUBlock(LoopExec):
+    def __init__(self, index: Literal["x", "y", "z"]):
+        self.index = index
+    def __str__(self): return super().__str__() + f"({self.index})"
 
-@dataclass
-class GPUBlock:
-    index: Literal["x", "y", "z"]
+class GPUThread(LoopExec):
+    def __init__(self, index: Literal["x", "y", "z"]):
+        self.index = index
+    def __str__(self): return super().__str__() + f"({self.index})"
 
-@dataclass
-class GPUThread:
-    index: Literal["x", "y", "z"]
-
-type LoopExec = Sequential | Parallel | Vectorize | Unroll | GPUBlock | GPUThread
-
-@dataclass
 class LoopSched(DebuggableTree):
-    lv: LoopVar
-    kind: LoopKind
-    exec: LoopExec
+    def __init__(self, lv: LoopVar, kind: LoopKind, exec: LoopExec):
+        self.lv = lv
+        self.kind = kind
+        self.exec = exec
 
-    @override
-    def debug_str(self): return self.__repr__()
+    def __str__(self): return f"{self.lv} ({self.kind}:{self.exec})"
+
     @override
     def debug_children(self): return []
 
-    def __repr__(self):
-        return f"{self.lv} ({self.kind})"
-
-@dataclass
 class Schedule(DebuggableTree):
-    loops: list[LoopSched]
-    splits: list[SplitLoop]
+    def __init__(self, loops: list[LoopSched], splits: list[SplitLoop]):
+        self.loops = loops
+        self.splits = splits
 
-    @override
-    def debug_str(self): return "Schedule"
+    def __str__(self): return "Schedule"
+
     @override
     def debug_children(self): return self.loops + self.splits
 
 class SchedulerFunc:
     def __init__(self, efunc):
-        spatials = [LoopSched(LoopVar(lv.extent, lv.name), LoopKind.Spatial, Sequential()) for lv in efunc.out_loops]
-        reduces = [LoopSched(LoopVar(lv.extent, lv.name), LoopKind.Reduce, Sequential()) for lv in efunc.reduced_vars()]
+        spatials = [LoopSched(LoopVar(lv.name, lv.extent), LoopKind.Spatial, Sequential()) for lv in efunc.out_loops]
+        reduces = [LoopSched(LoopVar(lv.name, lv.extent), LoopKind.Reduce, Sequential()) for lv in efunc.reduced_vars()]
         self.loops = spatials + reduces
         self.splits = []
 
-    def split(self, lv, outer, inner, factor):
-        outer.extent = math.ceil(lv.extent / factor)
-        outer.name = f"{lv.name}__o"
-
-        inner.extent = factor
-        inner.name = f"{lv.name}__i"
+    def split(self, lv, factor):
+        outer = LoopVar(f"{lv.name}__o", math.ceil(lv.extent / factor))
+        inner = LoopVar(f"{lv.name}__i", factor)
 
         tail_guard_required = lv.extent % factor != 0
         self.splits.append(SplitLoop(lv, outer, inner, factor, tail_guard_required))
         idx = self._index(lv)
         kind = self.loops[idx].kind
         self.loops[idx:idx+1] = [LoopSched(outer, kind, Sequential()), LoopSched(inner, kind, Sequential())]
-        return self
+        return outer, inner
 
     def reorder(self, *lvs):
         indices = sorted([self._index(lv) for lv in lvs], reverse=True)
@@ -175,22 +167,20 @@ class AutoScheduler:
 
         n = len(spatials)
 
-        io, ii = LoopVar(), LoopVar()
-
         if n == 1:
-            sf.split(spatials[0], io, ii, block_size)
+            io, ii = sf.split(spatials[0], block_size)
             sf.gpu_blocks_x(io).gpu_threads_x(ii)
 
         elif n == 2:
-            sf.split(spatials[1], io, ii, block_size)
+            io, ii = sf.split(spatials[1], block_size)
             sf.gpu_blocks_x(spatials[0]).gpu_blocks_y(io).gpu_threads_x(ii)
 
         elif n == 3:
-            sf.split(spatials[2], io, ii, block_size)
+            io, ii = sf.split(spatials[2], block_size)
             sf.gpu_blocks_x(spatials[0]).gpu_blocks_y(spatials[1]).gpu_blocks_z(io).gpu_threads_x(ii)
 
         else:
-            sf.split(spatials[-1], io, ii, block_size)
+            io, ii = sf.split(spatials[-1], block_size)
             sf.gpu_blocks_x(io).gpu_threads_x(ii)
 
 def schedule(funcs, gpu, scheduler=AutoScheduler):
