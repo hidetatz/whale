@@ -9,12 +9,12 @@ class KernelCache:
     def __init__(self):
         self.kerns: dict[str, Kernel] = dict()
 
-    def save(self, name, kern):
+    def save(self, name: str, kern: Kernel):
         self.kerns[name] = kern
 
-    def has(self, name):
+    def has(self, name: str):
         return name in self.kerns
 
-    def get(self, name):
+    def get(self, name: str):
         return self.kerns[name]
 

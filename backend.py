@@ -2,7 +2,6 @@ import os
 from abc import ABC, abstractmethod
 
 import buffer
-import exprir
 import sched
 from codegen import CodeGenerator, HighLevelLangCodeGenerator
 from executor import Executor, CPUExecutor, GPUExecutor
@@ -20,7 +19,7 @@ class Backend(ABC):
         self.compiler = compiler
         self.executor = executor
 
-    def codegen(self, func, schedule, inputs): return self.codegenerator.codegen(func, schedule, inputs)
+    def codegen(self, kern_name, func, schedule, inputs): return self.codegenerator.codegen(kern_name, func, schedule, inputs)
     def compile(self, name: str, code: str): return self.compiler.compile(name, code)
 
     @abstractmethod

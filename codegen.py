@@ -40,13 +40,12 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         if not shape: return "0"
         return reduce(self.langspec.add, [self.langspec.mul(name, st) for name, st in zip(names, util.strides_from_shape(shape))])
 
-    def codegen(self, func, schedule, inputs):
+    def codegen(self, kern_name, func, schedule, inputs):
         self.buff = []
         l = self.langspec
 
         for lib in l.default_library(): self.write(l.import_lib(lib))
 
-        kern_name = f"kern_{id(func)}"
         args = {f"{self.argname(inp)}_{i}": inp for i, inp in enumerate(inputs)}
 
         arg_names = ["out"] + list(args.keys())
@@ -77,7 +76,7 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         self.unnest()
         self.write(l.kern_end())
 
-        return kern_name, self.render()
+        return self.render()
 
     def argname(self, arg):
         match arg:

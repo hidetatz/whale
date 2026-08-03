@@ -1,6 +1,5 @@
 import os
 
-import debug
 import backend
 import exprir
 import kernel
@@ -33,11 +32,12 @@ class Materializer:
             bufs, fncs = func.args()
             params = [func.out_buffer] + [buf.node.buffer for buf in bufs] + [f.func.out_buffer for f in fncs]
 
-            # todo: implement cache
-            # if self.kern_cache.has(func):
-            #     self.bcknd.invoke_kernel(schedule, self.kern_cache.get(func), params)
+            kern_name = self.gen_kern_name(func, schedule)
 
-            kern_name, code = backend.bcknd.codegen(func, schedule, bufs+fncs)
+            # if the same kernel implementation (same func and sched) is already compiled, use it
+            # if self.kern_cache.has(kern_name): backend.bcknd.invoke_kernel(schedule, self.kern_cache.get(kern_name), params)
+
+            code = backend.bcknd.codegen(kern_name, func, schedule, bufs+fncs)
 
             if DEBUG:
                 dbg(f"kernel codegen:")
@@ -49,12 +49,10 @@ class Materializer:
 
             backend.bcknd.invoke_kernel(schedule, kern, params)
 
+    def gen_kern_name(self, func, schedule):
+        return f"kern_{id(func)}"
+
 materializer = Materializer()
 
 def materialize(arr):
     materializer.materialize(arr)
-
-def reset():
-    global materializer
-    materializer.materialize(arr)
-

@@ -1,8 +1,8 @@
 import math
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum, auto
-from typing import Literal, override
+from typing import Literal
 
 class LoopKind(IntEnum):
     Spatial = auto()
