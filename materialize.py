@@ -5,7 +5,7 @@ import backend
 import exprir
 import kernel
 import sched
-from debug import DEBUG, dbg, dbg_tree, dbg_kernel
+from debug import DEBUG, dbg, dbg_tree, dbg_schedule, dbg_kernel
 
 class Materializer:
     def __init__(self):
@@ -27,10 +27,10 @@ class Materializer:
             for i, (f, s) in enumerate(zip(funcs, scheds)):
                 dbg(f"{i+1}:")
                 dbg_tree(f)
-                dbg_tree(s)
+                dbg_schedule(s)
 
         for i, (func, schedule) in enumerate(zip(funcs, scheds)):
-            bufs, fncs = func.inputs()
+            bufs, fncs = func.args()
             params = [func.out_buffer] + [buf.node.buffer for buf in bufs] + [f.func.out_buffer for f in fncs]
 
             # todo: implement cache

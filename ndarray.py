@@ -96,7 +96,7 @@ class Func:
         perm = sorted(range(len(self.attrs["axes"])), key=self.attrs["axes"].__getitem__)
         return grad.transpose(*perm)
 
-class ndarray(debug.DebuggableTree):
+class ndarray:
     def __init__(self, val, dtype, shape, strides, offset, ctx):
         self.node = node.Node(val, dtype, shape, strides, offset, ctx)
         self.grad = None
@@ -211,8 +211,7 @@ class ndarray(debug.DebuggableTree):
     def __str__(self):
         return f"{self.ctx.op.name if self.ctx else "Input"} shape={self.shape} strides={self.strides} offset={self.offset} dtype={self.dtype} cpu={self.buffer.cpu} dev={self.buffer.dev}"
 
-    @override
-    def debug_children(self): return list(self.ctx.inputs) if self.ctx and self.ctx.inputs else []
+    def inputs(self): return list(self.ctx.inputs) if self.ctx and self.ctx.inputs else []
 
 #
 # factories

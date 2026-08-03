@@ -1,7 +1,5 @@
-from dataclasses import dataclass
 from typing import override
 
-import debug
 from buffer import Buffer
 from dtype import DType, int64
 from ops import Ops
@@ -18,92 +16,72 @@ class LoopIndex:
 # Expressions
 #
 
-class IndexExpr(debug.DebuggableTree):
+class IndexExpr:
     def __init__(self, idx: LoopIndex):
         self.loopvar = idx
 
+    @override
     def inputs(self): return []
-
     def __str__(self): return f"IndexExpr({self.loopvar})"
 
-    @override
-    def debug_children(self): return self.inputs()
-
-class ConstExpr(debug.DebuggableTree):
+class ConstExpr:
     def __init__(self, val: int):
         self.val = val
 
-    def inputs(self): return []
-
-    def __str__(self): return f"ConstExpr({self.val})"
     @override
-    def debug_children(self): return self.inputs()
+    def inputs(self): return []
+    def __str__(self): return f"ConstExpr({self.val})"
 
-class BinaryExpr(debug.DebuggableTree):
+class BinaryExpr:
     def __init__(self, op: Ops, l: Expr, r: Expr):
         self.op = op
         self.l_expr = l
         self.r_expr = r
 
+    @override
     def inputs(self): return [self.l_expr, self.r_expr]
-
     def __str__(self): return f"BinaryExpr({self.op})"
 
-    @override
-    def debug_children(self): return self.inputs()
-
-class UnaryExpr(debug.DebuggableTree):
+class UnaryExpr:
     def __init__(self, op: Ops, expr: Expr):
         self.op = op
         self.expr = expr
 
+    @override
     def inputs(self): return [self.expr]
-
     def __str__(self): return f"UnaryExpr({self.op})"
 
-    @override
-    def debug_children(self): return self.inputs()
-
-class ReduceExpr(debug.DebuggableTree):
+class ReduceExpr:
     def __init__(self, op: Ops, expr: Expr, reduced: list[LoopIndex]):
         self.op = op
         self.expr = expr
         self.reduced = reduced
 
+    @override
     def inputs(self): return [self.expr]
-
     def __str__(self): return f"ReduceExpr({self.op} reduced={strjoin(', ', self.reduced)})"
 
-    @override
-    def debug_children(self): return self.inputs()
-
-class FuncExpr(debug.DebuggableTree):
+class FuncExpr:
     def __init__(self, func: Func, indices: list[Expr]):
         self.func = func
         self.indices = indices
 
+    @override
     def inputs(self): return [self.func]
-
     def __str__(self): return f"FuncExpr(indices=[{strjoin(', ', self.indices)}])"
 
-    @override
-    def debug_children(self): return self.inputs()
-
-class BufferExpr(debug.DebuggableTree):
+class BufferExpr:
     def __init__(self, node: 'node.Node', indices: list[Expr]):
         self.node = node
         self.indices = indices
 
-    def inputs(self): return []
-
-    def __str__(self): return f"BufferExpr(indices=[{strjoin(', ', self.indices)}], cpu={self.node.buffer.cpu}, dev={self.node.buffer.dev})"
-
     @override
-    def debug_children(self): return self.inputs()
+    def inputs(self): return []
+    def __str__(self): return f"BufferExpr(indices=[{strjoin(', ', self.indices)}], cpu={self.node.buffer.cpu}, dev={self.node.buffer.dev})"
 
 Expr = IndexExpr | ConstExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
 
-class Func(debug.DebuggableTree):
+class Func:
     def __init__(self, out_loops: list[LoopIndex], out_shape: list[int], out_dtype: DType, expr: Expr, out_buffer: Buffer):
         self.out_loops = out_loops
         self.out_shape = out_shape
@@ -133,7 +111,7 @@ class Func(debug.DebuggableTree):
             return []
         return collect(self.expr)
 
-    def inputs(self):
+    def args(self):
         bufs, fncs = [], []
         seen = set()
         def walk(e):
@@ -154,7 +132,7 @@ class Func(debug.DebuggableTree):
     def __str__(self): return f"Func(out_loops=[{strjoin(', ', self.out_loops)}] {self.out_dtype}"
 
     @override
-    def debug_children(self): return [self.expr]
+    def inputs(self): return [self.expr]
 
 def convert(arr):
     def loopvar_name(i, prefix=""):
