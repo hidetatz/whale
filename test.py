@@ -24,7 +24,7 @@ class Test(unittest.TestCase):
                     self.assertEqual(a.strides, (3, 1))
                     self.assertEqual(a.offset, 0)
                     self.assertEqual(a.ndim, 2)
-                    self.assertEqual(a.tolist(), [1, 2, 3, 4, 5, 6])
+                    self.assertEqual(a.tolist(), [[1, 2, 3], [4, 5, 6]])
 
                 with self.subTest("arange"):
                     a = ndarray.arange(6)
@@ -40,25 +40,25 @@ class Test(unittest.TestCase):
                     self.assertEqual(a.strides, (3, 1))
                     self.assertEqual(a.offset, 0)
                     self.assertEqual(a.ndim, 2)
-                    self.assertEqual(a.tolist(), [5, 5, 5, 5, 5, 5])
+                    self.assertEqual(a.tolist(), [[5, 5, 5], [5, 5, 5]])
 
                 with self.subTest("full_like"):
                     a = ndarray.array([[1, 2, 3], [4, 5, 6]])
                     b = ndarray.full_like(a, 5)
                     self.assertEqual(b.shape, (2, 3))
-                    self.assertEqual(b.tolist(), [5, 5, 5, 5, 5, 5])
+                    self.assertEqual(b.tolist(), [[5, 5, 5], [5, 5, 5]])
 
                 with self.subTest("ones_like"):
                     a = ndarray.array([[1, 2, 3], [4, 5, 6]])
                     b = ndarray.ones_like(a)
                     self.assertEqual(b.shape, (2, 3))
-                    self.assertEqual(b.tolist(), [1, 1, 1, 1, 1, 1])
+                    self.assertEqual(b.tolist(), [[1, 1, 1], [1, 1, 1]])
 
                 with self.subTest("zeros_like"):
                     a = ndarray.array([[1, 2, 3], [4, 5, 6]])
                     b = ndarray.zeros_like(a)
                     self.assertEqual(b.shape, (2, 3))
-                    self.assertEqual(b.tolist(), [0, 0, 0, 0, 0, 0])
+                    self.assertEqual(b.tolist(), [[0, 0, 0], [0, 0, 0]])
 
                 #
                 # unary
@@ -117,7 +117,7 @@ class Test(unittest.TestCase):
                     e = ndarray.array([[2, 2, 2], [2, 2, 2]])
                     f = a + b - c * d / e
                     f.materialize()
-                    self.assertEqual(f.tolist(), [1, 2, 3, 1, 2, 3])
+                    self.assertEqual(f.tolist(), [[1, 2, 3], [1, 2, 3]])
 
                 with self.subTest("add same arr"):
                     a = ndarray.arange(6)
@@ -168,7 +168,7 @@ class Test(unittest.TestCase):
                     a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
                     b = a.sum()
                     b.materialize()
-                    self.assertEqual(b.tolist(), [42])
+                    self.assertEqual(b.tolist(), 42)
                     self.assertEqual(b.shape, ())
 
                 with self.subTest("add -> sum"):
@@ -189,7 +189,7 @@ class Test(unittest.TestCase):
                     c = a * b
                     c.materialize()
                     self.assertEqual(c.shape, (2, 3))
-                    self.assertEqual(c.tolist(), [2, 4, 6, 8, 10, 12])
+                    self.assertEqual(c.tolist(), [[2, 4, 6], [8, 10, 12]])
 
                 with self.subTest("(2, 3) * (1, 1) -> (2, 3)"):
                     a = ndarray.array([[1, 2, 3], [4, 5, 6]])
@@ -197,7 +197,7 @@ class Test(unittest.TestCase):
                     c = a * b
                     c.materialize()
                     self.assertEqual(c.shape, (2, 3))
-                    self.assertEqual(c.tolist(), [2, 4, 6, 8, 10, 12])
+                    self.assertEqual(c.tolist(), [[2, 4, 6], [8, 10, 12]])
 
                 with self.subTest("(2, 3) * (1, 1, 1) -> (1, 2, 3)"):
                     a = ndarray.array([[1, 2, 3], [4, 5, 6]])
@@ -205,7 +205,7 @@ class Test(unittest.TestCase):
                     c = a * b
                     c.materialize()
                     self.assertEqual(c.shape, (1, 2, 3))
-                    self.assertEqual(c.tolist(), [2, 4, 6, 8, 10, 12])
+                    self.assertEqual(c.tolist(), [[[2, 4, 6], [8, 10, 12]]])
 
                 with self.subTest("sum -> broadcast"):
                     a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
@@ -214,7 +214,7 @@ class Test(unittest.TestCase):
                     c.materialize()
                     self.assertEqual(b.shape, (2, 3))
                     self.assertEqual(c.shape, (2, 3))
-                    self.assertEqual(c.tolist(), [10, 14, 18, 10, 14, 18])
+                    self.assertEqual(c.tolist(), [[10, 14, 18], [10, 14, 18]])
 
                 with self.subTest("(2, 3) * (2,) -> error"):
                     a = ndarray.array([[1, 2, 3], [4, 5, 6]])

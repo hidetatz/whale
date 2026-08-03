@@ -1,5 +1,7 @@
 import math
 import weakref
+from functools import reduce
+from operator import mul
 from typing import override
 
 import backend
@@ -182,7 +184,19 @@ class ndarray:
     def tolist(self):
         if self.buffer.cpu is None:
             self.buffer.cpu = CPUBuff(backend.to_cpu(self.buffer))
-        return self.buffer.cpu.val
+        return self._to_ndlist()
+
+    def _to_ndlist(self):
+        if not self.shape: return self.buffer.cpu.val[0]
+        def f(data, shape):
+            if len(shape) == 1: return list(data)
+            subsize = reduce(mul, shape[1:], 1)
+            result = []
+            for i in range(shape[0]):
+                chunk = data[i*subsize:(i+1)*subsize]
+                result.append(f(chunk, shape[1:]))
+            return result
+        return f(self.buffer.cpu.val, self.shape)
 
     def __binary(self, r, f):
         l, r = self.broadcasted(ndarray.wrap(r))
@@ -209,7 +223,10 @@ class ndarray:
 
     # todo: consider materialize
     def __str__(self):
-        return f"{self.ctx.op.name if self.ctx else "Input"} shape={self.shape} strides={self.strides} offset={self.offset} dtype={self.dtype} cpu={self.buffer.cpu} dev={self.buffer.dev}"
+        if self.buffer.cpu is None:
+            return f"{self.ctx.op.name if self.ctx else "Input"} shape={self.shape} strides={self.strides} offset={self.offset} dtype={self.dtype} cpu={self.buffer.cpu} dev={self.buffer.dev}"
+        else:
+            return str(self._to_ndlist())
 
     def inputs(self): return list(self.ctx.inputs) if self.ctx and self.ctx.inputs else []
 
