@@ -2,7 +2,7 @@ import hashlib
 import os
 
 import backend
-import exprir
+import algo
 import kernel
 import sched
 from debug import DEBUG, dbg, dbg_tree, dbg_schedule, dbg_kernel
@@ -18,7 +18,7 @@ class Materializer:
             dbg(f"materializing ndarray:")
             dbg_tree(arr)
 
-        funcs = exprir.convert(arr)
+        funcs = algo.convert(arr)
 
         scheds = sched.schedule(funcs, isinstance(backend.bcknd, backend.GPUBackend))
 
@@ -57,19 +57,19 @@ class Materializer:
     def func_cache_key(self, func, schedule):
         def _expr_key(expr, buf_ids):
             match expr:
-                case exprir.BinaryExpr():
+                case algo.BinaryExpr():
                     return ("Bin", expr.op.name, _expr_key(expr.l_expr, buf_ids), _expr_key(expr.r_expr, buf_ids))
-                case exprir.UnaryExpr():
+                case algo.UnaryExpr():
                     return ("Un", expr.op.name, _expr_key(expr.expr, buf_ids))
-                case exprir.ReduceExpr():
+                case algo.ReduceExpr():
                     return ("Red", expr.op.name, tuple((v.name, v.extent) for v in expr.reduced), _expr_key(expr.expr, buf_ids))
-                case exprir.IndexExpr():
+                case algo.IndexExpr():
                     return ("Idx", expr.loopvar.name, expr.loopvar.extent)
-                case exprir.ConstExpr():
+                case algo.ConstExpr():
                     return ("Const", expr.val)
-                case exprir.FuncExpr():
+                case algo.FuncExpr():
                     return ("Fnc", _expr_key(expr.func.expr, buf_ids), tuple(_expr_key(i, buf_ids) for i in expr.indices))
-                case exprir.BufferExpr():
+                case algo.BufferExpr():
                     nid = id(expr.node)
                     if nid not in buf_ids: buf_ids[nid] = len(buf_ids)
                     indices = tuple(_expr_key(i, buf_ids) for i in expr.indices)

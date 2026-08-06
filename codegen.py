@@ -1,6 +1,6 @@
 from functools import reduce
 
-import exprir
+import algo
 import dtype
 import sched
 import util
@@ -49,7 +49,7 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         args = {f"{self.argname(inp)}_{i}": inp for i, inp in enumerate(inputs)}
 
         arg_names = ["out"] + list(args.keys())
-        arg_types = [func.out_dtype] + [expr.node.dtype if isinstance(expr, exprir.BufferExpr) else expr.func.out_dtype for expr in args.values()]
+        arg_types = [func.out_dtype] + [expr.node.dtype if isinstance(expr, algo.BufferExpr) else expr.func.out_dtype for expr in args.values()]
         self.write(l.kern_start(kern_name, arg_names, arg_types))
         self.nest()
 
@@ -80,8 +80,8 @@ class HighLevelLangCodeGenerator(CodeGenerator):
 
     def argname(self, arg):
         match arg:
-            case exprir.BufferExpr(): return "buf"
-            case exprir.FuncExpr(): return "fnc"
+            case algo.BufferExpr(): return "buf"
+            case algo.FuncExpr(): return "fnc"
             case _: raise RuntimeError(f"unexpected arg type: {type(arg)}")
 
     def render_loop(self, schedule):
@@ -120,11 +120,11 @@ class HighLevelLangCodeGenerator(CodeGenerator):
 
     def render_expr(self, expr, args, dt):
         match expr:
-            case exprir.UnaryExpr(): return self.render_unary(expr, args, dt)
-            case exprir.BinaryExpr(): return self.render_binary(expr, args, dt)
-            case exprir.ReduceExpr(): return self.render_reduce(expr, args, dt)
-            case exprir.BufferExpr(): return self.render_buffer(expr, args, dt)
-            case exprir.FuncExpr(): return self.render_func(expr, args, dt)
+            case algo.UnaryExpr(): return self.render_unary(expr, args, dt)
+            case algo.BinaryExpr(): return self.render_binary(expr, args, dt)
+            case algo.ReduceExpr(): return self.render_reduce(expr, args, dt)
+            case algo.BufferExpr(): return self.render_buffer(expr, args, dt)
+            case algo.FuncExpr(): return self.render_func(expr, args, dt)
             case _: raise RuntimeError(f"unexpected expr type: {type(expr)}")
 
     def render_unary(self, expr, args, dt):
@@ -185,19 +185,19 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         # get buffer arg name from BufferExpr.node
         buf = ""
         for name, e in args.items():
-            if isinstance(e, exprir.BufferExpr) and e.node is expr.node:
+            if isinstance(e, algo.BufferExpr) and e.node is expr.node:
                 buf = name
                 break
         assert buf != "", "expected buffer is not found in args"
-        idx = self.arr_idx_calc_expr(expr.node.shape, [idx.loopvar.name if isinstance(idx, exprir.IndexExpr) else str(idx.val) for idx in expr.indices])
+        idx = self.arr_idx_calc_expr(expr.node.shape, [idx.loopvar.name if isinstance(idx, algo.IndexExpr) else str(idx.val) for idx in expr.indices])
         return self.langspec.index(buf, idx)
 
     def render_func(self, expr, args, dt):
         fnc = ""
         for name, e in args.items():
-            if isinstance(e, exprir.FuncExpr) and e.func is expr.func:
+            if isinstance(e, algo.FuncExpr) and e.func is expr.func:
                 fnc = name
                 break
         assert fnc != "", "expected func result is not found in args"
-        idx = self.arr_idx_calc_expr(expr.func.out_shape, [idx.loopvar.name if isinstance(idx, exprir.IndexExpr) else str(idx.val) for idx in expr.indices])
+        idx = self.arr_idx_calc_expr(expr.func.out_shape, [idx.loopvar.name if isinstance(idx, algo.IndexExpr) else str(idx.val) for idx in expr.indices])
         return self.langspec.index(fnc, idx)
