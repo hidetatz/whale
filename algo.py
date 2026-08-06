@@ -1,5 +1,3 @@
-from typing import override
-
 from buffer import Buffer
 from dtype import DType, int64
 from ops import Ops
@@ -20,7 +18,6 @@ class IndexExpr:
     def __init__(self, idx: LoopIndex):
         self.loopvar = idx
 
-    @override
     def inputs(self): return []
     def __str__(self): return f"IndexExpr({self.loopvar})"
 
@@ -28,7 +25,6 @@ class ConstExpr:
     def __init__(self, val: int):
         self.val = val
 
-    @override
     def inputs(self): return []
     def __str__(self): return f"ConstExpr({self.val})"
 
@@ -38,7 +34,6 @@ class BinaryExpr:
         self.l_expr = l
         self.r_expr = r
 
-    @override
     def inputs(self): return [self.l_expr, self.r_expr]
     def __str__(self): return f"BinaryExpr({self.op})"
 
@@ -47,7 +42,6 @@ class UnaryExpr:
         self.op = op
         self.expr = expr
 
-    @override
     def inputs(self): return [self.expr]
     def __str__(self): return f"UnaryExpr({self.op})"
 
@@ -57,7 +51,6 @@ class ReduceExpr:
         self.expr = expr
         self.reduced = reduced
 
-    @override
     def inputs(self): return [self.expr]
     def __str__(self): return f"ReduceExpr({self.op} reduced={strjoin(', ', self.reduced)})"
 
@@ -66,7 +59,6 @@ class FuncExpr:
         self.func = func
         self.indices = indices
 
-    @override
     def inputs(self): return [self.func]
     def __str__(self): return f"FuncExpr(indices=[{strjoin(', ', self.indices)}])"
 
@@ -75,7 +67,6 @@ class BufferExpr:
         self.node = node
         self.indices = indices
 
-    @override
     def inputs(self): return []
     def __str__(self): return f"BufferExpr(indices=[{strjoin(', ', self.indices)}], cpu={self.node.buffer.cpu}, dev={self.node.buffer.dev})"
 
@@ -131,7 +122,6 @@ class Func:
 
     def __str__(self): return f"Func(out_loops=[{strjoin(', ', self.out_loops)}] {self.out_dtype}"
 
-    @override
     def inputs(self): return [self.expr]
 
 def convert(arr):
