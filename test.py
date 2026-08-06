@@ -1,227 +1,236 @@
-import os
 import unittest
-from unittest import mock
 
-import backend
+import materialize
 import ndarray
 
 class Test(unittest.TestCase):
-    def test_backends(self):
-        backends = ["PYTHON", "CLANG", "CUDA"]
-        if os.environ.get("TEST_SHORT", "0") == "1": backends = ["PYTHON"]
+    def setUp(self):
+        materialize.reset()
+    #
+    # construction
+    #
 
-        for b in backends:
-            with self.subTest(b=b):
-                backend.reset(b)
+    def test_array(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        self.assertEqual(a.shape, (2, 3))
+        self.assertEqual(a.strides, (3, 1))
+        self.assertEqual(a.offset, 0)
+        self.assertEqual(a.ndim, 2)
+        self.assertEqual(a.tolist(), [[1, 2, 3], [4, 5, 6]])
 
-                #
-                # construction
-                #
+    def test_arange(self):
+        a = ndarray.arange(6)
+        self.assertEqual(a.shape, (6,))
+        self.assertEqual(a.strides, (1,))
+        self.assertEqual(a.offset, 0)
+        self.assertEqual(a.ndim, 1)
+        self.assertEqual(a.tolist(), [0, 1, 2, 3, 4, 5])
 
-                with self.subTest("array"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    self.assertEqual(a.shape, (2, 3))
-                    self.assertEqual(a.strides, (3, 1))
-                    self.assertEqual(a.offset, 0)
-                    self.assertEqual(a.ndim, 2)
-                    self.assertEqual(a.tolist(), [[1, 2, 3], [4, 5, 6]])
+    def test_full(self):
+        a = ndarray.full((2, 3), 5)
+        self.assertEqual(a.shape, (2, 3))
+        self.assertEqual(a.strides, (3, 1))
+        self.assertEqual(a.offset, 0)
+        self.assertEqual(a.ndim, 2)
+        self.assertEqual(a.tolist(), [[5, 5, 5], [5, 5, 5]])
 
-                with self.subTest("arange"):
-                    a = ndarray.arange(6)
-                    self.assertEqual(a.shape, (6,))
-                    self.assertEqual(a.strides, (1,))
-                    self.assertEqual(a.offset, 0)
-                    self.assertEqual(a.ndim, 1)
-                    self.assertEqual(a.tolist(), [0, 1, 2, 3, 4, 5])
+    def test_full_like(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = ndarray.full_like(a, 5)
+        self.assertEqual(b.shape, (2, 3))
+        self.assertEqual(b.tolist(), [[5, 5, 5], [5, 5, 5]])
 
-                with self.subTest("full"):
-                    a = ndarray.full((2, 3), 5)
-                    self.assertEqual(a.shape, (2, 3))
-                    self.assertEqual(a.strides, (3, 1))
-                    self.assertEqual(a.offset, 0)
-                    self.assertEqual(a.ndim, 2)
-                    self.assertEqual(a.tolist(), [[5, 5, 5], [5, 5, 5]])
+    def test_ones_like(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = ndarray.ones_like(a)
+        self.assertEqual(b.shape, (2, 3))
+        self.assertEqual(b.tolist(), [[1, 1, 1], [1, 1, 1]])
 
-                with self.subTest("full_like"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = ndarray.full_like(a, 5)
-                    self.assertEqual(b.shape, (2, 3))
-                    self.assertEqual(b.tolist(), [[5, 5, 5], [5, 5, 5]])
+    def test_zeros_like(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = ndarray.zeros_like(a)
+        self.assertEqual(b.shape, (2, 3))
+        self.assertEqual(b.tolist(), [[0, 0, 0], [0, 0, 0]])
 
-                with self.subTest("ones_like"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = ndarray.ones_like(a)
-                    self.assertEqual(b.shape, (2, 3))
-                    self.assertEqual(b.tolist(), [[1, 1, 1], [1, 1, 1]])
+    #
+    # unary
+    #
 
-                with self.subTest("zeros_like"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = ndarray.zeros_like(a)
-                    self.assertEqual(b.shape, (2, 3))
-                    self.assertEqual(b.tolist(), [[0, 0, 0], [0, 0, 0]])
+    def test_neg(self):
+        a = ndarray.arange(6)
+        b = -a
+        b.materialize()
+        self.assertEqual(b.tolist(), [0, -1, -2, -3, -4, -5])
 
-                #
-                # unary
-                #
+    def test_neg_to_neg(self):
+        a = ndarray.arange(6)
+        b = -a
+        c = -b
+        c.materialize()
+        self.assertEqual(c.tolist(), [0, 1, 2, 3, 4, 5])
 
-                with self.subTest("neg"):
-                    a = ndarray.arange(6)
-                    b = -a
-                    b.materialize()
-                    self.assertEqual(b.tolist(), [0, -1, -2, -3, -4, -5])
+    #
+    # binary
+    #
 
-                with self.subTest("neg -> neg"):
-                    a = ndarray.arange(6)
-                    b = -a
-                    c = -b
-                    c.materialize()
-                    self.assertEqual(c.tolist(), [0, 1, 2, 3, 4, 5])
+    def test_add(self):
+        a = ndarray.arange(6)
+        b = ndarray.arange(6)
+        c = a + b
+        c.materialize()
+        self.assertEqual(c.tolist(), [0, 2, 4, 6, 8, 10])
 
-                #
-                # binary
-                #
+    def test_sub(self):
+        a = ndarray.arange(6)
+        b = ndarray.arange(6)
+        c = a - b
+        c.materialize()
+        self.assertEqual(c.tolist(), [0, 0, 0, 0, 0, 0])
 
-                with self.subTest("add"):
-                    a = ndarray.arange(6)
-                    b = ndarray.arange(6)
-                    c = a + b
-                    c.materialize()
-                    self.assertEqual(c.tolist(), [0, 2, 4, 6, 8, 10])
+    def test_mul(self):
+        a = ndarray.arange(6)
+        b = ndarray.full_like(a, 2)
+        c = a * b
+        c.materialize()
+        self.assertEqual(c.tolist(), [0, 2, 4, 6, 8, 10])
 
-                with self.subTest("sub"):
-                    a = ndarray.arange(6)
-                    b = ndarray.arange(6)
-                    c = a - b
-                    c.materialize()
-                    self.assertEqual(c.tolist(), [0, 0, 0, 0, 0, 0])
+    def test_pow(self):
+        a = ndarray.arange(6)
+        b = ndarray.full_like(a, 2)
+        c = a ** b
+        c.materialize()
+        self.assertEqual(c.tolist(), [0, 1, 4, 9, 16, 25])
 
-                with self.subTest("mul"):
-                    a = ndarray.arange(6)
-                    b = ndarray.full_like(a, 2)
-                    c = a * b
-                    c.materialize()
-                    self.assertEqual(c.tolist(), [0, 2, 4, 6, 8, 10])
+    def test_add_sub_mul_div(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = ndarray.array([[1, 2, 3], [1, 2, 3]])
+        c = ndarray.array([[2, 2, 2], [2, 2, 2]])
+        d = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        e = ndarray.array([[2, 2, 2], [2, 2, 2]])
+        f = a + b - c * d / e
+        f.materialize()
+        self.assertEqual(f.tolist(), [[1, 2, 3], [1, 2, 3]])
 
-                with self.subTest("pow"):
-                    a = ndarray.arange(6)
-                    b = ndarray.full_like(a, 2)
-                    c = a ** b
-                    c.materialize()
-                    self.assertEqual(c.tolist(), [0, 1, 4, 9, 16, 25])
+    def test_add_same_arr(self):
+        a = ndarray.arange(6)
+        b = a + a
+        b.materialize()
+        self.assertEqual(b.tolist(), [0, 2, 4, 6, 8, 10])
 
-                with self.subTest("add -> sub -> mul -> div"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = ndarray.array([[1, 2, 3], [1, 2, 3]])
-                    c = ndarray.array([[2, 2, 2], [2, 2, 2]])
-                    d = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    e = ndarray.array([[2, 2, 2], [2, 2, 2]])
-                    f = a + b - c * d / e
-                    f.materialize()
-                    self.assertEqual(f.tolist(), [[1, 2, 3], [1, 2, 3]])
+    #
+    # reduce
+    #
 
-                with self.subTest("add same arr"):
-                    a = ndarray.arange(6)
-                    b = a + a
-                    b.materialize()
-                    self.assertEqual(b.tolist(), [0, 2, 4, 6, 8, 10])
+    def test_sum_0(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = a.sum(axis=0)
+        b.materialize()
+        self.assertEqual(b.tolist(), [5, 7, 9])
+        self.assertEqual(b.shape, (3,))
 
-                #
-                # reduce
-                #
+    def test_sum_1(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = a.sum(axis=1)
+        b.materialize()
+        self.assertEqual(b.tolist(), [6, 15])
+        self.assertEqual(b.shape, (2,))
 
-                with self.subTest("sum 0"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = a.sum(axis=0)
-                    b.materialize()
-                    self.assertEqual(b.tolist(), [5, 7, 9])
-                    self.assertEqual(b.shape, (3,))
+    def test_sum_0_1(self):
+        a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
+        b = a.sum(axis=(0, 1))
+        b.materialize()
+        self.assertEqual(b.tolist(), [10, 14, 18])
+        self.assertEqual(b.shape, (3,))
 
-                with self.subTest("sum 1"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = a.sum(axis=1)
-                    b.materialize()
-                    self.assertEqual(b.tolist(), [6, 15])
-                    self.assertEqual(b.shape, (2,))
+    def test_sum_0_2(self):
+        a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
+        b = a.sum(axis=(0, 2))
+        b.materialize()
+        self.assertEqual(b.tolist(), [12, 30])
+        self.assertEqual(b.shape, (2,))
 
-                with self.subTest("sum 0,1"):
-                    a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
-                    b = a.sum(axis=(0, 1))
-                    b.materialize()
-                    self.assertEqual(b.tolist(), [10, 14, 18])
-                    self.assertEqual(b.shape, (3,))
+    def test_sum_1_2(self):
+        a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
+        b = a.sum(axis=(1, 2))
+        b.materialize()
+        self.assertEqual(b.tolist(), [21, 21])
+        self.assertEqual(b.shape, (2,))
 
-                with self.subTest("sum 0,2"):
-                    a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
-                    b = a.sum(axis=(0, 2))
-                    b.materialize()
-                    self.assertEqual(b.tolist(), [12, 30])
-                    self.assertEqual(b.shape, (2,))
+    def test_sum_all(self):
+        a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
+        b = a.sum()
+        b.materialize()
+        self.assertEqual(b.tolist(), 42)
+        self.assertEqual(b.shape, ())
 
-                with self.subTest("sum 1,2"):
-                    a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
-                    b = a.sum(axis=(1, 2))
-                    b.materialize()
-                    self.assertEqual(b.tolist(), [21, 21])
-                    self.assertEqual(b.shape, (2,))
+    def test_add_to_sum(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = ndarray.array([[1, 2, 3], [1, 2, 3]])
+        # a + b -> [[2, 4, 6], [5, 7, 9]]
+        c = (a + b).sum(axis=0)
+        c.materialize()
+        self.assertEqual(c.tolist(), [7, 11, 15])
 
-                with self.subTest("sum all"):
-                    a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
-                    b = a.sum()
-                    b.materialize()
-                    self.assertEqual(b.tolist(), 42)
-                    self.assertEqual(b.shape, ())
+    #
+    # broadcast
+    #
 
-                with self.subTest("add -> sum"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = ndarray.array([[1, 2, 3], [1, 2, 3]])
-                    # a + b -> [[2, 4, 6], [5, 7, 9]]
-                    c = (a + b).sum(axis=0)
-                    c.materialize()
-                    self.assertEqual(c.tolist(), [7, 11, 15])
+    def test_2_3_mul_3_to_2_3(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = ndarray.array([2, 2, 2])
+        c = a * b
+        c.materialize()
+        self.assertEqual(c.shape, (2, 3))
+        self.assertEqual(c.tolist(), [[2, 4, 6], [8, 10, 12]])
 
-                #
-                # broadcast
-                #
+    def test_2_3_mul_1_1_to_2_3(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = ndarray.array([[2]])
+        c = a * b
+        c.materialize()
+        self.assertEqual(c.shape, (2, 3))
+        self.assertEqual(c.tolist(), [[2, 4, 6], [8, 10, 12]])
 
-                with self.subTest("(2, 3) * (3,) -> (2, 3)"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = ndarray.array([2, 2, 2])
-                    c = a * b
-                    c.materialize()
-                    self.assertEqual(c.shape, (2, 3))
-                    self.assertEqual(c.tolist(), [[2, 4, 6], [8, 10, 12]])
+    def test_2_3_mul_1_1_1_to_1_2_3(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = ndarray.array([[[2]]])
+        c = a * b
+        c.materialize()
+        self.assertEqual(c.shape, (1, 2, 3))
+        self.assertEqual(c.tolist(), [[[2, 4, 6], [8, 10, 12]]])
 
-                with self.subTest("(2, 3) * (1, 1) -> (2, 3)"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = ndarray.array([[2]])
-                    c = a * b
-                    c.materialize()
-                    self.assertEqual(c.shape, (2, 3))
-                    self.assertEqual(c.tolist(), [[2, 4, 6], [8, 10, 12]])
+    def test_sum_to_broadcast(self):
+        a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
+        b = a.sum(axis=(1,)) # [[5, 7, 9], [5, 7, 9]]
+        c = b * ndarray.array([2])
+        c.materialize()
+        self.assertEqual(b.shape, (2, 3))
+        self.assertEqual(c.shape, (2, 3))
+        self.assertEqual(c.tolist(), [[10, 14, 18], [10, 14, 18]])
 
-                with self.subTest("(2, 3) * (1, 1, 1) -> (1, 2, 3)"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = ndarray.array([[[2]]])
-                    c = a * b
-                    c.materialize()
-                    self.assertEqual(c.shape, (1, 2, 3))
-                    self.assertEqual(c.tolist(), [[[2, 4, 6], [8, 10, 12]]])
+    def test_2_3_mul_2_to_error(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = ndarray.array([2, 2])
+        with self.assertRaises(RuntimeError) as context:
+            c = a * b
+        self.assertTrue("shapes are not broadcastable" in str(context.exception))
 
-                with self.subTest("sum -> broadcast"):
-                    a = ndarray.array([[[1, 2, 3], [4, 5, 6]], [[1, 2, 3], [4, 5, 6]]])  # (2, 2, 3)
-                    b = a.sum(axis=(1,)) # [[5, 7, 9], [5, 7, 9]]
-                    c = b * ndarray.array([2])
-                    c.materialize()
-                    self.assertEqual(b.shape, (2, 3))
-                    self.assertEqual(c.shape, (2, 3))
-                    self.assertEqual(c.tolist(), [[10, 14, 18], [10, 14, 18]])
+    #
+    # cache
+    #
 
-                with self.subTest("(2, 3) * (2,) -> error"):
-                    a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-                    b = ndarray.array([2, 2])
-                    with self.assertRaises(RuntimeError) as context:
-                        c = a * b
-                    self.assertTrue("shapes are not broadcastable" in str(context.exception))
+    def test_kern_cache(self):
+        a = ndarray.arange(6)
+        b = ndarray.arange(6)
+        c = a + b
+        c.materialize()
+
+        d = ndarray.arange(6)
+        e = ndarray.arange(6)
+        f = d + e
+        f.materialize()
+        self.assertEqual(f.tolist(), [0, 2, 4, 6, 8, 10])
+        self.assertEqual(list(materialize.materializer.kern_cache.hitcnt.values())[0], 1)
 
 if __name__ == '__main__':
     unittest.main()
