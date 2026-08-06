@@ -5,9 +5,9 @@ from operator import mul
 
 import backend
 import materialize
-import node
 import util
 from buffer import CPUBuff
+from node import Node
 from ops import Ops
 from dtype import int32, int64, float32, float64
 
@@ -37,7 +37,7 @@ class Func:
 
     def _elemwise_forward(self):
         i = self.inputs[0]
-        return ndarray(val=None, dtype=i.dtype, shape=i.shape, strides=None, offset=None, ctx=self)
+        return ndarray._from_prim(val=None, dtype=i.dtype, shape=i.shape, strides=None, offset=None, ctx=self)
 
     # unary
 
@@ -69,20 +69,25 @@ class Func:
         kd = self.attrs["keepdims"]
         if kd: newshape = [1 if i in axis else s for i, s in enumerate(inp.shape)]
         else: newshape = [s for i, s in enumerate(inp.shape) if i not in axis]
-        return ndarray(val=None, dtype=inp.dtype, shape=tuple(newshape), strides=None, offset=None, ctx=self)
+        return ndarray._from_prim(val=None, dtype=inp.dtype, shape=tuple(newshape), strides=None, offset=None, ctx=self)
 
     def _sum_forward(self): return self._reduce_forward()
     def _sum_backward(self, grad): pass # todo
 
     # view
 
-    def _view_forward(self):
-        return ndarray(val=None, dtype=self.inputs[0].dtype, shape=self.attrs["shape"], strides=None, offset=None, ctx=self)
+    # def _reshape_forward(self): return self._view_forward()
+    # def _reshape_backward(self, grad): return grad.reshape(*self.inputs[0].shape)
 
-    def _reshape_forward(self): return self._view_forward()
-    def _reshape_backward(self, grad): return grad.reshape(*self.inputs[0].shape)
-
-    def _broadcast_forward(self): return self._view_forward()
+    def _broadcast_forward(self):
+        inp = self.inputs[0]
+        target_shape = self.attrs["shape"]
+        ndim_diff = len(target_shape) - len(inp.shape)
+        padded_strides = [0] * ndim_diff + list(inp.strides)
+        padded_src_shape = [1] * ndim_diff + list(inp.shape)
+        new_strides = [0 if s == 1 else st for s, st in zip(padded_src_shape, padded_strides)]
+        new_node = Node(dtype=inp.dtype, shape=target_shape, strides=tuple(new_strides), offset=inp.offset, ctx=self, buffer=inp.buffer)
+        return ndarray(new_node)
     def _broadcast_backward(self, grad):
         orig_shape = self.inputs[0].shape
         added_axis = tuple(range(grad.ndim - len(orig_shape)))
@@ -90,16 +95,26 @@ class Func:
         y = grad.sum(axis=added_axis + expanded_axis, keepdims=True)
         return y if not added_axis else y.reshape(*[s for i, s in enumerate(y.shape) if i not in added_axis])
 
-    def _transpose_forward(self): return self._view_forward()
+    def _transpose_forward(self):
+        inp = self.inputs[0]
+        axes = self.attrs["axes"]
+        new_shape = tuple([inp.shape[a] for a in axes])
+        new_strides = tuple([inp.strides[a] for a in axes])
+        new_node = Node(dtype=inp.dtype, shape=new_shape, strides=new_strides, offset=inp.offset, ctx=self, buffer=inp.buffer)
+        return ndarray(new_node)
     def _transpose_backward(self, grad):
         # argsort https://stackoverflow.com/questions/3382352/equivalent-of-numpy-argsort-in-basic-python
         perm = sorted(range(len(self.attrs["axes"])), key=self.attrs["axes"].__getitem__)
         return grad.transpose(*perm)
 
 class ndarray:
-    def __init__(self, val, dtype, shape, strides, offset, ctx):
-        self.node = node.Node(val, dtype, shape, strides, offset, ctx)
+    def __init__(self, node: Node):
+        self.node = node
         self.grad = None
+
+    @classmethod
+    def _from_prim(cls, val, dtype, shape, strides, offset, ctx):
+        return cls(Node(dtype=dtype, shape=shape, strides=strides, offset=offset, val=val, ctx=ctx))
 
     @property
     def dtype(self): return self.node.dtype
@@ -235,7 +250,7 @@ class ndarray:
 def _const(shape, val):
     dtype = int64 if val and type(val[0]) is int else float64
     strides = util.strides_from_shape(shape)
-    return ndarray(val, dtype, shape, strides, 0, Func(Ops.Const))
+    return ndarray._from_prim(val, dtype, shape, strides, 0, Func(Ops.Const))
 
 def array(val):
     flattened = []

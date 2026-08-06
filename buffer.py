@@ -16,6 +16,10 @@ class DevBuff:
 
     def __repr__(self): return "copied" if self.ptr else "None"
 
+    def __del__(self):
+        import backend
+        if self.ptr: backend.free(self.ptr)
+
 @dataclass
 class Buffer:
     dtype: dtype

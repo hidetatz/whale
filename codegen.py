@@ -189,8 +189,12 @@ class HighLevelLangCodeGenerator(CodeGenerator):
                 buf = name
                 break
         assert buf != "", "expected buffer is not found in args"
-        idx = self.arr_idx_calc_expr(expr.node.shape, [idx.loopvar.name if isinstance(idx, algo.IndexExpr) else str(idx.val) for idx in expr.indices])
-        return self.langspec.index(buf, idx)
+
+        names = [idx.loopvar.name if isinstance(idx, algo.IndexExpr) else str(idx.val) for idx in expr.indices]
+        l = self.langspec
+        terms = [l.mul(name, str(st)) for name, st in zip(names, expr.node.strides) if st != 0]
+        flat = reduce(l.add, [str(expr.node.offset)] + terms) if terms else str(expr.node.offset)
+        return l.index(buf, flat)
 
     def render_func(self, expr, args, dt):
         fnc = ""

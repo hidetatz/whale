@@ -150,22 +150,7 @@ def convert(arr):
             e = BufferExpr(node=a.node, indices=[IndexExpr(l) for l in out_loops])
 
         elif a.ctx.op.is_view():
-            if a.ctx.op == Ops.Broadcast:
-                srcshape = a.ctx.inputs[0].shape
-                dstshape = a.shape
-                # read broadcasted dimension as 0
-                new_view_indices = [ConstExpr(0) if s == 1 else IndexExpr(d) for s, d in zip(srcshape, out_loops[len(dstshape) - len(srcshape):])]
-            elif a.ctx.op == Ops.Transpose:
-                # axes is a map from output axis -> input axis.
-                # to calculate index, input -> output map is needed, so inverts
-                axes = a.ctx.attrs["axes"]
-                inv = [0] * len(axes)
-                for i, ax in enumerate(axes): inv[ax] = i
-                new_view_indices = [IndexExpr(out_loops[inv[i]]) for i in range(len(axes))]
-            else:
-                raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
-
-            e = FuncExpr(func=inputs[0], indices=new_view_indices)
+            e = BufferExpr(node=a.node, indices=[IndexExpr(l) for l in out_loops])
                 
         elif a.ctx.op.is_binary():
             e = BinaryExpr(
