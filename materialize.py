@@ -73,7 +73,7 @@ class Materializer:
                     nid = id(expr.node)
                     if nid not in buf_ids: buf_ids[nid] = len(buf_ids)
                     indices = tuple(_expr_key(i, buf_ids) for i in expr.indices)
-                    return ("Buf", buf_ids[nid], expr.node.shape, str(expr.node.dtype), indices)
+                    return ("Buf", buf_ids[nid], expr.node.shape, expr.node.strides, expr.node.offset, str(expr.node.dtype), indices)
         
         def _sched_key(schedule):
             def exec_key(e):
