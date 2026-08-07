@@ -37,7 +37,7 @@ class Func:
 
     def _elemwise_forward(self):
         i = self.inputs[0]
-        return ndarray._from_prim(val=None, dtype=i.dtype, shape=i.shape, strides=None, offset=None, ctx=self)
+        return ndarray._from_prim(val=None, dtype=i.dtype, shape=i.shape, strides=util.strides_from_shape(i.shape), offset=0, ctx=self)
 
     # unary
 
@@ -69,7 +69,7 @@ class Func:
         kd = self.attrs["keepdims"]
         if kd: newshape = [1 if i in axis else s for i, s in enumerate(inp.shape)]
         else: newshape = [s for i, s in enumerate(inp.shape) if i not in axis]
-        return ndarray._from_prim(val=None, dtype=inp.dtype, shape=tuple(newshape), strides=None, offset=None, ctx=self)
+        return ndarray._from_prim(val=None, dtype=inp.dtype, shape=tuple(newshape), strides=util.strides_from_shape(newshape), offset=0, ctx=self)
 
     def _sum_forward(self): return self._reduce_forward()
     def _sum_backward(self, grad): pass # todo
@@ -201,15 +201,11 @@ class ndarray:
 
     def _to_ndlist(self):
         if not self.shape: return self.buffer.cpu.val[0]
-        def f(data, shape):
-            if len(shape) == 1: return list(data)
-            subsize = reduce(mul, shape[1:], 1)
-            result = []
-            for i in range(shape[0]):
-                chunk = data[i*subsize:(i+1)*subsize]
-                result.append(f(chunk, shape[1:]))
-            return result
-        return f(self.buffer.cpu.val, self.shape)
+        data = self.buffer.cpu.val
+        def f(shape, strides, offset):
+            if not shape: return data[offset]
+            return [f(shape[1:], strides[1:], offset+i*strides[0]) for i in range(shape[0])]
+        return f(self.shape, self.strides, self.offset)
 
     def __binary(self, r, f):
         l, r = self.broadcasted(ndarray.wrap(r))
