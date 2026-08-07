@@ -54,6 +54,9 @@ class Materializer:
 
             backend.bcknd.invoke_kernel(schedule, kern, params)
 
+            if DEBUG:
+                dbg(f"kernel invocation count: {len(backend.bcknd.kern_invoke_hist)}")
+
     def func_cache_key(self, func, schedule):
         def _expr_key(expr, buf_ids):
             match expr:
