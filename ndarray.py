@@ -33,10 +33,13 @@ class Func:
         out = f(grad)
         return out if isinstance(out, tuple) else (out,)
 
+    @property
+    def input(self): return self.inputs[0]
+
     # actual calculation
 
     def _elemwise_forward(self):
-        i = self.inputs[0]
+        i = self.input
         return ndarray._from_prim(val=None, dtype=i.dtype, shape=i.shape, strides=util.strides_from_shape(i.shape), offset=0, ctx=self)
 
     # unary
@@ -96,16 +99,13 @@ class Func:
         return y if not added_axis else y.reshape(*[s for i, s in enumerate(y.shape) if i not in added_axis])
 
     def _transpose_forward(self):
-        inp = self.inputs[0]
         axes = self.attrs["axes"]
-        new_shape = tuple([inp.shape[a] for a in axes])
-        new_strides = tuple([inp.strides[a] for a in axes])
-        new_node = Node(dtype=inp.dtype, shape=new_shape, strides=new_strides, offset=inp.offset, ctx=self, buffer=inp.buffer)
+        new_shape = tuple([self.input.shape[a] for a in axes])
+        new_strides = tuple([self.input.strides[a] for a in axes])
+        new_node = Node(dtype=self.input.dtype, shape=new_shape, strides=new_strides, offset=self.input.offset, ctx=self)
         return ndarray(new_node)
     def _transpose_backward(self, grad):
-        # argsort https://stackoverflow.com/questions/3382352/equivalent-of-numpy-argsort-in-basic-python
-        perm = sorted(range(len(self.attrs["axes"])), key=self.attrs["axes"].__getitem__)
-        return grad.transpose(*perm)
+        return grad.transpose(*util.argsort(self.attrs["axes"]))
 
 class ndarray:
     def __init__(self, node: Node):
@@ -127,7 +127,9 @@ class ndarray:
     @property
     def ctx(self): return self.node.ctx
     @property
-    def buffer(self): return self.node.buffer
+    def buffer(self): return self.base().node.buffer
+
+    def base(self): return self if not self.ctx.op.is_view() else self.ctx.inputs[0].base()
 
     @property
     def ndim(self): return len(self.shape)
@@ -232,6 +234,8 @@ class ndarray:
 
     # todo: consider materialize
     def __str__(self):
+        if self.buffer is None:
+            return f"{self.ctx.op.name if self.ctx else "Input"} shape={self.shape} strides={self.strides} offset={self.offset} dtype={self.dtype} buffer=None"
         if self.buffer.cpu is None:
             return f"{self.ctx.op.name if self.ctx else "Input"} shape={self.shape} strides={self.strides} offset={self.offset} dtype={self.dtype} cpu={self.buffer.cpu} dev={self.buffer.dev}"
         else:

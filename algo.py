@@ -1,7 +1,7 @@
 from buffer import Buffer
 from dtype import DType, int64
 from ops import Ops
-from util import strjoin
+from util import strjoin, argsort
 
 class LoopIndex:
     def __init__(self, name: str, extent: int):
@@ -150,7 +150,19 @@ def convert(arr):
             e = BufferExpr(node=a.node, indices=[IndexExpr(l) for l in out_loops])
 
         elif a.ctx.op.is_view():
-            e = BufferExpr(node=a.node, indices=[IndexExpr(l) for l in out_loops])
+            if a.ctx.op == Ops.Transpose:
+                axes = a.ctx.attrs["axes"]
+                inv = argsort(axes)
+                indices = [IndexExpr(out_loops[inv[k]]) for k in range(len(axes))]
+
+            elif a.ctx.op == Ops.Broadcast:
+                target_shape = a.ctx.attrs["shape"]
+                inp_shape = a.ctx.inputs[0].shape
+                ndim_diff = len(target_shape) - len(inp_shape)
+                padded = [1] * ndim_diff + list(inp_shape)
+                indices = [ConstExpr(0) if padded[k] == 1 else IndexExpr(out_loops[k]) for k in range(ndim_diff, len(target_shape))]
+
+            e = FuncExpr(func=inputs[0], indices=indices)
                 
         elif a.ctx.op.is_binary():
             e = BinaryExpr(

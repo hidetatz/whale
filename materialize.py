@@ -18,6 +18,13 @@ class Materializer:
             dbg(f"materializing ndarray:")
             dbg_tree(arr)
 
+        if arr.ctx.op.is_const():
+            return
+
+        if arr.ctx.op.is_view():
+            materialize(arr.ctx.inputs[0])
+            return
+
         funcs = algo.convert(arr)
 
         scheds = sched.schedule(funcs, isinstance(backend.bcknd, backend.GPUBackend))
