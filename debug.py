@@ -1,6 +1,8 @@
 import os
 import typing
 
+import sched
+
 DEBUG = os.environ.get("WHALE_DEBUG", "0") == "1"
 
 def dbg_raw(msg: str):
@@ -23,7 +25,7 @@ def dbg_tree(n: TreeNode):
 
     dbg_raw(f(n))
 
-def dbg_schedule(s: 'sched.Schedule'):
+def dbg_schedule(s: sched.Schedule):
     dbg_raw(f"        Schedule:")
     for l in s.loops:
         dbg_raw(f"          {l}")

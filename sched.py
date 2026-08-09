@@ -1,5 +1,4 @@
 import math
-
 from dataclasses import dataclass
 from enum import IntEnum, auto
 from typing import Literal

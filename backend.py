@@ -1,6 +1,7 @@
 import os
 from abc import ABC, abstractmethod
 
+import algo
 import buffer
 import sched
 from codegen import CodeGenerator, HighLevelLangCodeGenerator
@@ -19,7 +20,7 @@ class Backend(ABC):
         self.compiler = compiler
         self.executor = executor
 
-    def codegen(self, kern_name, func, schedule, inputs): return self.codegenerator.codegen(kern_name, func, schedule, inputs)
+    def codegen(self, kern_name: str, func: algo.Func, schedule: sched.Schedule, inputs: list[buffer.Buffer]): return self.codegenerator.codegen(kern_name, func, schedule, inputs)
     def compile(self, name: str, code: str): return self.compiler.compile(name, code)
 
     @abstractmethod
