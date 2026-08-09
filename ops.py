@@ -17,6 +17,8 @@ class Ops(IntEnum):
     Sub = auto()
     Mul = auto()
     Truediv = auto()
+    Floordiv = auto()
+    Mod = auto()
     Pow = auto()
     _binary_end = auto()
 
@@ -32,6 +34,7 @@ class Ops(IntEnum):
     _view_end = auto()
 
     Matmul = auto()
+    Contiguous = auto()
 
     def is_const(self): return self.value == Ops.Const
     def is_unary(self): return Ops._unary_start < self.value < Ops._unary_end

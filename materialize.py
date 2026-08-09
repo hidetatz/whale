@@ -19,9 +19,13 @@ class Materializer:
             dbg_tree(arr)
 
         if arr.ctx.op.is_const():
+            if DEBUG:
+                dbg("materialization did not happend as it's constant")
             return
 
         if arr.ctx.op.is_view():
+            if DEBUG:
+                dbg("as it's view op, materializing the source ndarray...")
             materialize(arr.ctx.inputs[0])
             return
 

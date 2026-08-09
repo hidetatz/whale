@@ -79,8 +79,12 @@ class Func:
 
     # view
 
-    # def _reshape_forward(self): return self._view_forward()
-    # def _reshape_backward(self, grad): return grad.reshape(*self.inputs[0].shape)
+    def _reshape_forward(self):
+        inp = self.inputs[0]
+        target_shape = self.attrs["shape"]
+        new_node = Node(dtype=inp.dtype, shape=target_shape, strides=util.strides_from_shape(target_shape), offset=0, ctx=self)
+        return ndarray(new_node)
+    def _reshape_backward(self, grad): return grad.reshape(*self.inputs[0].shape)
 
     def _broadcast_forward(self):
         inp = self.inputs[0]
@@ -89,7 +93,7 @@ class Func:
         padded_strides = [0] * ndim_diff + list(inp.strides)
         padded_src_shape = [1] * ndim_diff + list(inp.shape)
         new_strides = [0 if s == 1 else st for s, st in zip(padded_src_shape, padded_strides)]
-        new_node = Node(dtype=inp.dtype, shape=target_shape, strides=tuple(new_strides), offset=inp.offset, ctx=self, buffer=inp.buffer)
+        new_node = Node(dtype=inp.dtype, shape=target_shape, strides=tuple(new_strides), offset=inp.offset, ctx=self)
         return ndarray(new_node)
     def _broadcast_backward(self, grad):
         orig_shape = self.inputs[0].shape
@@ -106,6 +110,10 @@ class Func:
         return ndarray(new_node)
     def _transpose_backward(self, grad):
         return grad.transpose(*util.argsort(self.attrs["axes"]))
+
+    def _contiguous_forward(self):
+        return ndarray(Node(dtype=self.input.dtype, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
+    def _contiguous_backward(self): pass
 
 class ndarray:
     def __init__(self, node: Node):
@@ -162,12 +170,15 @@ class ndarray:
 
     def reshape(self, *shape):
         if math.prod(shape) != math.prod(self.shape): raise RuntimeError(f"invalid reshape {shape} for size {math.prod(self.shape)}")
-        return Func(Ops.Reshape).forward((self,), shape=shape)
+        return Func(Ops.Reshape).forward((self.contiguous(),), shape=shape)
 
     def transpose(self, *axes):
         if sorted(axes) != list(range(self.ndim)): raise RuntimeError(f"transapose axes must be wrong: {axes}")
-        newshape=[self.shape[a] for a in axes]
-        return Func(Ops.Transpose).forward((self,), axes=axes, shape=newshape)
+        return Func(Ops.Transpose).forward((self,), axes=axes)
+
+    def is_contiguous(self):
+        return self.strides == util.strides_from_shape(self.shape)
+    def contiguous(self): return self if self.is_contiguous() else Func(Ops.Contiguous).forward((self,))
 
     @property
     def T(self):

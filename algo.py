@@ -1,7 +1,9 @@
+from functools import reduce
+
 from buffer import Buffer
 from dtype import DType, int64
 from ops import Ops
-from util import strjoin, argsort
+from util import strjoin, argsort, strides_from_shape
 
 class LoopIndex:
     def __init__(self, name: str, extent: int):
@@ -162,6 +164,20 @@ def convert(arr):
                 padded = [1] * ndim_diff + list(inp_shape)
                 indices = [ConstExpr(0) if padded[k] == 1 else IndexExpr(out_loops[k]) for k in range(ndim_diff, len(target_shape))]
 
+            elif a.ctx.op == Ops.Reshape:
+                inp_shape = a.ctx.inputs[0].shape
+                target_strides = strides_from_shape(a.shape)
+                inp_strides = strides_from_shape(inp_shape)
+                flattened_index_expr = reduce(lambda x, y: BinaryExpr(Ops.Add, x, y), [BinaryExpr(Ops.Mul, IndexExpr(l), ConstExpr(s)) for l, s in zip(out_loops, target_strides)])
+                indices = []
+                remaining = flattened_index_expr
+                for d in range(len(inp_shape)):
+                    if d < len(inp_shape) - 1:
+                        indices.append(BinaryExpr(Ops.Floordiv, remaining, ConstExpr(inp_strides[d])))
+                        remaining = BinaryExpr(Ops.Mod, remaining, ConstExpr(inp_strides[d]))
+                    else:
+                        indices.append(remaining)  # 最後の次元は Floordiv/Mod 不要
+
             e = FuncExpr(func=inputs[0], indices=indices)
                 
         elif a.ctx.op.is_binary():
@@ -194,6 +210,9 @@ def convert(arr):
                 expr=FuncExpr(func=inputs[0], indices=input_indices),
                 reduced=list(reduced.values()),
             )
+
+        elif a.ctx.op == Ops.Contiguous:
+            e = FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops])
 
         else:
             raise RuntimeError(f"not implemented op: {a.ctx.op.name}")

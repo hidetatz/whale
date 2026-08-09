@@ -34,6 +34,8 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def sub(self, l, r): return f"{l} - {r}"
     def mul(self, l, r): return f"{l} * {r}"
     def truediv(self, l, r): return f"{l} / {r}"
+    def floordiv(self, l, r): return f"{l} // {r}"
+    def mod(self, l, r): return f"{l} % {r}"
     def pow(self, l, r): return f"pow({l}, {r})"
 
 class PythonCompiler(compiler.Compiler):

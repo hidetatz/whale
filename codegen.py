@@ -125,6 +125,8 @@ class HighLevelLangCodeGenerator(CodeGenerator):
             case algo.ReduceExpr(): return self.render_reduce(expr, args, dt)
             case algo.BufferExpr(): return self.render_buffer(expr, args, dt)
             case algo.FuncExpr(): return self.render_func(expr, args, dt)
+            case algo.IndexExpr(): return expr.loopvar.name
+            case algo.ConstExpr(): return str(expr.val)
             case _: raise RuntimeError(f"unexpected expr type: {type(expr)}")
 
     def render_unary(self, expr, args, dt):
@@ -150,6 +152,8 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Sub: f = l.sub
         elif expr.op == Ops.Mul: f = l.mul
         elif expr.op == Ops.Truediv: f = l.truediv
+        elif expr.op == Ops.Floordiv: f = l.floordiv
+        elif expr.op == Ops.Mod: f = l.mod
         elif expr.op == Ops.Pow: f = l.pow
         else: raise RuntimeError(f"unknown binary op: {expr.op}")
 
@@ -190,7 +194,8 @@ class HighLevelLangCodeGenerator(CodeGenerator):
                 break
         assert buf != "", "expected buffer is not found in args"
 
-        names = [idx.loopvar.name if isinstance(idx, algo.IndexExpr) else str(idx.val) for idx in expr.indices]
+        names = [self.render_expr(idx, args, dtype.int64) for idx in expr.indices]
+
         l = self.langspec
         terms = [l.mul(name, str(st)) for name, st in zip(names, expr.node.strides) if st != 0]
         flat = reduce(l.add, [str(expr.node.offset)] + terms) if terms else str(expr.node.offset)
@@ -203,5 +208,5 @@ class HighLevelLangCodeGenerator(CodeGenerator):
                 fnc = name
                 break
         assert fnc != "", "expected func result is not found in args"
-        idx = self.arr_idx_calc_expr(expr.func.out_shape, [idx.loopvar.name if isinstance(idx, algo.IndexExpr) else str(idx.val) for idx in expr.indices])
+        idx = self.arr_idx_calc_expr(expr.func.out_shape, [self.render_expr(idx, args, dtype.int64) for idx in expr.indices])
         return self.langspec.index(fnc, idx)
