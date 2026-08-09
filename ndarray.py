@@ -137,9 +137,16 @@ class ndarray:
         self.node = node
         self.grad = None
 
+    # creation
+
     @classmethod
     def _from_prim(cls, val, dtype, shape, strides, offset, ctx):
         return cls(Node(dtype=dtype, shape=shape, strides=strides, offset=offset, val=val, ctx=ctx))
+
+    @classmethod
+    def wrap(cls, v): return v if isinstance(v, ndarray) else array(v)
+
+    # properties
 
     @property
     def dtype(self): return self.node.dtype
@@ -153,14 +160,48 @@ class ndarray:
     def ctx(self): return self.node.ctx
     @property
     def buffer(self): return self.base().node.buffer
-
-    def base(self): return self if not self.ctx.op.is_view() else self.ctx.inputs[0].base()
-
     @property
     def ndim(self): return len(self.shape)
 
-    @classmethod
-    def wrap(cls, v): return v if isinstance(v, ndarray) else array(v)
+    def base(self): return self if not self.ctx.op.is_view() else self.ctx.inputs[0].base()
+
+    # unary
+
+    def __unary(self, f): return Func(f).forward((self,))
+
+    def __neg__(self): return self.__unary(Ops.Neg)
+    def log(self): return self.__unary(Ops.Log)
+
+    # binary
+
+    def __binary(self, r, f):
+        l, r = self.broadcasted(ndarray.wrap(r))
+        return Func(f).forward((l, r))
+
+    def __add__(self, r): return self.__binary(r, Ops.Add)
+    def __sub__(self, r): return self.__binary(r, Ops.Sub)
+    def __mul__(self, r): return self.__binary(r, Ops.Mul)
+    def __truediv__(self, r): return self.__binary(r, Ops.Truediv)
+    def __pow__(self, r): return self.__binary(r, Ops.Pow)
+
+    # reduce
+
+    def __reduce(self, f, axis, keepdims):
+        if isinstance(axis, int): axis = (axis,)
+        if not axis: axis = (list(range(self.ndim)))
+        axis = [a % self.ndim for a in axis]
+        return Func(f).forward((self,), axis=axis, keepdims=keepdims)
+
+    def sum(self, axis=None, keepdims=False): return self.__reduce(Ops.Sum, axis, keepdims)
+
+    # view and copy
+
+    def __getitem__(self, subscript):
+        if not isinstance(subscript, tuple): subscript = (subscript,)
+        if self.ndim < len(subscript): raise RuntimeError(f"too many indices for array, array is {self.ndim} dimensional but {len(subscript)} was given")
+        for s in subscript:
+            if not type(s) is int and not type(s) is slice:  raise RuntimeError(f"only int or slice are valid as index, got {type(s)}")
+        return Func(Ops.Slice).forward((self,), subscript=subscript)
 
     def broadcast_to(self, shape):
         return Func(Ops.Broadcast).forward((self,), shape=shape)
@@ -189,6 +230,11 @@ class ndarray:
         if math.prod(shape) != math.prod(self.shape): raise RuntimeError(f"invalid reshape {shape} for size {math.prod(self.shape)}")
         return Func(Ops.Reshape).forward((self.contiguous(),), shape=shape)
 
+    @property
+    def T(self):
+        if self.ndim <= 1: return self
+        return self.transpose(*list(range(self.ndim))[::-1])
+
     def transpose(self, *axes):
         if sorted(axes) != list(range(self.ndim)): raise RuntimeError(f"transapose axes must be wrong: {axes}")
         return Func(Ops.Transpose).forward((self,), axes=axes)
@@ -197,10 +243,7 @@ class ndarray:
 
     def contiguous(self): return self if self.is_contiguous() else Func(Ops.Contiguous).forward((self,))
 
-    @property
-    def T(self):
-        if self.ndim <= 1: return self
-        return self.transpose(*list(range(self.ndim))[::-1])
+    # gradient
 
     def backward(self):
         if self.grad is None: self.grad = ones_like(self)
@@ -221,6 +264,8 @@ class ndarray:
             for x, gx in zip(f.inputs, gxs):
                 x.grad = gx if x.grad is None else x.grad + gx
 
+    # materialization
+
     def materialize(self): materialize.materialize(self)
 
     def tolist(self):
@@ -236,33 +281,7 @@ class ndarray:
             return [f(shape[1:], strides[1:], offset+i*strides[0]) for i in range(shape[0])]
         return f(self.shape, self.strides, self.offset)
 
-    def __binary(self, r, f):
-        l, r = self.broadcasted(ndarray.wrap(r))
-        return Func(f).forward((l, r))
-
-    def __unary(self, f): return Func(f).forward((self,))
-    def __reduce(self, f, axis, keepdims):
-        if isinstance(axis, int): axis = (axis,)
-        if not axis: axis = (list(range(self.ndim)))
-        axis = [a % self.ndim for a in axis]
-        return Func(f).forward((self,), axis=axis, keepdims=keepdims)
-
-    def __add__(self, r): return self.__binary(r, Ops.Add)
-    def __sub__(self, r): return self.__binary(r, Ops.Sub)
-    def __mul__(self, r): return self.__binary(r, Ops.Mul)
-    def __truediv__(self, r): return self.__binary(r, Ops.Truediv)
-    def __pow__(self, r): return self.__binary(r, Ops.Pow)
-
-    def __neg__(self): return self.__unary(Ops.Neg)
-
-    def sum(self, axis=None, keepdims=False): return self.__reduce(Ops.Sum, axis, keepdims)
-
-    def __getitem__(self, subscript):
-        if not isinstance(subscript, tuple): subscript = (subscript,)
-        if self.ndim < len(subscript): raise RuntimeError(f"too many indices for array, array is {self.ndim} dimensional but {len(subscript)} was given")
-        for s in subscript:
-            if not type(s) is int and not type(s) is slice:  raise RuntimeError(f"only int or slice are valid as index, got {type(s)}")
-        return Func(Ops.Slice).forward((self,), subscript=subscript)
+    # representation
 
     def __repr__(self): return str(self)
 
