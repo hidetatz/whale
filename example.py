@@ -1,11 +1,5 @@
 import ndarray
 import backend
 
-a = ndarray.array([[1, 2, 3], [4, 5, 6]])  # (2, 3)
-b = ndarray.array([[2, 2, 2], [2, 2, 2]])  # (2, 3)
-c = a * b
-d = c.transpose(1, 0)
-e = d.reshape(6)
-f = e.sum()
-f.materialize()
-print(f.tolist())
+a = ndarray.array([[0, 1, 2], [3, 4, 5]])  # (2, 3)
+print(a[0, 1].tolist())

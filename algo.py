@@ -164,6 +164,29 @@ def convert(arr):
                 padded = [1] * ndim_diff + list(inp_shape)
                 indices = [ConstExpr(0) if padded[k] == 1 else IndexExpr(out_loops[k]) for k in range(ndim_diff, len(target_shape))]
 
+            elif a.ctx.op == Ops.Slice:
+                subscript = a.ctx.attrs["subscript"]
+                inp_shape = a.ctx.inputs[0].shape
+                full_sub = list(subscript) + [slice(None)] * (len(inp_shape) - len(subscript))
+                indices = []
+                out_dim = 0
+                for in_dim, s in enumerate(full_sub):
+                    if isinstance(s, int):
+                        k = s if s >= 0 else s + inp_shape[in_dim]
+                        indices.append(ConstExpr(k))
+                    else:
+                        start = s.start if s.start is not None else 0
+                        step = s.step if s.step is not None else 1
+                        if start == 0 and step == 1:
+                            indices.append(IndexExpr(out_loops[out_dim]))
+                        elif start == 0:
+                            indices.append(BinaryExpr(Ops.Mul, IndexExpr(out_loops[out_dim]), ConstExpr(step)))
+                        elif step == 1:
+                            indices.append(BinaryExpr(Ops.Add, ConstExpr(start), IndexExpr(out_loops[out_dim])))
+                        else:
+                            indices.append(BinaryExpr(Ops.Add, ConstExpr(start), BinaryExpr(Ops.Mul, IndexExpr(out_loops[out_dim]), ConstExpr(step))))
+                        out_dim += 1
+
             elif a.ctx.op == Ops.Reshape:
                 inp_shape = a.ctx.inputs[0].shape
                 target_strides = strides_from_shape(a.shape)

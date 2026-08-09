@@ -111,6 +111,23 @@ class Func:
     def _transpose_backward(self, grad):
         return grad.transpose(*util.argsort(self.attrs["axes"]))
 
+    def _slice_forward(self):
+        newoffset, newshape, newstrides = self.input.offset, [], []
+        for dim, s in enumerate(list(self.attrs["subscript"]) + [slice(None)] * (self.input.ndim - len(self.attrs["subscript"]))):
+            match s:
+                case int():
+                    if s < 0: s += self.input.shape[dim]
+                    newoffset += s * self.input.strides[dim]
+                case slice():
+                    start = s.start if s.start is not None else 0
+                    stop = s.stop if s.stop is not None else self.input.shape[dim]
+                    step = s.step if s.step is not None else 1
+                    newoffset += start * self.input.strides[dim]
+                    newshape.append((stop - start + step - 1) // step)
+                    newstrides.append(self.input.strides[dim] * step)
+        return ndarray(Node(dtype=self.input.dtype, shape=tuple(newshape), strides=tuple(newstrides), offset=newoffset, ctx=self))
+    def _slice_backward(self, grad): pass
+
     def _contiguous_forward(self):
         return ndarray(Node(dtype=self.input.dtype, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
     def _contiguous_backward(self): pass
@@ -212,7 +229,7 @@ class ndarray:
         return self._to_ndlist()
 
     def _to_ndlist(self):
-        if not self.shape: return self.buffer.cpu.val[0]
+        if not self.shape: return self.buffer.cpu.val[self.offset]
         data = self.buffer.cpu.val
         def f(shape, strides, offset):
             if not shape: return data[offset]
@@ -240,7 +257,14 @@ class ndarray:
 
     def sum(self, axis=None, keepdims=False): return self.__reduce(Ops.Sum, axis, keepdims)
 
-    def __repr__(self): return f"<ndarray {str(self)}>"
+    def __getitem__(self, subscript):
+        if not isinstance(subscript, tuple): subscript = (subscript,)
+        if self.ndim < len(subscript): raise RuntimeError(f"too many indices for array, array is {self.ndim} dimensional but {len(subscript)} was given")
+        for s in subscript:
+            if not type(s) is int and not type(s) is slice:  raise RuntimeError(f"only int or slice are valid as index, got {type(s)}")
+        return Func(Ops.Slice).forward((self,), subscript=subscript)
+
+    def __repr__(self): return str(self)
 
     def __str__(self):
         if self.buffer is None:

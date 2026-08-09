@@ -613,6 +613,138 @@ class Test(unittest.TestCase):
         self.assertEqual(c.tolist(), [0, 4, 16, 36])
 
     #
+    # slice (basic indexing)
+    #
+
+    def test_slice_1d_int(self):
+        a = ndarray.arange(6)
+        self.assertEqual(a[2].shape, ())
+        self.assertEqual(a[2].tolist(), 2)
+
+    def test_slice_1d_negative_int(self):
+        a = ndarray.arange(6)
+        self.assertEqual(a[-1].tolist(), 5)
+        self.assertEqual(a[-3].tolist(), 3)
+
+    def test_slice_1d_basic(self):
+        a = ndarray.arange(6)
+        b = a[1:4]
+        self.assertEqual(b.shape, (3,))
+        self.assertEqual(b.strides, (1,))
+        self.assertEqual(b.offset, 1)
+        self.assertEqual(b.tolist(), [1, 2, 3])
+
+    def test_slice_1d_from_start(self):
+        a = ndarray.arange(6)
+        self.assertEqual(a[:3].tolist(), [0, 1, 2])
+
+    def test_slice_1d_to_end(self):
+        a = ndarray.arange(6)
+        self.assertEqual(a[3:].tolist(), [3, 4, 5])
+
+    def test_slice_1d_step(self):
+        a = ndarray.arange(6)
+        b = a[::2]
+        self.assertEqual(b.shape, (3,))
+        self.assertEqual(b.strides, (2,))
+        self.assertEqual(b.tolist(), [0, 2, 4])
+
+    def test_slice_1d_start_step(self):
+        a = ndarray.arange(6)
+        self.assertEqual(a[1::2].tolist(), [1, 3, 5])
+
+    def test_slice_1d_start_stop_step(self):
+        a = ndarray.arange(6)
+        self.assertEqual(a[1:5:2].tolist(), [1, 3])
+
+    def test_slice_2d_int_int(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        self.assertEqual(a[0, 0].tolist(), 1)
+        self.assertEqual(a[1, 2].tolist(), 6)
+
+    def test_slice_2d_first_int(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = a[1]
+        self.assertEqual(b.shape, (3,))
+        self.assertEqual(b.tolist(), [4, 5, 6])
+
+    def test_slice_2d_negative_int(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        self.assertEqual(a[-1].tolist(), [4, 5, 6])
+        self.assertEqual(a[-1, -1].tolist(), 6)
+
+    def test_slice_2d_int_slice(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        self.assertEqual(a[0, 1:3].tolist(), [2, 3])
+        self.assertEqual(a[1, :2].tolist(), [4, 5])
+
+    def test_slice_2d_slice_int(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        b = a[1:3, 2]
+        self.assertEqual(b.shape, (2,))
+        self.assertEqual(b.tolist(), [6, 9])
+
+    def test_slice_2d_slice_slice(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        b = a[1:3, 0:2]
+        self.assertEqual(b.shape, (2, 2))
+        self.assertEqual(b.tolist(), [[4, 5], [7, 8]])
+
+    def test_slice_2d_step(self):
+        a = ndarray.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])
+        b = a[::2, ::2]
+        self.assertEqual(b.shape, (2, 2))
+        self.assertEqual(b.tolist(), [[1, 3], [9, 11]])
+
+    def test_slice_no_materialize(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = a[0:1, 1:]
+        self.assertEqual(b.shape, (1, 2))
+        self.assertEqual(b.tolist(), [[2, 3]])
+
+    def test_slice_3d(self):
+        a = ndarray.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])  # (2,2,2)
+        self.assertEqual(a[0, :, 1].tolist(), [2, 4])
+        self.assertEqual(a[1, 0].tolist(), [5, 6])
+
+    def test_slice_then_add(self):
+        a = ndarray.array([1, 2, 3, 4, 5, 6])
+        b = ndarray.array([10, 10, 10])
+        c = a[1:4] + b
+        c.materialize()
+        self.assertEqual(c.tolist(), [12, 13, 14])
+
+    def test_slice_step_then_add(self):
+        a = ndarray.arange(6)
+        b = ndarray.array([1, 1, 1])
+        c = a[1::2] + b
+        c.materialize()
+        self.assertEqual(c.tolist(), [2, 4, 6])
+
+    def test_slice_then_sum(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        b = a[0:2].sum(axis=0)
+        b.materialize()
+        self.assertEqual(b.tolist(), [5, 7, 9])
+
+    def test_slice_2d_then_mul(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        b = ndarray.array([[2, 2], [2, 2]])
+        c = a[1:3, 0:2] * b
+        c.materialize()
+        self.assertEqual(c.tolist(), [[8, 10], [14, 16]])
+
+    def test_slice_too_many_indices(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        with self.assertRaises(RuntimeError):
+            a[0, 1, 2]
+
+    def test_slice_invalid_index_type(self):
+        a = ndarray.arange(6)
+        with self.assertRaises(RuntimeError):
+            a[1.0]
+
+    #
     # cache
     #
 
