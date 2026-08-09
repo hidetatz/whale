@@ -10,6 +10,7 @@ from debug import DEBUG, dbg, dbg_tree, dbg_schedule, dbg_kernel
 class Materializer:
     def __init__(self):
         self.kern_cache = kernel.KernelCache()
+        self.kern_invoke_hist = []
 
     def materialize(self, arr):
         if DEBUG:
@@ -64,9 +65,10 @@ class Materializer:
             self.kern_cache.save(cache_key, kern)
 
             backend.bcknd.invoke_kernel(schedule, kern, params)
+            self.kern_invoke_hist.append(kern)
 
             if DEBUG:
-                dbg(f"kernel invocation count: {len(backend.bcknd.kern_invoke_hist)}")
+                dbg(f"kernel invocation count: {len(self.kern_invoke_hist)}")
 
     def func_cache_key(self, func, schedule):
         def _expr_key(expr, buf_ids):

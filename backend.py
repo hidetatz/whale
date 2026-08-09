@@ -19,23 +19,17 @@ class Backend(ABC):
         self.compiler = compiler
         self.executor = executor
 
-        self.kern_invoke_hist = []
-
     def codegen(self, kern_name, func, schedule, inputs): return self.codegenerator.codegen(kern_name, func, schedule, inputs)
     def compile(self, name: str, code: str): return self.compiler.compile(name, code)
 
-    def invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]):
-        self.kern_invoke_hist.append(kern)
-        self._invoke_kernel(schedule, kern, params)
-
     @abstractmethod
-    def _invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]): ...
+    def invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]): ...
 
 class CPUBackend(Backend):
     def __init__(self, codegenerator: CodeGenerator, compiler: Compiler, executor: CPUExecutor):
         super().__init__(codegenerator, compiler, executor)
 
-    def _invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]):
+    def invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]):
         for i, p in enumerate(params):
             if p.cpu is None:
                 p.cpu = buffer.CPUBuff([0] * p.length)
@@ -46,7 +40,7 @@ class GPUBackend(Backend):
     def __init__(self, codegenerator: CodeGenerator, compiler: Compiler, executor: GPUExecutor):
         super().__init__(codegenerator, compiler, executor)
 
-    def _invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]):
+    def invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]):
         e = self.executor
         for i, p in enumerate(params):
             if p.dev.ptr is None:

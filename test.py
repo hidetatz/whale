@@ -1,6 +1,7 @@
 import math
 import unittest
 
+import backend
 import materialize
 import ndarray
 from dtype import float64, int64
@@ -127,6 +128,20 @@ class Test(unittest.TestCase):
         b.materialize()
         self.assertEqual(b.tolist(), [0, 2, 4, 6, 8, 10])
 
+    def test_truediv(self):
+        a = ndarray.array([6, 4, 2])
+        b = ndarray.array([2, 2, 2])
+        c = a / b
+        c.materialize()
+        self.assertEqual(c.tolist(), [3, 2, 1])
+
+    def test_truediv_fractional(self):
+        a = ndarray.array([1.0, 3.0, 5.0])
+        b = ndarray.array([2.0, 2.0, 2.0])
+        c = a / b
+        c.materialize()
+        self._assert_list_close(c.tolist(), [0.5, 1.5, 2.5])
+
     #
     # reduce
     #
@@ -182,6 +197,67 @@ class Test(unittest.TestCase):
         self.assertEqual(c.tolist(), [7, 11, 15])
 
     #
+    # reduce (keepdims)
+    #
+
+    def test_sum_keepdims_axis0(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = a.sum(axis=0, keepdims=True)
+        b.materialize()
+        self.assertEqual(b.shape, (1, 3))
+        self.assertEqual(b.tolist(), [[5, 7, 9]])
+
+    def test_sum_keepdims_axis1(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = a.sum(axis=1, keepdims=True)
+        b.materialize()
+        self.assertEqual(b.shape, (2, 1))
+        self.assertEqual(b.tolist(), [[6], [15]])
+
+    def test_sum_keepdims_multi_axis(self):
+        a = ndarray.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])  # (2,2,2)
+        b = a.sum(axis=(0, 2), keepdims=True)
+        b.materialize()
+        self.assertEqual(b.shape, (1, 2, 1))
+        self.assertEqual(b.tolist(), [[[1+2+5+6], [3+4+7+8]]])
+
+    #
+    # view
+    #
+
+    def test_view_materialize(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        a.materialize()
+        self.assertEqual(a.shape, (2, 3))
+        self.assertEqual(a.tolist(), [[1, 2, 3], [4, 5, 6]])
+        self.assertEqual(len(materialize.materializer.kern_invoke_hist), 0)
+
+        a = a.reshape(3, 2)
+        a.materialize()
+        self.assertEqual(a.shape, (3, 2))
+        self.assertEqual(a.tolist(), [[1, 2], [3, 4], [5, 6]])
+        self.assertEqual(len(materialize.materializer.kern_invoke_hist), 0)
+
+        a = a.reshape(1, 6)
+        a.materialize()
+        self.assertEqual(a.shape, (1, 6))
+        self.assertEqual(a.tolist(), [[1, 2, 3, 4, 5, 6]])
+        self.assertEqual(len(materialize.materializer.kern_invoke_hist), 0)
+
+        a = a.transpose(1, 0)
+        a.materialize()
+        self.assertEqual(a.shape, (6, 1))
+        self.assertEqual(a.tolist(), [[1], [2], [3], [4], [5], [6]])
+        self.assertEqual(len(materialize.materializer.kern_invoke_hist), 0)
+
+        # contiguous needed
+        a = a.reshape(2, 3)
+        a.materialize()
+        self.assertEqual(a.shape, (2, 3))
+        self.assertEqual(a.tolist(), [[1, 2, 3], [4, 5, 6]])
+        self.assertEqual(len(materialize.materializer.kern_invoke_hist), 1)
+
+    #
     # broadcast
     #
 
@@ -224,84 +300,6 @@ class Test(unittest.TestCase):
         with self.assertRaises(RuntimeError) as context:
             c = a * b
         self.assertTrue("shapes are not broadcastable" in str(context.exception))
-
-    #
-    # truediv
-    #
-
-    def test_truediv(self):
-        a = ndarray.array([6, 4, 2])
-        b = ndarray.array([2, 2, 2])
-        c = a / b
-        c.materialize()
-        self.assertEqual(c.tolist(), [3, 2, 1])
-
-    def test_truediv_fractional(self):
-        a = ndarray.array([1.0, 3.0, 5.0])
-        b = ndarray.array([2.0, 2.0, 2.0])
-        c = a / b
-        c.materialize()
-        self._assert_list_close(c.tolist(), [0.5, 1.5, 2.5])
-
-    #
-    # float dtype
-    #
-
-    def test_float_array_dtype(self):
-        a = ndarray.array([1.0, 2.0, 3.0])
-        self.assertEqual(a.dtype, float64)
-        self.assertEqual(a.shape, (3,))
-        self.assertEqual(a.tolist(), [1.0, 2.0, 3.0])
-
-    def test_float_2d_array(self):
-        a = ndarray.array([[1.5, 2.5], [3.5, 4.5]])
-        self.assertEqual(a.dtype, float64)
-        self.assertEqual(a.shape, (2, 2))
-        self.assertEqual(a.tolist(), [[1.5, 2.5], [3.5, 4.5]])
-
-    def test_float_add(self):
-        a = ndarray.array([1.5, 2.5, 3.5])
-        b = ndarray.array([0.5, 0.5, 0.5])
-        c = a + b
-        c.materialize()
-        self.assertEqual(c.tolist(), [2.0, 3.0, 4.0])
-
-    def test_float_sub(self):
-        a = ndarray.array([3.0, 5.0, 7.0])
-        b = ndarray.array([1.5, 2.5, 3.5])
-        c = a - b
-        c.materialize()
-        self.assertEqual(c.tolist(), [1.5, 2.5, 3.5])
-
-    def test_float_mul(self):
-        a = ndarray.array([1.5, 2.0, 4.0])
-        b = ndarray.array([2.0, 3.0, 0.5])
-        c = a * b
-        c.materialize()
-        self.assertEqual(c.tolist(), [3.0, 6.0, 2.0])
-
-    def test_float_neg(self):
-        a = ndarray.array([1.5, -2.5, 3.0])
-        b = -a
-        b.materialize()
-        self.assertEqual(b.tolist(), [-1.5, 2.5, -3.0])
-
-    def test_float_pow(self):
-        a = ndarray.array([1.0, 2.0, 3.0])
-        b = ndarray.array([2.0, 2.0, 2.0])
-        c = a ** b
-        c.materialize()
-        self.assertEqual(c.tolist(), [1.0, 4.0, 9.0])
-
-    def test_float_sum(self):
-        a = ndarray.array([[1.5, 2.5, 3.0], [4.0, 5.0, 6.0]])
-        b = a.sum(axis=1)
-        b.materialize()
-        self._assert_list_close(b.tolist(), [7.0, 15.0])
-
-    def test_int_array_dtype(self):
-        a = ndarray.array([1, 2, 3])
-        self.assertEqual(a.dtype, int64)
 
     #
     # transpose
@@ -468,29 +466,64 @@ class Test(unittest.TestCase):
         self.assertEqual(c.tolist(), [[1, 4], [2, 5], [3, 6]])
 
     #
-    # keepdims
+    # float dtype
     #
 
-    def test_sum_keepdims_axis0(self):
-        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-        b = a.sum(axis=0, keepdims=True)
-        b.materialize()
-        self.assertEqual(b.shape, (1, 3))
-        self.assertEqual(b.tolist(), [[5, 7, 9]])
+    def test_float_array_dtype(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        self.assertEqual(a.dtype, float64)
+        self.assertEqual(a.shape, (3,))
+        self.assertEqual(a.tolist(), [1.0, 2.0, 3.0])
 
-    def test_sum_keepdims_axis1(self):
-        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
-        b = a.sum(axis=1, keepdims=True)
-        b.materialize()
-        self.assertEqual(b.shape, (2, 1))
-        self.assertEqual(b.tolist(), [[6], [15]])
+    def test_float_2d_array(self):
+        a = ndarray.array([[1.5, 2.5], [3.5, 4.5]])
+        self.assertEqual(a.dtype, float64)
+        self.assertEqual(a.shape, (2, 2))
+        self.assertEqual(a.tolist(), [[1.5, 2.5], [3.5, 4.5]])
 
-    def test_sum_keepdims_multi_axis(self):
-        a = ndarray.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])  # (2,2,2)
-        b = a.sum(axis=(0, 2), keepdims=True)
+    def test_float_add(self):
+        a = ndarray.array([1.5, 2.5, 3.5])
+        b = ndarray.array([0.5, 0.5, 0.5])
+        c = a + b
+        c.materialize()
+        self.assertEqual(c.tolist(), [2.0, 3.0, 4.0])
+
+    def test_float_sub(self):
+        a = ndarray.array([3.0, 5.0, 7.0])
+        b = ndarray.array([1.5, 2.5, 3.5])
+        c = a - b
+        c.materialize()
+        self.assertEqual(c.tolist(), [1.5, 2.5, 3.5])
+
+    def test_float_mul(self):
+        a = ndarray.array([1.5, 2.0, 4.0])
+        b = ndarray.array([2.0, 3.0, 0.5])
+        c = a * b
+        c.materialize()
+        self.assertEqual(c.tolist(), [3.0, 6.0, 2.0])
+
+    def test_float_neg(self):
+        a = ndarray.array([1.5, -2.5, 3.0])
+        b = -a
         b.materialize()
-        self.assertEqual(b.shape, (1, 2, 1))
-        self.assertEqual(b.tolist(), [[[1+2+5+6], [3+4+7+8]]])
+        self.assertEqual(b.tolist(), [-1.5, 2.5, -3.0])
+
+    def test_float_pow(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = ndarray.array([2.0, 2.0, 2.0])
+        c = a ** b
+        c.materialize()
+        self.assertEqual(c.tolist(), [1.0, 4.0, 9.0])
+
+    def test_float_sum(self):
+        a = ndarray.array([[1.5, 2.5, 3.0], [4.0, 5.0, 6.0]])
+        b = a.sum(axis=1)
+        b.materialize()
+        self._assert_list_close(b.tolist(), [7.0, 15.0])
+
+    def test_int_array_dtype(self):
+        a = ndarray.array([1, 2, 3])
+        self.assertEqual(a.dtype, int64)
 
     #
     # large arrays

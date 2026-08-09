@@ -176,8 +176,8 @@ class ndarray:
         if sorted(axes) != list(range(self.ndim)): raise RuntimeError(f"transapose axes must be wrong: {axes}")
         return Func(Ops.Transpose).forward((self,), axes=axes)
 
-    def is_contiguous(self):
-        return self.strides == util.strides_from_shape(self.shape)
+    def is_contiguous(self): return self.strides == util.strides_from_shape(self.shape)
+
     def contiguous(self): return self if self.is_contiguous() else Func(Ops.Contiguous).forward((self,))
 
     @property
@@ -204,8 +204,7 @@ class ndarray:
             for x, gx in zip(f.inputs, gxs):
                 x.grad = gx if x.grad is None else x.grad + gx
 
-    def materialize(self):
-        materialize.materialize(self)
+    def materialize(self): materialize.materialize(self)
 
     def tolist(self):
         if self.buffer.cpu is None:
@@ -243,7 +242,6 @@ class ndarray:
 
     def __repr__(self): return f"<ndarray {str(self)}>"
 
-    # todo: consider materialize
     def __str__(self):
         if self.buffer is None:
             return f"{self.ctx.op.name if self.ctx else "Input"} shape={self.shape} strides={self.strides} offset={self.offset} dtype={self.dtype} buffer=None"
