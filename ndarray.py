@@ -62,7 +62,9 @@ class Func:
     def _truediv_backward(self, grad): return grad / self.inputs[1], grad * (-self.inputs[0] / self.inputs[1] ** 2)
 
     def _pow_forward(self): return self._elemwise_forward()
-    def _pow_backward(self, grad): return self.inputs[1] * self.inputs[0] ** (self.inputs[1] - 1) * grad
+    def _pow_backward(self, grad):
+        x, y = self.inputs[0], self.inputs[1]
+        return y * x ** (y - 1) * grad, (x ** y) * x.log() * grad
 
     # reduce
 
@@ -128,9 +130,8 @@ class Func:
         return ndarray(Node(dtype=self.input.dtype, shape=tuple(newshape), strides=tuple(newstrides), offset=newoffset, ctx=self))
     def _slice_backward(self, grad): pass
 
-    def _contiguous_forward(self):
-        return ndarray(Node(dtype=self.input.dtype, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
-    def _contiguous_backward(self): pass
+    def _contiguous_forward(self): return ndarray(Node(dtype=self.input.dtype, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
+    def _contiguous_backward(self, grad): return grad
 
 class ndarray:
     def __init__(self, node: Node):
