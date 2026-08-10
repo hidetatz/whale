@@ -115,18 +115,14 @@ class Func:
 
     def _slice_forward(self):
         newoffset, newshape, newstrides = self.input.offset, [], []
-        for dim, s in enumerate(list(self.attrs["subscript"]) + [slice(None)] * (self.input.ndim - len(self.attrs["subscript"]))):
+        for dim, s in enumerate(self.attrs["subscript"]):
             match s:
                 case int():
-                    if s < 0: s += self.input.shape[dim]
                     newoffset += s * self.input.strides[dim]
                 case slice():
-                    start = s.start if s.start is not None else 0
-                    stop = s.stop if s.stop is not None else self.input.shape[dim]
-                    step = s.step if s.step is not None else 1
-                    newoffset += start * self.input.strides[dim]
-                    newshape.append((stop - start + step - 1) // step)
-                    newstrides.append(self.input.strides[dim] * step)
+                    newoffset += s.start * self.input.strides[dim]
+                    newshape.append(max(0, (s.stop - s.start + s.step - 1) // s.step))
+                    newstrides.append(self.input.strides[dim] * s.step)
         return ndarray(Node(dtype=self.input.dtype, shape=tuple(newshape), strides=tuple(newstrides), offset=newoffset, ctx=self))
     def _slice_backward(self, grad): pass
 
@@ -202,7 +198,31 @@ class ndarray:
         if self.ndim < len(subscript): raise RuntimeError(f"too many indices for array, array is {self.ndim} dimensional but {len(subscript)} was given")
         for s in subscript:
             if not type(s) is int and not type(s) is slice:  raise RuntimeError(f"only int or slice are valid as index, got {type(s)}")
-        return Func(Ops.Slice).forward((self,), subscript=subscript)
+
+        padded = list(subscript) + [slice(None)] * (self.ndim - len(subscript))
+        norm = []
+        for dim, s in enumerate(padded):
+            size = self.shape[dim]
+            match s:
+                case int():
+                    if s < 0: s += size
+                    if not (0 <= s < size): raise RuntimeError(f"index {s} is out of bounds for axis {dim} with size {size}")
+                    norm.append(s)
+                case slice():
+                    start = s.start if s.start is not None else 0
+                    stop = s.stop if s.stop is not None else size
+                    step = s.step if s.step is not None else 1
+                    if start < 0: start += size
+                    if stop < 0: stop += size
+                    if step < 0: raise RuntimeError(f"step must not be negative in indexing, got {step}")
+                    start = max(0, min(start, size))
+                    stop = max(0, min(stop, size))
+                    norm.append(slice(start, stop, step))
+                case _:
+                    # todo: support advanced indexing
+                    raise RuntimeError(f"currently ndarray indexing supports only integer or slice")
+
+        return Func(Ops.Slice).forward((self,), subscript=tuple(norm))
 
     def broadcast_to(self, shape):
         return Func(Ops.Broadcast).forward((self,), shape=shape)

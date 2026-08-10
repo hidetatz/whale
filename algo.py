@@ -166,25 +166,20 @@ def convert(arr):
 
             elif a.ctx.op == Ops.Slice:
                 subscript = a.ctx.attrs["subscript"]
-                inp_shape = a.ctx.inputs[0].shape
-                full_sub = list(subscript) + [slice(None)] * (len(inp_shape) - len(subscript))
                 indices = []
                 out_dim = 0
-                for in_dim, s in enumerate(full_sub):
+                for s in subscript:
                     if isinstance(s, int):
-                        k = s if s >= 0 else s + inp_shape[in_dim]
-                        indices.append(ConstExpr(k))
+                        indices.append(ConstExpr(s))
                     else:
-                        start = s.start if s.start is not None else 0
-                        step = s.step if s.step is not None else 1
-                        if start == 0 and step == 1:
+                        if s.start == 0 and s.step == 1:
                             indices.append(IndexExpr(out_loops[out_dim]))
-                        elif start == 0:
-                            indices.append(BinaryExpr(Ops.Mul, IndexExpr(out_loops[out_dim]), ConstExpr(step)))
-                        elif step == 1:
-                            indices.append(BinaryExpr(Ops.Add, ConstExpr(start), IndexExpr(out_loops[out_dim])))
+                        elif s.start == 0:
+                            indices.append(BinaryExpr(Ops.Mul, IndexExpr(out_loops[out_dim]), ConstExpr(s.step)))
+                        elif s.step == 1:
+                            indices.append(BinaryExpr(Ops.Add, ConstExpr(s.start), IndexExpr(out_loops[out_dim])))
                         else:
-                            indices.append(BinaryExpr(Ops.Add, ConstExpr(start), BinaryExpr(Ops.Mul, IndexExpr(out_loops[out_dim]), ConstExpr(step))))
+                            indices.append(BinaryExpr(Ops.Add, ConstExpr(s.start), BinaryExpr(Ops.Mul, IndexExpr(out_loops[out_dim]), ConstExpr(s.step))))
                         out_dim += 1
 
             elif a.ctx.op == Ops.Reshape:
