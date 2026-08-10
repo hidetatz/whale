@@ -20,7 +20,6 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def if_start(self, cond): return f"if {cond}:"
     def if_end(self): return ""
     def return_function(self): return "return"
-    def greater_than(self, l, r): return f"{l} <= {r}"
     def index(self, a, idx): return f"{a}[{idx}]"
     def init(self, dt, l, r): return f"{l} = {r}"
     def assign(self, l, r): return f"{l} = {r}"
@@ -37,6 +36,14 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def floordiv(self, l, r): return f"{l} // {r}"
     def mod(self, l, r): return f"{l} % {r}"
     def pow(self, l, r): return f"pow({l}, {r})"
+    def _and(self, l, r): return f"{l} and {r}"
+    def _or(self, l, r): return f"{l} or {r}"
+    def eq(self, l, r): return f"{l} == {r}"
+    def gt(self, l, r): return f"{l} > {r}"
+    def ge(self, l, r): return f"{l} >= {r}"
+    def lt(self, l, r): return f"{l} < {r}"
+    def le(self, l, r): return f"{l} <= {r}"
+    def where(self, e1, e2, e3): return f"{e2} if {e1} else {e3}"
 
 class PythonCompiler(compiler.Compiler):
     def compile(self, name: str, code: str):

@@ -39,6 +39,16 @@ class BinaryExpr:
     def inputs(self): return [self.l_expr, self.r_expr]
     def __str__(self): return f"BinaryExpr({self.op})"
 
+class TernaryExpr:
+    def __init__(self, op: Ops, e1: Expr, e2: Expr, e3: Expr):
+        self.op = op
+        self.e1 = e1
+        self.e2 = e2
+        self.e3 = e3
+
+    def inputs(self): return [self.e1, self.e2, self.e3]
+    def __str__(self): return f"TernaryExpr({self.op})"
+
 class UnaryExpr:
     def __init__(self, op: Ops, expr: Expr):
         self.op = op
@@ -100,6 +110,7 @@ class Func:
         def collect(e):
             if isinstance(e, ReduceExpr): return e.reduced
             if isinstance(e, BinaryExpr): return collect(e.l_expr) + collect(e.r_expr)
+            if isinstance(e, TernaryExpr): return collect(e.e1) + collect(e.e2) + collect(e.e3)
             if isinstance(e, UnaryExpr): return collect(e.expr)
             return []
         return collect(self.expr)
@@ -116,6 +127,7 @@ class Func:
                 if e.func not in seen:
                     seen.add(e.func)
                     fncs.append(e)
+            elif isinstance(e, TernaryExpr): walk(e.e1); walk(e.e2); walk(e.e3)
             elif isinstance(e, BinaryExpr): walk(e.l_expr); walk(e.r_expr)
             elif isinstance(e, UnaryExpr): walk(e.expr)
             elif isinstance(e, ReduceExpr): walk(e.expr)
@@ -197,6 +209,14 @@ def convert(arr):
                         indices.append(remaining)  # 最後の次元は Floordiv/Mod 不要
 
             e = FuncExpr(func=inputs[0], indices=indices)
+
+        elif a.ctx.op.is_ternary():
+            e = TernaryExpr(
+                op=a.ctx.op,
+                e1=FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops]),
+                e2=FuncExpr(func=inputs[1], indices=[IndexExpr(l) for l in out_loops]),
+                e3=FuncExpr(func=inputs[2], indices=[IndexExpr(l) for l in out_loops]),
+            )
                 
         elif a.ctx.op.is_binary():
             e = BinaryExpr(
@@ -232,6 +252,33 @@ def convert(arr):
         elif a.ctx.op == Ops.Contiguous:
             e = FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops])
 
+        elif a.ctx.op == Ops.Pad:
+            dim = a.ctx.attrs["dim"]
+            before = a.ctx.attrs["before"]
+            # when before <= out_loops[dim] and out_loops[dim] < before+shape[dim]
+            cond = BinaryExpr(op=Ops.And,
+                l=BinaryExpr(Ops.Ge, IndexExpr(out_loops[dim]), ConstExpr(before)),
+                r=BinaryExpr(Ops.Lt, IndexExpr(out_loops[dim]), ConstExpr(before + a.ctx.input.shape[dim])),
+            )
+
+            # use the input value (index - before)
+            true_expr = FuncExpr(func=inputs[0], indices=[BinaryExpr(Ops.Sub, IndexExpr(out_loops[d]), ConstExpr(before)) if d == dim else IndexExpr(out_loops[d]) for d in range(len(out_loops))])
+
+            # else, 0 (padding)
+            false_expr = ConstExpr(0)
+            e = TernaryExpr(op=Ops.Where, e1=cond, e2=true_expr, e3=false_expr)
+
+        elif a.ctx.op == Ops.Dilate:
+            dim = a.ctx.attrs["dim"]
+            step = a.ctx.attrs["step"]
+            cond = BinaryExpr(op=Ops.Eq,
+                l=BinaryExpr(Ops.Mod, IndexExpr(out_loops[dim]), ConstExpr(step)),
+                r=ConstExpr(0),
+            )
+            true_expr = FuncExpr(func=inputs[0], indices=[BinaryExpr(Ops.Floordiv, IndexExpr(out_loops[d]), ConstExpr(step)) if d == dim else IndexExpr(out_loops[d]) for d in range(len(out_loops))])
+            false_expr = ConstExpr(0)
+            e = TernaryExpr(op=Ops.Where, e1=cond, e2=true_expr, e3=false_expr)
+
         else:
             raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
 
@@ -248,12 +295,14 @@ def convert(arr):
 
     def has_reduce(e):
         if isinstance(e, ReduceExpr): return True
+        if isinstance(e, TernaryExpr): return has_reduce(e.e1) or has_reduce(e.e2) or has_reduce(e.e3)
         if isinstance(e, BinaryExpr): return has_reduce(e.l_expr) or has_reduce(e.r_expr)
         if isinstance(e, UnaryExpr): return has_reduce(e.expr)
         return False # FuncExpr, BufferExpr, IndexExpr, ConstExpr
 
     def replace_index(e, index_replace) -> Expr:
         if isinstance(e, IndexExpr): return index_replace[e.loopvar]
+        if isinstance(e, TernaryExpr): return TernaryExpr(e.op, replace_index(e.e1, index_replace), replace_index(e.e2, index_replace), replace_index(e.e3, index_replace))
         if isinstance(e, BinaryExpr): return BinaryExpr(e.op, replace_index(e.l_expr, index_replace), replace_index(e.r_expr, index_replace))
         if isinstance(e, UnaryExpr): return UnaryExpr(e.op, replace_index(e.expr, index_replace))
         if isinstance(e, FuncExpr): return FuncExpr(e.func, [replace_index(i, index_replace) for i in e.indices])
@@ -278,6 +327,7 @@ def convert(arr):
             # for unary, binary, reduce, they are not Func so try to fuse their parents
             case UnaryExpr(): return UnaryExpr(op=e.op, expr=try_fuse(e.expr))
             case BinaryExpr(): return BinaryExpr(op=e.op, l=try_fuse(e.l_expr), r=try_fuse(e.r_expr))
+            case TernaryExpr(): return TernaryExpr(op=e.op, e1=try_fuse(e.e1), e2=try_fuse(e.e2), e3=try_fuse(e.e3))
             case ReduceExpr(): return ReduceExpr(op=e.op, expr=try_fuse(e.expr), reduced=e.reduced)
             case FuncExpr():
                 is_buffer = isinstance(e.func.expr, BufferExpr) # buffer reference is always fusable

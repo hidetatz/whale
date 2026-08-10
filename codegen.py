@@ -61,7 +61,7 @@ class HighLevelLangCodeGenerator(CodeGenerator):
 
         for sp in schedule.splits:
             if sp.tail_guard_required:
-                self.write(l.if_start(l.greater_than(sp.orig.extent, sp.orig.name)))
+                self.write(l.if_start(l.le(sp.orig.extent, sp.orig.name)))
                 self.nest()
                 self.write(l.return_function())
                 self.unnest()
@@ -122,6 +122,7 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         match expr:
             case algo.UnaryExpr(): return self.render_unary(expr, args, dt)
             case algo.BinaryExpr(): return self.render_binary(expr, args, dt)
+            case algo.TernaryExpr(): return self.render_ternary(expr, args, dt)
             case algo.ReduceExpr(): return self.render_reduce(expr, args, dt)
             case algo.BufferExpr(): return self.render_buffer(expr, args, dt)
             case algo.FuncExpr(): return self.render_func(expr, args, dt)
@@ -155,11 +156,29 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Floordiv: f = l.floordiv
         elif expr.op == Ops.Mod: f = l.mod
         elif expr.op == Ops.Pow: f = l.pow
+        elif expr.op == Ops.And: f = l._and
+        elif expr.op == Ops.Or: f = l._or
+        elif expr.op == Ops.Eq: f = l.eq
+        elif expr.op == Ops.Gt: f = l.gt
+        elif expr.op == Ops.Ge: f = l.ge
+        elif expr.op == Ops.Lt: f = l.lt
+        elif expr.op == Ops.Le: f = l.le
         else: raise RuntimeError(f"unknown binary op: {expr.op}")
 
         left, right = self.render_expr(expr.l_expr, args, dt), self.render_expr(expr.r_expr, args, dt)
         tmpvar = self.tmpvar()
         self.write(l.init(dt, tmpvar, f(left, right)))
+        return tmpvar
+
+    def render_ternary(self, expr, args, dt):
+        l = self.langspec
+
+        if expr.op == Ops.Where: f = l.where
+        else: raise RuntimeError(f"unknown ternary op: {expr.op}")
+
+        e1, e2, e3 = self.render_expr(expr.e1, args, dt), self.render_expr(expr.e2, args, dt), self.render_expr(expr.e3, args, dt)
+        tmpvar = self.tmpvar()
+        self.write(l.init(dt, tmpvar, f(e1, e2, e3)))
         return tmpvar
 
     def render_reduce(self, expr, args, dt):

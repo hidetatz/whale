@@ -144,10 +144,46 @@ class Func:
                     newshape.append(max(0, (s.stop - s.start + s.step - 1) // s.step))
                     newstrides.append(self.input.strides[dim] * s.step)
         return ndarray(Node(dtype=self.input.dtype, shape=tuple(newshape), strides=tuple(newstrides), offset=newoffset, ctx=self))
-    def _slice_backward(self, grad): pass
+    def _slice_backward(self, grad):
+        grad_dim = 0
+        for inpdim, s in enumerate(self.attrs["subscript"]):
+            match s:
+                case int():
+                    newshape = list(grad.shape[:grad_dim]) + [1] + list(grad.shape[grad_dim:])
+                    grad = grad.reshape(*newshape)
+                    grad = grad.pad(grad_dim, s, self.input.shape[inpdim] - s - 1)
+                    grad_dim += 1
+                case slice():
+                    if s.step > 1: grad = grad.dilate(grad_dim, s.step)
+                    before = s.start
+                    after = self.input.shape[inpdim] - s.start - grad.shape[grad_dim]
+                    if before > 0 or after > 0: grad = grad.pad(grad_dim, before, after)
+                    grad_dim += 1
+        return grad
+
+    # movement
 
     def _contiguous_forward(self): return ndarray(Node(dtype=self.input.dtype, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
     def _contiguous_backward(self, grad): return grad
+
+    def _pad_forward(self):
+        newshape = list(self.input.shape)
+        newshape[self.attrs["dim"]] += (self.attrs["before"] + self.attrs["after"])
+        return ndarray(Node(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self))
+    def _pad_backward(self, grad):
+        dim = self.attrs["dim"]
+        before = self.attrs["before"]
+        subscript = tuple(slice(before, before+self.input.shape[dim]) if d == dim else slice(None) for d in range(grad.ndim))
+        return grad[subscript]
+
+    def _dilate_forward(self):
+        dim = self.attrs["dim"]
+        newshape = list(self.input.shape)
+        newshape[dim] = (newshape[dim] - 1) * self.attrs["step"] + 1
+        return ndarray(Node(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self))
+    def _dilate_backward(self, grad):
+        subscript = tuple(slice(None, None, self.attrs["step"]) if d == self.attrs["dim"] else slice(None) for d in range(grad.ndim))
+        return grad[subscript]
 
 class ndarray:
     def __init__(self, node: Node):
@@ -282,9 +318,16 @@ class ndarray:
         if sorted(axes) != list(range(self.ndim)): raise RuntimeError(f"transapose axes must be wrong: {axes}")
         return Func(Ops.Transpose).forward((self,), axes=axes)
 
-    def is_contiguous(self): return self.strides == util.strides_from_shape(self.shape)
+    # movement
 
+    def is_contiguous(self): return self.strides == util.strides_from_shape(self.shape)
     def contiguous(self): return self if self.is_contiguous() else Func(Ops.Contiguous).forward((self,))
+    def pad(self, dim, before, after):
+        if self.ndim <= dim: raise RuntimeError(f"too big dim {dim} for {self.ndim}-dimensional array in pad")
+        return self if (before == 0 and after == 0) else Func(Ops.Pad).forward((self,), dim=dim, before=before, after=after)
+    def dilate(self, dim, step):
+        if self.ndim <= dim: raise RuntimeError(f"too big dim {dim} for {self.ndim}-dimensional array in dilate")
+        return self if step == 1 else Func(Ops.Dilate).forward((self,), dim=dim, step=step)
 
     # gradient
 

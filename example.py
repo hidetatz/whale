@@ -1,11 +1,9 @@
 import ndarray
 
-a = ndarray.array([[0, 1, 2], [3, 4, 5]])  # (2, 3)
-b = ndarray.arange(6).reshape(2, 3)  # (2, 3)
-c = a + b
-c.backward()
-
+a = ndarray.arange(25).reshape(5, 5)
+b = a.dilate(1, 2)
+b.materialize()
+b.backward()
+print(b.tolist())
 a.grad.materialize()
-b.grad.materialize()
 print(a.grad.tolist())
-print(b.grad.tolist())

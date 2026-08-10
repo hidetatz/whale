@@ -5,16 +5,23 @@ import dtype
 class LangSpec(ABC): pass
 
 class HighLevelLangSpec(LangSpec):
+    # library and import
     @abstractmethod
     def import_lib(self, lib): ...
     @abstractmethod
     def default_library(self): ...
+
+    # language
     @abstractmethod
     def indent_str(self): ...
+
+    # kernel
     @abstractmethod
     def kern_start(self, name, arg_names, arg_types): ...
     @abstractmethod
     def kern_end(self): ...
+
+    # branch and loop
     @abstractmethod
     def sequential_loop_start(self, index, start, end, step): ...
     @abstractmethod
@@ -33,16 +40,20 @@ class HighLevelLangSpec(LangSpec):
     def if_start(self, cond): ...
     @abstractmethod
     def if_end(self): ...
+
+    # function
     @abstractmethod
     def return_function(self): ...
-    @abstractmethod
-    def greater_than(self, l, r): ...
+
+    # access
     @abstractmethod
     def index(self, a, idx): ...
     @abstractmethod
     def init(self, dt, l, r): ...
     @abstractmethod
     def assign(self, l, r): ...
+
+    # unary
     @abstractmethod
     def neg(self, a): ...
     @abstractmethod
@@ -56,6 +67,8 @@ class HighLevelLangSpec(LangSpec):
     def log(self, a): ...
     @abstractmethod
     def sqrt(self, a): ...
+
+    # binary
     @abstractmethod
     def add(self, l, r): ...
     @abstractmethod
@@ -70,6 +83,24 @@ class HighLevelLangSpec(LangSpec):
     def mod(self, l, r): ...
     @abstractmethod
     def pow(self, l, r): ...
+    @abstractmethod
+    def _and(self, l, r): ...
+    @abstractmethod
+    def _or(self, l, r): ...
+    @abstractmethod
+    def eq(self, l, r): ...
+    @abstractmethod
+    def gt(self, l, r): ...
+    @abstractmethod
+    def ge(self, l, r): ...
+    @abstractmethod
+    def lt(self, l, r): ...
+    @abstractmethod
+    def le(self, l, r): ...
+
+    # ternary
+    @abstractmethod
+    def where(self, e1, e2, e3): ...
 
 class CCompatibleLangSpec(HighLevelLangSpec):
     def typename(self, dt):
@@ -88,7 +119,6 @@ class CCompatibleLangSpec(HighLevelLangSpec):
     def if_start(self, cond): return f"if ({cond}) {{"
     def if_end(self): return "}"
     def return_function(self): return "return;"
-    def greater_than(self, l, r): return f"{l} <= {r}"
     def index(self, a, idx): return f"{a}[{idx}]"
     def init(self, dt, l, r): return f"{self.typename(dt)} {l} = {r};"
     def assign(self, l, r): return f"{l} = {r};"
@@ -105,6 +135,14 @@ class CCompatibleLangSpec(HighLevelLangSpec):
     def floordiv(self, l, r): return f"{l} / {r}"
     def mod(self, l, r): return f"{l} % {r}"
     def pow(self, l, r): return f"pow({l}, {r})"
+    def _and(self, l, r): return f"({l} && {r})"
+    def _or(self, l, r): return f"({l} || {r})"
+    def eq(self, l, r): return f"({l} == {r})"
+    def gt(self, l, r): return f"({l} > {r})"
+    def ge(self, l, r): return f"({l} >= {r})"
+    def lt(self, l, r): return f"({l} < {r})"
+    def le(self, l, r): return f"({l} <= {r})"
+    def where(self, e1, e2, e3): return f"{e1} ? {e2} : {e3}"
 
     @abstractmethod
     def kern_start(self, name, arg_names, arg_types): ...

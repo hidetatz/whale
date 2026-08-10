@@ -20,7 +20,18 @@ class Ops(IntEnum):
     Floordiv = auto()
     Mod = auto()
     Pow = auto()
+    And = auto()
+    Or = auto()
+    Eq = auto()
+    Gt = auto()
+    Ge = auto()
+    Lt = auto()
+    Le = auto()
     _binary_end = auto()
+
+    _ternary_start = auto()
+    Where = auto()
+    _ternary_end = auto()
 
     _reduce_start = auto()
     Sum = auto()
@@ -35,10 +46,13 @@ class Ops(IntEnum):
 
     Matmul = auto()
     Contiguous = auto()
+    Pad = auto()
+    Dilate = auto()
 
     def is_const(self): return self.value == Ops.Const
     def is_unary(self): return Ops._unary_start < self.value < Ops._unary_end
     def is_binary(self): return Ops._binary_start < self.value < Ops._binary_end
+    def is_ternary(self): return Ops._ternary_start < self.value < Ops._ternary_end
     def is_reduce(self): return Ops._reduce_start < self.value < Ops._reduce_end
     def is_view(self): return Ops._view_start < self.value < Ops._view_end
     def is_matmul(self): return self.value == Ops.Matmul
