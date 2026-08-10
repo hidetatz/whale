@@ -47,6 +47,21 @@ class Func:
     def _neg_forward(self): return self._elemwise_forward()
     def _neg_backward(self, grad): return -grad
 
+    def _sin_forward(self): return self._elemwise_forward()
+    def _sin_backward(self, grad): return self.input.cos() * grad
+
+    def _cos_forward(self): return self._elemwise_forward()
+    def _cos_backward(self, grad): return -(self.input.sin()) * grad
+
+    def _exp_forward(self): return self._elemwise_forward()
+    def _exp_backward(self, grad): return self.output() * grad
+
+    def _log_forward(self): return self._elemwise_forward()
+    def _log_backward(self, grad): return grad / self.input
+
+    def _sqrt_forward(self): return self._elemwise_forward()
+    def _sqrt_backward(self, grad): return grad / (self.output() * 2)
+
     # binary
 
     def _add_forward(self): return self._elemwise_forward()
@@ -77,7 +92,12 @@ class Func:
         return ndarray._from_prim(val=None, dtype=inp.dtype, shape=tuple(newshape), strides=util.strides_from_shape(newshape), offset=0, ctx=self)
 
     def _sum_forward(self): return self._reduce_forward()
-    def _sum_backward(self, grad): pass # todo
+    def _sum_backward(self, grad):
+        if not self.attrs["keepdims"]:
+            newshape = list(self.input.shape)
+            for a in self.attrs["axis"]: newshape[a] = 1
+            grad = grad.reshape(*newshape)
+        return grad.broadcast_to(self.input.shape)
 
     # view
 
@@ -167,7 +187,11 @@ class ndarray:
     def __unary(self, f): return Func(f).forward((self,))
 
     def __neg__(self): return self.__unary(Ops.Neg)
+    def sin(self): return self.__unary(Ops.Sin)
+    def cos(self): return self.__unary(Ops.Cos)
+    def exp(self): return self.__unary(Ops.Exp)
     def log(self): return self.__unary(Ops.Log)
+    def sqrt(self): return self.__unary(Ops.Sqrt)
 
     # binary
 
