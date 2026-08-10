@@ -379,7 +379,8 @@ def full_like(t, val):
     return full(t.shape, val)
 
 def ones_like(t):
-    return full_like(t, 1)
+    val = 1 if t.dtype == int32 or t.dtype == int64 else 1.0
+    return full_like(t, val)
 
 def zeros_like(t):
     return full_like(t, 0)
