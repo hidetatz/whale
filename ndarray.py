@@ -220,25 +220,23 @@ class ndarray:
     def __getitem__(self, subscript):
         if not isinstance(subscript, tuple): subscript = (subscript,)
         if self.ndim < len(subscript): raise RuntimeError(f"too many indices for array, array is {self.ndim} dimensional but {len(subscript)} was given")
-        for s in subscript:
-            if not type(s) is int and not type(s) is slice:  raise RuntimeError(f"only int or slice are valid as index, got {type(s)}")
-
         padded = list(subscript) + [slice(None)] * (self.ndim - len(subscript))
         norm = []
         for dim, s in enumerate(padded):
             size = self.shape[dim]
             match s:
                 case int():
-                    if s < 0: s += size
-                    if not (0 <= s < size): raise RuntimeError(f"index {s} is out of bounds for axis {dim} with size {size}")
-                    norm.append(s)
+                    ss = s
+                    if ss < 0: ss += size
+                    if not (0 <= ss < size): raise RuntimeError(f"index {s} is out of bounds for axis {dim} with size {size}")
+                    norm.append(ss)
                 case slice():
                     start = s.start if s.start is not None else 0
                     stop = s.stop if s.stop is not None else size
                     step = s.step if s.step is not None else 1
                     if start < 0: start += size
                     if stop < 0: stop += size
-                    if step < 0: raise RuntimeError(f"step must not be negative in indexing, got {step}")
+                    if step <= 0: raise RuntimeError(f"step must not be negative in indexing, got {step}")
                     start = max(0, min(start, size))
                     stop = max(0, min(stop, size))
                     norm.append(slice(start, stop, step))
