@@ -282,7 +282,7 @@ def convert(arr):
         else:
             raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
 
-        f = Func(out_loops=out_loops, out_shape=a.shape, out_dtype=a.dtype, expr=e, out_buffer=a.buffer)
+        f = Func(out_loops=out_loops, out_shape=a.shape, out_dtype=a.dtype, expr=e, out_buffer=a.node.buffer)
         memo[a] = f
         return f
 
