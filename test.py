@@ -745,6 +745,316 @@ class Test(unittest.TestCase):
             a[1.0]
 
     #
+    # pad
+    #
+
+    def test_pad_1d(self):
+        a = ndarray.array([1, 2, 3])
+        b = a.pad(0, 2, 3)
+        b.materialize()
+        self.assertEqual(b.shape, (8,))
+        self.assertEqual(b.tolist(), [0, 0, 1, 2, 3, 0, 0, 0])
+
+    def test_pad_only_before(self):
+        a = ndarray.array([1, 2, 3])
+        b = a.pad(0, 2, 0)
+        b.materialize()
+        self.assertEqual(b.tolist(), [0, 0, 1, 2, 3])
+
+    def test_pad_only_after(self):
+        a = ndarray.array([1, 2, 3])
+        b = a.pad(0, 0, 2)
+        b.materialize()
+        self.assertEqual(b.tolist(), [1, 2, 3, 0, 0])
+
+    def test_pad_2d_dim0(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = a.pad(0, 1, 1)
+        b.materialize()
+        self.assertEqual(b.shape, (4, 2))
+        self.assertEqual(b.tolist(), [[0, 0], [1, 2], [3, 4], [0, 0]])
+
+    def test_pad_2d_dim1(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = a.pad(1, 1, 2)
+        b.materialize()
+        self.assertEqual(b.shape, (2, 5))
+        self.assertEqual(b.tolist(), [[0, 1, 2, 0, 0], [0, 3, 4, 0, 0]])
+
+    def test_pad_noop_returns_self(self):
+        a = ndarray.arange(3)
+        b = a.pad(0, 0, 0)
+        self.assertIs(b, a)
+
+    def test_backward_pad_1d(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        a.pad(0, 2, 3).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 1.0, 1.0])
+
+    def test_backward_pad_2d(self):
+        a = ndarray.array([[1.0, 2.0], [3.0, 4.0]])
+        a.pad(0, 1, 1).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[1.0, 1.0], [1.0, 1.0]])
+
+    def test_backward_pad_partial_gradient(self):
+        # gradient only flows through the original (non-padded) positions
+        a = ndarray.array([1.0, 2.0, 3.0])
+        weights = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        (a.pad(0, 1, 2) * weights).sum().backward()
+        a.grad.materialize()
+        # a[0] at pos 1 (weight 2), a[1] at pos 2 (weight 3), a[2] at pos 3 (weight 4)
+        self._assert_list_close(a.grad.tolist(), [2.0, 3.0, 4.0])
+
+    #
+    # dilate
+    #
+
+    def test_dilate_1d_step2(self):
+        a = ndarray.array([1, 2, 3])
+        b = a.dilate(0, 2)
+        b.materialize()
+        self.assertEqual(b.shape, (5,))
+        self.assertEqual(b.tolist(), [1, 0, 2, 0, 3])
+
+    def test_dilate_1d_step3(self):
+        a = ndarray.array([1, 2, 3])
+        b = a.dilate(0, 3)
+        b.materialize()
+        self.assertEqual(b.shape, (7,))
+        self.assertEqual(b.tolist(), [1, 0, 0, 2, 0, 0, 3])
+
+    def test_dilate_2d_dim0(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = a.dilate(0, 2)
+        b.materialize()
+        self.assertEqual(b.shape, (3, 2))
+        self.assertEqual(b.tolist(), [[1, 2], [0, 0], [3, 4]])
+
+    def test_dilate_2d_dim1(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = a.dilate(1, 2)
+        b.materialize()
+        self.assertEqual(b.shape, (2, 3))
+        self.assertEqual(b.tolist(), [[1, 0, 2], [3, 0, 4]])
+
+    def test_dilate_noop_returns_self(self):
+        a = ndarray.arange(3)
+        b = a.dilate(0, 1)
+        self.assertIs(b, a)
+
+    def test_backward_dilate_step2(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        a.dilate(0, 2).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 1.0, 1.0])
+
+    def test_backward_dilate_step3(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        a.dilate(0, 3).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 1.0, 1.0])
+
+    def test_backward_dilate_2d(self):
+        a = ndarray.array([[1.0, 2.0], [3.0, 4.0]])
+        a.dilate(0, 2).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[1.0, 1.0], [1.0, 1.0]])
+
+    def test_backward_dilate_partial_gradient(self):
+        # gradient flows only through original positions (not zeros inserted by dilate)
+        a = ndarray.array([1.0, 2.0, 3.0])
+        weights = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        (a.dilate(0, 2) * weights).sum().backward()
+        a.grad.materialize()
+        # a[0] at pos 0 (weight 1), a[1] at pos 2 (weight 3), a[2] at pos 4 (weight 5)
+        self._assert_list_close(a.grad.tolist(), [1.0, 3.0, 5.0])
+
+    #
+    # backward
+    #
+
+    def test_backward_neg(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        (-a).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [-1.0, -1.0, -1.0])
+
+    def test_backward_sin(self):
+        a = ndarray.array([0.0, math.pi / 6, math.pi / 2])
+        a.sin().sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [math.cos(0.0), math.cos(math.pi / 6), math.cos(math.pi / 2)])
+
+    def test_backward_cos(self):
+        a = ndarray.array([0.0, math.pi / 6, math.pi / 2])
+        a.cos().sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [-math.sin(0.0), -math.sin(math.pi / 6), -math.sin(math.pi / 2)])
+
+    def test_backward_exp(self):
+        a = ndarray.array([0.0, 1.0, 2.0])
+        a.exp().sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [math.exp(0.0), math.exp(1.0), math.exp(2.0)])
+
+    def test_backward_log(self):
+        a = ndarray.array([1.0, 2.0, math.e])
+        a.log().sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 0.5, 1.0 / math.e])
+
+    def test_backward_sqrt(self):
+        a = ndarray.array([1.0, 4.0, 9.0])
+        a.sqrt().sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [0.5, 0.25, 1.0 / 6.0])
+
+    def test_backward_add(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = ndarray.array([4.0, 5.0, 6.0])
+        (a + b).sum().backward()
+        a.grad.materialize()
+        b.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 1.0, 1.0])
+        self._assert_list_close(b.grad.tolist(), [1.0, 1.0, 1.0])
+
+    def test_backward_sub(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = ndarray.array([4.0, 5.0, 6.0])
+        (a - b).sum().backward()
+        a.grad.materialize()
+        b.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 1.0, 1.0])
+        self._assert_list_close(b.grad.tolist(), [-1.0, -1.0, -1.0])
+
+    def test_backward_mul(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = ndarray.array([2.0, 3.0, 4.0])
+        (a * b).sum().backward()
+        a.grad.materialize()
+        b.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [2.0, 3.0, 4.0])
+        self._assert_list_close(b.grad.tolist(), [1.0, 2.0, 3.0])
+
+    def test_backward_x_squared(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        (a * a).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [2.0, 4.0, 6.0])
+
+    def test_backward_pow(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = ndarray.full_like(a, 2.0)
+        (a ** b).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [2.0, 4.0, 6.0])
+
+    def test_backward_sum_all(self):
+        a = ndarray.array([[1.0, 2.0], [3.0, 4.0]])
+        a.sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[1.0, 1.0], [1.0, 1.0]])
+
+    def test_backward_sum_axis0(self):
+        a = ndarray.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        a.sum(axis=0).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
+
+    def test_backward_sum_axis1(self):
+        a = ndarray.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        a.sum(axis=1).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
+
+    def test_backward_reshape(self):
+        a = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        a.reshape(2, 3).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+
+    def test_backward_transpose(self):
+        a = ndarray.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        a.T.sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
+
+    def test_backward_broadcast(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = ndarray.array([[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
+        (a + b).sum().backward()
+        a.grad.materialize()
+        # a is broadcast across 2 rows, so each element accumulates gradient twice
+        self._assert_list_close(a.grad.tolist(), [2.0, 2.0, 2.0])
+
+    def test_backward_contiguous(self):
+        a = ndarray.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        a.T.contiguous().sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
+
+    def test_backward_slice_1d_basic(self):
+        a = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        a[1:4].sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [0.0, 1.0, 1.0, 1.0, 0.0])
+
+    def test_backward_slice_1d_from_end(self):
+        a = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        a[3:].sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [0.0, 0.0, 0.0, 1.0, 1.0])
+
+    def test_backward_slice_1d_step(self):
+        a = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        a[::2].sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 0.0, 1.0, 0.0, 1.0, 0.0])
+
+    def test_backward_slice_1d_start_step(self):
+        a = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        a[1:5:2].sum().backward()
+        a.grad.materialize()
+        # selects indices 1 and 3
+        self._assert_list_close(a.grad.tolist(), [0.0, 1.0, 0.0, 1.0, 0.0, 0.0])
+
+    def test_backward_slice_int_index(self):
+        a = ndarray.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
+        a[1].sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]])
+
+    def test_backward_slice_2d_slice_slice(self):
+        a = ndarray.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
+        a[1:3, 0:2].sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1.0, 1.0, 0.0]])
+
+    def test_backward_slice_2d_int_slice(self):
+        a = ndarray.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]])
+        a[0, 1:4].sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[0.0, 1.0, 1.0, 1.0], [0.0, 0.0, 0.0, 0.0]])
+
+    def test_backward_slice_weighted(self):
+        a = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        weights = ndarray.array([3.0, 1.0, 4.0])
+        (a[1:4] * weights).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [0.0, 3.0, 1.0, 4.0, 0.0])
+
+    def test_backward_chain_slice_mul(self):
+        a = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        b = ndarray.array([2.0, 3.0])
+        (a[2:4] * b).sum().backward()
+        a.grad.materialize()
+        b.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [0.0, 0.0, 2.0, 3.0, 0.0])
+        self._assert_list_close(b.grad.tolist(), [3.0, 4.0])
+
+    #
     # cache
     #
 
