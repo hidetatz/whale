@@ -173,13 +173,36 @@ class HighLevelLangCodeGenerator(CodeGenerator):
     def render_ternary(self, expr, args, dt):
         l = self.langspec
 
-        if expr.op == Ops.Where: f = l.where
-        else: raise RuntimeError(f"unknown ternary op: {expr.op}")
+        if expr.op == Ops.Where:
+            # tmpvar = 0
+            tmpvar = self.tmpvar() # result
+            self.write(l.init(dt, tmpvar, "0" if dt.is_int() else "0.0"))
 
-        e1, e2, e3 = self.render_expr(expr.e1, args, dt), self.render_expr(expr.e2, args, dt), self.render_expr(expr.e3, args, dt)
-        tmpvar = self.tmpvar()
-        self.write(l.init(dt, tmpvar, f(e1, e2, e3)))
-        return tmpvar
+            # cond = e1
+            cond = self.render_expr(expr.e1, args, dtype.int64)
+
+            # if cond:
+            self.write(l.if_start(cond))
+            self.nest()
+
+            # true_expr = e2; tmpvar = e2
+            true_expr = self.render_expr(expr.e2, args, dt)
+            self.write(l.assign(tmpvar, true_expr))
+            self.unnest()
+
+            # else:
+            self.write(l.else_())
+            self.nest()
+
+            # false_expr = e3; tmpvar = e3
+            false_expr = self.render_expr(expr.e3, args, dt)
+            self.write(l.assign(tmpvar, false_expr))
+
+            self.unnest()
+            self.write(l.if_end())
+            return tmpvar
+
+        else: raise RuntimeError(f"unknown ternary op: {expr.op}")
 
     def render_reduce(self, expr, args, dt):
         l = self.langspec

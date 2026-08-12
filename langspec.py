@@ -39,6 +39,8 @@ class HighLevelLangSpec(LangSpec):
     @abstractmethod
     def if_start(self, cond): ...
     @abstractmethod
+    def else_(self): ...
+    @abstractmethod
     def if_end(self): ...
 
     # function
@@ -98,10 +100,6 @@ class HighLevelLangSpec(LangSpec):
     @abstractmethod
     def le(self, l, r): ...
 
-    # ternary
-    @abstractmethod
-    def where(self, e1, e2, e3): ...
-
 class CCompatibleLangSpec(HighLevelLangSpec):
     def typename(self, dt):
         if dt == dtype.int32: return "int32_t"
@@ -117,6 +115,7 @@ class CCompatibleLangSpec(HighLevelLangSpec):
     def sequential_loop_start(self, index, start, end, step): return f"for (int {index} = {start}; {index} < {end}; {index} += {step}) {{"
     def loop_end(self): return "}"
     def if_start(self, cond): return f"if ({cond}) {{"
+    def else_(self): return "} else {"
     def if_end(self): return "}"
     def return_function(self): return "return;"
     def index(self, a, idx): return f"{a}[{idx}]"
@@ -142,7 +141,6 @@ class CCompatibleLangSpec(HighLevelLangSpec):
     def ge(self, l, r): return f"({l} >= {r})"
     def lt(self, l, r): return f"({l} < {r})"
     def le(self, l, r): return f"({l} <= {r})"
-    def where(self, e1, e2, e3): return f"{e1} ? {e2} : {e3}"
 
     @abstractmethod
     def kern_start(self, name, arg_names, arg_types): ...

@@ -18,6 +18,7 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def gpu_thread_index(self, index, start, end, step, idx): raise RuntimeError("Python backend cannot handle gpu blocks!")
     def loop_end(self): return ""
     def if_start(self, cond): return f"if {cond}:"
+    def else_(self): return "else:"
     def if_end(self): return ""
     def return_function(self): return "return"
     def index(self, a, idx): return f"{a}[{idx}]"
@@ -43,7 +44,6 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def ge(self, l, r): return f"{l} >= {r}"
     def lt(self, l, r): return f"{l} < {r}"
     def le(self, l, r): return f"{l} <= {r}"
-    def where(self, e1, e2, e3): return f"{e2} if {e1} else {e3}"
 
 class PythonCompiler(compiler.Compiler):
     def compile(self, name: str, code: str):

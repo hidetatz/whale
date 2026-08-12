@@ -3,6 +3,8 @@ import ctypes
 class DType:
     def __repr__(self):
         return self.__class__.__name__.lower()
+    def is_float(self): return isinstance(self, Float32) or isinstance(self, Float64)
+    def is_int(self): return isinstance(self, Int32) or isinstance(self, Int64)
 
 class Int32(DType):
     def ctype(self): return ctypes.c_int32
