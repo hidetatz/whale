@@ -118,6 +118,21 @@ class Func:
             grad = grad.reshape(*newshape)
         return grad.broadcast_to(self.input.shape)
 
+    def _max_forward(self): return self._reduce_forward()
+    def _max_backward(self, grad):
+        out = self.output()
+        if not self.attrs["keepdims"]:
+            newshape = list(self.input.shape)
+            for a in self.attrs["axis"]: newshape[a] = 1
+            # recover the output and grad dimensions
+            out = out.reshape(*newshape)
+            grad = grad.reshape(*newshape)
+
+        out = out.broadcast_to(self.input.shape)
+        mask = self.input == out
+        mask = mask / mask.sum(self.attrs["axis"], keepdims=True)
+        return grad.broadcast_to(self.input.shape) * mask
+
     # view
 
     def _reshape_forward(self):
@@ -284,6 +299,7 @@ class ndarray:
         return Func(f).forward((self,), axis=axis, keepdims=keepdims)
 
     def sum(self, axis=None, keepdims=False): return self.__reduce(Ops.Sum, axis, keepdims)
+    def max(self, axis=None, keepdims=False): return self.__reduce(Ops.Max, axis, keepdims)
 
     # view and copy
 

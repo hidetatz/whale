@@ -15,6 +15,14 @@ class HighLevelLangSpec(LangSpec):
     @abstractmethod
     def indent_str(self): ...
 
+    # math
+    @abstractmethod
+    def zero(self, dtype): ...
+    @abstractmethod
+    def inf(self, dtype): ...
+    @abstractmethod
+    def inf_neg(self, dtype): ...
+
     # kernel
     @abstractmethod
     def kern_start(self, name, arg_names, arg_types): ...
@@ -104,6 +112,9 @@ class HighLevelLangSpec(LangSpec):
     @abstractmethod
     def le(self, l, r): ...
 
+    @abstractmethod
+    def where(self, cond, t, f): ...
+
 class CCompatibleLangSpec(HighLevelLangSpec):
     def typename(self, dt):
         if dt == dtype.int32: return "int32_t"
@@ -114,6 +125,9 @@ class CCompatibleLangSpec(HighLevelLangSpec):
     def import_lib(self, lib): return f"#include <{lib}>"
     def default_library(self): return ["stdint.h", "math.h"]
     def indent_str(self): return "    "
+    def zero(self, dtype): return "0" if dtype.is_int() else "0.0"
+    def inf(self, dtype): return "INFINITY"
+    def inf_neg(self, dtype): return "-INFINITY"
 
     def kern_end(self): return "}"
     def sequential_loop_start(self, index, start, end, step): return f"for (int {index} = {start}; {index} < {end}; {index} += {step}) {{"
@@ -147,6 +161,7 @@ class CCompatibleLangSpec(HighLevelLangSpec):
     def ge(self, l, r): return f"({l} >= {r})"
     def lt(self, l, r): return f"({l} < {r})"
     def le(self, l, r): return f"({l} <= {r})"
+    def where(self, cond, t, f): return f"{cond} ? {t} : {f}"
 
     @abstractmethod
     def kern_start(self, name, arg_names, arg_types): ...

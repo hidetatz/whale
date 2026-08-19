@@ -225,7 +225,10 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         l = self.langspec
 
         acc = "acc"
-        self.write(l.init(expr.dtype, acc, "0"))
+        if expr.op == Ops.Sum: accval = l.zero(expr.dtype)
+        elif expr.op == Ops.Max: accval = l.inf_neg(expr.dtype)
+        else: raise RuntimeError(f"unknown reduce op: {expr.op}")
+        self.write(l.init(expr.dtype, acc, accval))
 
         for idx in expr.reduced:
             self.write(l.sequential_loop_start(idx.name, 0, idx.extent, 1)) # for now reduce loop is not scheduled
@@ -234,6 +237,7 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         result = self.render_expr(expr.expr)
 
         if expr.op == Ops.Sum: f = l.add
+        elif expr.op == Ops.Max: f = lambda _acc, _result: l.where(l.gt(_acc, _result), _acc, _result)
         else: raise RuntimeError(f"unknown reduce op: {expr.op}")
 
         self.write(l.assign(acc, f(acc, result)))

@@ -1137,6 +1137,71 @@ class Test(unittest.TestCase):
             c.backward()
 
     #
+    # max
+    #
+
+    def test_max_1d(self):
+        a = ndarray.array([3.0, 1.0, 4.0, 1.0, 5.0])
+        b = a.max()
+        b.materialize()
+        self._assert_list_close(b.tolist(), 5.0)
+
+    def test_max_all_negative(self):
+        a = ndarray.array([-3.0, -1.0, -4.0])
+        b = a.max()
+        b.materialize()
+        self._assert_list_close(b.tolist(), -1.0)
+
+    def test_max_axis0(self):
+        a = ndarray.array([[1.0, 5.0], [3.0, 2.0]])
+        b = a.max(axis=0)
+        b.materialize()
+        self._assert_list_close(b.tolist(), [3.0, 5.0])
+
+    def test_max_axis1(self):
+        a = ndarray.array([[1.0, 5.0], [3.0, 2.0]])
+        b = a.max(axis=1)
+        b.materialize()
+        self._assert_list_close(b.tolist(), [5.0, 3.0])
+
+    def test_max_keepdims(self):
+        a = ndarray.array([[1.0, 5.0], [3.0, 2.0]])
+        b = a.max(axis=1, keepdims=True)
+        b.materialize()
+        self.assertEqual(b.shape, (2, 1))
+        self._assert_list_close(b.tolist(), [[5.0], [3.0]])
+
+    def test_backward_max_basic(self):
+        a = ndarray.array([1.0, 5.0, 3.0])
+        a.max().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [0.0, 1.0, 0.0])
+
+    def test_backward_max_ties(self):
+        a = ndarray.array([3.0, 3.0, 1.0])
+        a.max().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [0.5, 0.5, 0.0])
+
+    def test_backward_max_axis0(self):
+        a = ndarray.array([[1.0, 5.0], [3.0, 2.0]])
+        a.max(axis=0).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[0.0, 1.0], [1.0, 0.0]])
+
+    def test_backward_max_axis1(self):
+        a = ndarray.array([[1.0, 5.0], [3.0, 2.0]])
+        a.max(axis=1).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[0.0, 1.0], [1.0, 0.0]])
+
+    def test_backward_max_keepdims(self):
+        a = ndarray.array([[1.0, 5.0], [3.0, 2.0]])
+        a.max(axis=1, keepdims=True).sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[0.0, 1.0], [1.0, 0.0]])
+
+    #
     # cast
     #
 

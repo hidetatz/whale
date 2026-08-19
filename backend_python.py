@@ -7,6 +7,9 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def import_lib(self, lib): return f"import {lib}"
     def default_library(self): return ["math"]
     def indent_str(self): return "    "
+    def zero(self, dtype): return "0" if dtype.is_int() else "0.0"
+    def inf(self, dtype): return "math.inf"
+    def inf_neg(self, dtype): return "-math.inf"
     def kern_start(self, name, arg_names, arg_types): return f"def {name}({', '.join(arg_names)}):"
     def kern_end(self): return ""
     def loop_start(self, index, start, end, step): return f"for {index} in range({start}, {end}, {step}):"
@@ -46,6 +49,7 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def ge(self, l, r): return f"{l} >= {r}"
     def lt(self, l, r): return f"{l} < {r}"
     def le(self, l, r): return f"{l} <= {r}"
+    def where(self, cond, t, f): return f"{t} if {cond} else {f}"
 
 class PythonCompiler(compiler.Compiler):
     def compile(self, name: str, code: str):
