@@ -1,7 +1,7 @@
 from functools import reduce
 
 from buffer import Buffer
-from dtype import DType, int64
+from dtype import DType, float64, int64
 from ops import Ops
 from util import strjoin, argsort, strides_from_shape
 
@@ -19,6 +19,7 @@ class LoopIndex:
 class IndexExpr:
     def __init__(self, idx: LoopIndex):
         self.loopvar = idx
+        self.dtype = int64
 
     def inputs(self): return []
     def __str__(self): return f"IndexExpr({self.loopvar})"
@@ -26,25 +27,36 @@ class IndexExpr:
 class ConstExpr:
     def __init__(self, val: int):
         self.val = val
+        self.dtype = float64 if isinstance(val, float) else int64
 
     def inputs(self): return []
     def __str__(self): return f"ConstExpr({self.val})"
+
+class CastExpr:
+    def __init__(self, expr: Expr, dtype: DType):
+        self.expr = expr
+        self.dtype = dtype
+
+    def inputs(self): return [self.expr]
+    def __str__(self): return f"CastExpr({self.dtype})"
 
 class BinaryExpr:
     def __init__(self, op: Ops, l: Expr, r: Expr):
         self.op = op
         self.l_expr = l
         self.r_expr = r
+        self.dtype = int64 if op.is_cmp() else l.dtype
 
     def inputs(self): return [self.l_expr, self.r_expr]
     def __str__(self): return f"BinaryExpr({self.op})"
 
 class TernaryExpr:
-    def __init__(self, op: Ops, e1: Expr, e2: Expr, e3: Expr):
+    def __init__(self, op: Ops, e1: Expr, e2: Expr, e3: Expr, dtype: DType):
         self.op = op
         self.e1 = e1
         self.e2 = e2
         self.e3 = e3
+        self.dtype = dtype
 
     def inputs(self): return [self.e1, self.e2, self.e3]
     def __str__(self): return f"TernaryExpr({self.op})"
@@ -53,6 +65,7 @@ class UnaryExpr:
     def __init__(self, op: Ops, expr: Expr):
         self.op = op
         self.expr = expr
+        self.dtype = expr.dtype
 
     def inputs(self): return [self.expr]
     def __str__(self): return f"UnaryExpr({self.op})"
@@ -62,6 +75,7 @@ class ReduceExpr:
         self.op = op
         self.expr = expr
         self.reduced = reduced
+        self.dtype = expr.dtype
 
     def inputs(self): return [self.expr]
     def __str__(self): return f"ReduceExpr({self.op} reduced={strjoin(', ', self.reduced)})"
@@ -70,6 +84,7 @@ class FuncExpr:
     def __init__(self, func: Func, indices: list[Expr]):
         self.func = func
         self.indices = indices
+        self.dtype = func.out_dtype
 
     def inputs(self): return [self.func]
     def __str__(self): return f"FuncExpr(indices=[{strjoin(', ', self.indices)}])"
@@ -78,11 +93,12 @@ class BufferExpr:
     def __init__(self, node: 'node.Node', indices: list[Expr]):
         self.node = node
         self.indices = indices
+        self.dtype = node.dtype
 
     def inputs(self): return []
     def __str__(self): return f"BufferExpr(indices=[{strjoin(', ', self.indices)}], cpu={self.node.buffer.cpu}, dev={self.node.buffer.dev})"
 
-Expr = IndexExpr | ConstExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
+Expr = IndexExpr | ConstExpr | CastExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
 
 class Func:
     def __init__(self, out_loops: list[LoopIndex], out_shape: list[int], out_dtype: DType, expr: Expr, out_buffer: Buffer):
@@ -109,6 +125,7 @@ class Func:
     def reduced_vars(self):
         def collect(e):
             if isinstance(e, ReduceExpr): return e.reduced
+            if isinstance(e, CastExpr): return collect(e.expr)
             if isinstance(e, BinaryExpr): return collect(e.l_expr) + collect(e.r_expr)
             if isinstance(e, TernaryExpr): return collect(e.e1) + collect(e.e2) + collect(e.e3)
             if isinstance(e, UnaryExpr): return collect(e.expr)
@@ -127,6 +144,7 @@ class Func:
                 if e.func not in seen:
                     seen.add(e.func)
                     fncs.append(e)
+            elif isinstance(e, CastExpr): return walk(e.expr)
             elif isinstance(e, TernaryExpr): walk(e.e1); walk(e.e2); walk(e.e3)
             elif isinstance(e, BinaryExpr): walk(e.l_expr); walk(e.r_expr)
             elif isinstance(e, UnaryExpr): walk(e.expr)
@@ -211,11 +229,13 @@ def convert(arr):
             e = FuncExpr(func=inputs[0], indices=indices)
 
         elif a.ctx.op.is_ternary():
+            dt = inputs[1].out_dtype if a.ctx.op == Ops.Where else inputs[0].out_dtype
             e = TernaryExpr(
                 op=a.ctx.op,
                 e1=FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops]),
                 e2=FuncExpr(func=inputs[1], indices=[IndexExpr(l) for l in out_loops]),
                 e3=FuncExpr(func=inputs[2], indices=[IndexExpr(l) for l in out_loops]),
+                dtype=dt,
             )
                 
         elif a.ctx.op.is_binary():
@@ -252,6 +272,9 @@ def convert(arr):
         elif a.ctx.op == Ops.Contiguous:
             e = FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops])
 
+        elif a.ctx.op == Ops.Cast:
+            e = CastExpr(expr=FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops]), dtype=a.ctx.attrs["dtype"])
+
         elif a.ctx.op == Ops.Pad:
             dim = a.ctx.attrs["dim"]
             before = a.ctx.attrs["before"]
@@ -266,7 +289,7 @@ def convert(arr):
 
             # else, 0 (padding)
             false_expr = ConstExpr(0)
-            e = TernaryExpr(op=Ops.Where, e1=cond, e2=true_expr, e3=false_expr)
+            e = TernaryExpr(op=Ops.Where, e1=cond, e2=true_expr, e3=false_expr, dtype=true_expr.dtype)
 
         elif a.ctx.op == Ops.Dilate:
             dim = a.ctx.attrs["dim"]
@@ -277,7 +300,7 @@ def convert(arr):
             )
             true_expr = FuncExpr(func=inputs[0], indices=[BinaryExpr(Ops.Floordiv, IndexExpr(out_loops[d]), ConstExpr(step)) if d == dim else IndexExpr(out_loops[d]) for d in range(len(out_loops))])
             false_expr = ConstExpr(0)
-            e = TernaryExpr(op=Ops.Where, e1=cond, e2=true_expr, e3=false_expr)
+            e = TernaryExpr(op=Ops.Where, e1=cond, e2=true_expr, e3=false_expr, dtype=true_expr.dtype)
 
         else:
             raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
@@ -295,6 +318,7 @@ def convert(arr):
 
     def has_reduce(e):
         if isinstance(e, ReduceExpr): return True
+        if isinstance(e, CastExpr): return has_reduce(e.expr)
         if isinstance(e, TernaryExpr): return has_reduce(e.e1) or has_reduce(e.e2) or has_reduce(e.e3)
         if isinstance(e, BinaryExpr): return has_reduce(e.l_expr) or has_reduce(e.r_expr)
         if isinstance(e, UnaryExpr): return has_reduce(e.expr)
@@ -302,13 +326,13 @@ def convert(arr):
 
     def replace_index(e, index_replace) -> Expr:
         if isinstance(e, IndexExpr): return index_replace[e.loopvar]
-        if isinstance(e, TernaryExpr): return TernaryExpr(e.op, replace_index(e.e1, index_replace), replace_index(e.e2, index_replace), replace_index(e.e3, index_replace))
+        if isinstance(e, TernaryExpr): return TernaryExpr(e.op, replace_index(e.e1, index_replace), replace_index(e.e2, index_replace), replace_index(e.e3, index_replace), e.dtype)
         if isinstance(e, BinaryExpr): return BinaryExpr(e.op, replace_index(e.l_expr, index_replace), replace_index(e.r_expr, index_replace))
         if isinstance(e, UnaryExpr): return UnaryExpr(e.op, replace_index(e.expr, index_replace))
         if isinstance(e, FuncExpr): return FuncExpr(e.func, [replace_index(i, index_replace) for i in e.indices])
         if isinstance(e, BufferExpr): return BufferExpr(e.node, [replace_index(i, index_replace) for i in e.indices])
         if isinstance(e, ReduceExpr): return ReduceExpr(e.op, replace_index(e.expr, index_replace), e.reduced)
-        return e # ConstExpr
+        return e # ConstExpr, CastExpr
 
     # count Func reference count
     def count_refs(e, rc):
@@ -325,9 +349,10 @@ def convert(arr):
         match e:
             case ConstExpr() | IndexExpr() | BufferExpr(): return e # no parents to fuse, just return
             # for unary, binary, reduce, they are not Func so try to fuse their parents
+            case CastExpr(): return CastExpr(expr=try_fuse(e.expr), dtype=e.dtype)
             case UnaryExpr(): return UnaryExpr(op=e.op, expr=try_fuse(e.expr))
             case BinaryExpr(): return BinaryExpr(op=e.op, l=try_fuse(e.l_expr), r=try_fuse(e.r_expr))
-            case TernaryExpr(): return TernaryExpr(op=e.op, e1=try_fuse(e.e1), e2=try_fuse(e.e2), e3=try_fuse(e.e3))
+            case TernaryExpr(): return TernaryExpr(op=e.op, e1=try_fuse(e.e1), e2=try_fuse(e.e2), e3=try_fuse(e.e3), dtype=e.dtype)
             case ReduceExpr(): return ReduceExpr(op=e.op, expr=try_fuse(e.expr), reduced=e.reduced)
             case FuncExpr():
                 is_buffer = isinstance(e.func.expr, BufferExpr) # buffer reference is always fusable

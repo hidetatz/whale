@@ -1055,6 +1055,58 @@ class Test(unittest.TestCase):
         self._assert_list_close(b.grad.tolist(), [3.0, 4.0])
 
     #
+    # cast
+    #
+
+    def test_cast_int64_to_float64(self):
+        a = ndarray.array([1, 2, 3])
+        b = a.to(float64)
+        b.materialize()
+        self.assertEqual(b.dtype, float64)
+        self._assert_list_close(b.tolist(), [1.0, 2.0, 3.0])
+
+    def test_cast_float64_to_int64(self):
+        a = ndarray.array([1.9, 2.5, 3.1])
+        b = a.to(int64)
+        b.materialize()
+        self.assertEqual(b.dtype, int64)
+        self.assertEqual(b.tolist(), [1, 2, 3])
+
+    def test_cast_preserves_shape(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = a.to(float64)
+        b.materialize()
+        self.assertEqual(b.shape, (2, 2))
+        self._assert_list_close(b.tolist(), [[1.0, 2.0], [3.0, 4.0]])
+
+    def test_cast_noop_same_dtype(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = a.to(float64)
+        b.materialize()
+        self._assert_list_close(b.tolist(), [1.0, 2.0, 3.0])
+
+    def test_cast_fused_with_subsequent_op(self):
+        a = ndarray.array([1, 2, 3])
+        b = a.to(float64) + ndarray.array([0.5, 0.5, 0.5])
+        b.materialize()
+        self._assert_list_close(b.tolist(), [1.5, 2.5, 3.5])
+
+    def test_backward_cast_float64_to_float64(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = a.to(float64)
+        b.sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 1.0, 1.0])
+
+    def test_backward_cast_int64_to_float64(self):
+        a = ndarray.array([1, 2, 3])
+        b = a.to(float64)
+        b.sum().backward()
+        a.grad.materialize()
+        self.assertEqual(a.grad.dtype, int64)
+        self.assertEqual(a.grad.tolist(), [1, 1, 1])
+
+    #
     # cache
     #
 

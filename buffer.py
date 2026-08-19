@@ -1,3 +1,4 @@
+import sys
 from dataclasses import dataclass
 from dtype import int64, float64
 
@@ -17,8 +18,8 @@ class DevBuff:
     def __repr__(self): return "copied" if self.ptr else "None"
 
     def __del__(self):
-        import backend
-        if self.ptr: backend.free(self.ptr)
+        backend = sys.modules.get("backend")
+        if backend and self.ptr: backend.free(self.ptr)
 
 @dataclass
 class Buffer:

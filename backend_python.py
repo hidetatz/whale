@@ -30,6 +30,7 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def exp(self, a): return f"math.exp({a})"
     def log(self, a): return f"math.log({a})"
     def sqrt(self, a): return f"math.sqrt({a})"
+    def cast(self, a, dt): return f"{'int' if dt.is_int() else 'float'}({a})"
     def add(self, l, r): return f"{l} + {r}"
     def sub(self, l, r): return f"{l} - {r}"
     def mul(self, l, r): return f"{l} * {r}"

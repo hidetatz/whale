@@ -23,6 +23,12 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         self.indent_level = 0
         self.tmpvar_idx = 0
 
+    def reset(self):
+        self.buff = []
+        self.indent_level = 0
+        self.tmpvar_idx = 0
+        self.args = None
+
     def nest(self): self.indent_level += 1
     def unnest(self): self.indent_level -= 1
     def writeln(self, ln): self.buff.append(f"{self.langspec.indent_str() * self.indent_level}{ln}")
@@ -41,12 +47,14 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         return reduce(self.langspec.add, [self.langspec.mul(name, st) for name, st in zip(names, util.strides_from_shape(shape))])
 
     def codegen(self, kern_name, func, schedule, inputs):
-        self.buff = []
+        # needed as codegenerator instance presists in backend, but the design is not good
+        self.reset()
         l = self.langspec
 
         for lib in l.default_library(): self.write(l.import_lib(lib))
 
         args = {f"{self.argname(inp)}_{i}": inp for i, inp in enumerate(inputs)}
+        self.args = args
 
         arg_names = ["out"] + list(args.keys())
         arg_types = [func.out_dtype] + [expr.node.dtype if isinstance(expr, algo.BufferExpr) else expr.func.out_dtype for expr in args.values()]
@@ -67,7 +75,7 @@ class HighLevelLangCodeGenerator(CodeGenerator):
                 self.unnest()
                 self.write(l.if_end())
 
-        result = self.render_expr(func.expr, args, func.out_dtype)
+        result = self.render_expr(func.expr)
         idx = self.arr_idx_calc_expr(func.out_shape, [lv.name for lv in func.out_loops])
         self.write(l.assign(l.index("out", idx), result))
 
@@ -118,19 +126,27 @@ class HighLevelLangCodeGenerator(CodeGenerator):
 
         return loop_finish
 
-    def render_expr(self, expr, args, dt):
+    def render_expr(self, expr):
         match expr:
-            case algo.UnaryExpr(): return self.render_unary(expr, args, dt)
-            case algo.BinaryExpr(): return self.render_binary(expr, args, dt)
-            case algo.TernaryExpr(): return self.render_ternary(expr, args, dt)
-            case algo.ReduceExpr(): return self.render_reduce(expr, args, dt)
-            case algo.BufferExpr(): return self.render_buffer(expr, args, dt)
-            case algo.FuncExpr(): return self.render_func(expr, args, dt)
+            case algo.CastExpr(): return self.render_cast(expr)
+            case algo.UnaryExpr(): return self.render_unary(expr)
+            case algo.BinaryExpr(): return self.render_binary(expr)
+            case algo.TernaryExpr(): return self.render_ternary(expr)
+            case algo.ReduceExpr(): return self.render_reduce(expr)
+            case algo.BufferExpr(): return self.render_buffer(expr)
+            case algo.FuncExpr(): return self.render_func(expr)
             case algo.IndexExpr(): return expr.loopvar.name
             case algo.ConstExpr(): return str(expr.val)
             case _: raise RuntimeError(f"unexpected expr type: {type(expr)}")
 
-    def render_unary(self, expr, args, dt):
+    def render_cast(self, expr):
+        l = self.langspec
+        result = self.render_expr(expr.expr)
+        tmpvar = self.tmpvar()
+        self.write(l.init(expr.dtype, tmpvar, l.cast(result, expr.dtype)))
+        return tmpvar
+
+    def render_unary(self, expr):
         l = self.langspec
 
         if expr.op == Ops.Neg: f = l.neg
@@ -141,12 +157,12 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Sqrt: f = l.sqrt
         else: raise RuntimeError(f"unknown unary op: {expr.op}")
 
-        result = self.render_expr(expr.expr, args, dt)
+        result = self.render_expr(expr.expr)
         tmpvar = self.tmpvar()
-        self.write(l.init(dt, tmpvar, f(result)))
+        self.write(l.init(expr.dtype, tmpvar, f(result)))
         return tmpvar
 
-    def render_binary(self, expr, args, dt):
+    def render_binary(self, expr):
         l = self.langspec
 
         if expr.op == Ops.Add: f = l.add
@@ -165,28 +181,28 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         elif expr.op == Ops.Le: f = l.le
         else: raise RuntimeError(f"unknown binary op: {expr.op}")
 
-        left, right = self.render_expr(expr.l_expr, args, dt), self.render_expr(expr.r_expr, args, dt)
+        left, right = self.render_expr(expr.l_expr), self.render_expr(expr.r_expr)
         tmpvar = self.tmpvar()
-        self.write(l.init(dt, tmpvar, f(left, right)))
+        self.write(l.init(expr.dtype, tmpvar, f(left, right)))
         return tmpvar
 
-    def render_ternary(self, expr, args, dt):
+    def render_ternary(self, expr):
         l = self.langspec
 
         if expr.op == Ops.Where:
             # tmpvar = 0
             tmpvar = self.tmpvar() # result
-            self.write(l.init(dt, tmpvar, "0" if dt.is_int() else "0.0"))
+            self.write(l.init(expr.dtype, tmpvar, "0"))
 
             # cond = e1
-            cond = self.render_expr(expr.e1, args, dtype.int64)
+            cond = self.render_expr(expr.e1)
 
             # if cond:
             self.write(l.if_start(cond))
             self.nest()
 
             # true_expr = e2; tmpvar = e2
-            true_expr = self.render_expr(expr.e2, args, dt)
+            true_expr = self.render_expr(expr.e2)
             self.write(l.assign(tmpvar, true_expr))
             self.unnest()
 
@@ -195,7 +211,7 @@ class HighLevelLangCodeGenerator(CodeGenerator):
             self.nest()
 
             # false_expr = e3; tmpvar = e3
-            false_expr = self.render_expr(expr.e3, args, dt)
+            false_expr = self.render_expr(expr.e3)
             self.write(l.assign(tmpvar, false_expr))
 
             self.unnest()
@@ -204,17 +220,17 @@ class HighLevelLangCodeGenerator(CodeGenerator):
 
         else: raise RuntimeError(f"unknown ternary op: {expr.op}")
 
-    def render_reduce(self, expr, args, dt):
+    def render_reduce(self, expr):
         l = self.langspec
 
         acc = "acc"
-        self.write(l.init(dt, acc, "0"))
+        self.write(l.init(expr.dtype, acc, "0"))
 
         for idx in expr.reduced:
             self.write(l.sequential_loop_start(idx.name, 0, idx.extent, 1)) # for now reduce loop is not scheduled
             self.nest()
 
-        result = self.render_expr(expr.expr, args, dt)
+        result = self.render_expr(expr.expr)
 
         if expr.op == Ops.Sum: f = l.add
         else: raise RuntimeError(f"unknown reduce op: {expr.op}")
@@ -227,28 +243,28 @@ class HighLevelLangCodeGenerator(CodeGenerator):
 
         return acc
 
-    def render_buffer(self, expr, args, dt):
+    def render_buffer(self, expr):
         # get buffer arg name from BufferExpr.node
         buf = ""
-        for name, e in args.items():
+        for name, e in self.args.items():
             if isinstance(e, algo.BufferExpr) and e.node is expr.node:
                 buf = name
                 break
         assert buf != "", "expected buffer is not found in args"
 
-        names = [self.render_expr(idx, args, dtype.int64) for idx in expr.indices]
+        names = [self.render_expr(idx) for idx in expr.indices]
 
         l = self.langspec
         terms = [l.mul(name, str(st)) for name, st in zip(names, expr.node.strides) if st != 0]
         flat = reduce(l.add, [str(expr.node.offset)] + terms) if terms else str(expr.node.offset)
         return l.index(buf, flat)
 
-    def render_func(self, expr, args, dt):
+    def render_func(self, expr):
         fnc = ""
-        for name, e in args.items():
+        for name, e in self.args.items():
             if isinstance(e, algo.FuncExpr) and e.func is expr.func:
                 fnc = name
                 break
         assert fnc != "", "expected func result is not found in args"
-        idx = self.arr_idx_calc_expr(expr.func.out_shape, [self.render_expr(idx, args, dtype.int64) for idx in expr.indices])
+        idx = self.arr_idx_calc_expr(expr.func.out_shape, [self.render_expr(idx) for idx in expr.indices])
         return self.langspec.index(fnc, idx)

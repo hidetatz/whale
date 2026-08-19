@@ -62,6 +62,9 @@ class Func:
     def _sqrt_forward(self): return self._elemwise_forward()
     def _sqrt_backward(self, grad): return grad / (self.output() * 2)
 
+    def _cast_forward(self): return ndarray(Node(dtype=self.attrs["dtype"], shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
+    def _cast_backward(self, grad): return grad.to(self.attrs["orig_dtype"])
+
     # binary
 
     def _add_forward(self): return self._elemwise_forward()
@@ -317,6 +320,10 @@ class ndarray:
     def transpose(self, *axes):
         if sorted(axes) != list(range(self.ndim)): raise RuntimeError(f"transapose axes must be wrong: {axes}")
         return Func(Ops.Transpose).forward((self,), axes=axes)
+
+    def to(self, dt):
+        if dt == self.dtype: return self
+        return Func(Ops.Cast).forward((self, ), orig_dtype=self.dtype, dtype=dt)
 
     # movement
 

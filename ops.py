@@ -22,11 +22,13 @@ class Ops(IntEnum):
     Pow = auto()
     And = auto()
     Or = auto()
+    _cmp_start = auto()
     Eq = auto()
     Gt = auto()
     Ge = auto()
     Lt = auto()
     Le = auto()
+    _cmp_end = auto()
     _binary_end = auto()
 
     _ternary_start = auto()
@@ -35,6 +37,7 @@ class Ops(IntEnum):
 
     _reduce_start = auto()
     Sum = auto()
+    Max = auto()
     _reduce_end = auto()
 
     _view_start = auto()
@@ -48,10 +51,12 @@ class Ops(IntEnum):
     Contiguous = auto()
     Pad = auto()
     Dilate = auto()
+    Cast = auto()
 
     def is_const(self): return self.value == Ops.Const
     def is_unary(self): return Ops._unary_start < self.value < Ops._unary_end
     def is_binary(self): return Ops._binary_start < self.value < Ops._binary_end
+    def is_cmp(self): return Ops._cmp_start < self.value < Ops._cmp_end
     def is_ternary(self): return Ops._ternary_start < self.value < Ops._ternary_end
     def is_reduce(self): return Ops._reduce_start < self.value < Ops._reduce_end
     def is_view(self): return Ops._view_start < self.value < Ops._view_end

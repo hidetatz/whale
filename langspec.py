@@ -69,6 +69,8 @@ class HighLevelLangSpec(LangSpec):
     def log(self, a): ...
     @abstractmethod
     def sqrt(self, a): ...
+    @abstractmethod
+    def cast(self, a, dt): ...
 
     # binary
     @abstractmethod
@@ -127,6 +129,7 @@ class CCompatibleLangSpec(HighLevelLangSpec):
     def exp(self, a): return f"exp({a})"
     def log(self, a): return f"log({a})"
     def sqrt(self, a): return f"sqrt({a})"
+    def cast(self, a, dt): return f"({self.typename(dt)})({a})"
     def add(self, l, r): return f"{l} + {r}"
     def sub(self, l, r): return f"{l} - {r}"
     def mul(self, l, r): return f"{l} * {r}"
