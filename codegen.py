@@ -175,6 +175,7 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         elif expr.op == Ops.And: f = l._and
         elif expr.op == Ops.Or: f = l._or
         elif expr.op == Ops.Eq: f = l.eq
+        elif expr.op == Ops.Ne: f = l.ne
         elif expr.op == Ops.Gt: f = l.gt
         elif expr.op == Ops.Ge: f = l.ge
         elif expr.op == Ops.Lt: f = l.lt

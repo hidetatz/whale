@@ -84,6 +84,22 @@ class Func:
         x, y = self.inputs[0], self.inputs[1]
         return y * x ** (y - 1) * grad, (x ** y) * x.log() * grad
 
+    def _cmp_forward(self): return ndarray._from_prim(val=None, dtype=int64, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self)
+    def _cmp_backward_error(self, op): raise RuntimeError(f"backward on operation <{op}> is not defined and not callable")
+
+    def _eq_forward(self): return self._cmp_forward()
+    def _eq_backward(self, grad): self._cmp_backward_error("==")
+    def _ne_forward(self): return self._cmp_forward()
+    def _ne_backward(self, grad): self._cmp_backward_error("!=")
+    def _gt_forward(self): return self._cmp_forward()
+    def _gt_backward(self, grad): self._cmp_backward_error(">")
+    def _ge_forward(self): return self._cmp_forward()
+    def _ge_backward(self, grad): self._cmp_backward_error(">=")
+    def _lt_forward(self): return self._cmp_forward()
+    def _lt_backward(self, grad): self._cmp_backward_error("<")
+    def _le_forward(self): return self._cmp_forward()
+    def _le_backward(self, grad): self._cmp_backward_error("<=")
+
     # reduce
 
     def _reduce_forward(self):
@@ -243,6 +259,21 @@ class ndarray:
     def __mul__(self, r): return self.__binary(r, Ops.Mul)
     def __truediv__(self, r): return self.__binary(r, Ops.Truediv)
     def __pow__(self, r): return self.__binary(r, Ops.Pow)
+
+    def equal(self, r): return self.__binary(r, Ops.Eq)
+    def __eq__(self, r): return self.equal(r)
+    def not_equal(self, r): return self.__binary(r, Ops.Ne)
+    def __ne__(self, r): return self.not_equal(r)
+    def greater(self, r): return self.__binary(r, Ops.Gt)
+    def __gt__(self, r): return self.greater(r)
+    def greater_equal(self, r): return self.__binary(r, Ops.Ge)
+    def __ge__(self, r): return self.greater_equal(r)
+    def less(self, r): return self.__binary(r, Ops.Lt)
+    def __lt__(self, r): return self.less(r)
+    def less_equal(self, r): return self.__binary(r, Ops.Le)
+    def __le__(self, r): return self.less_equal(r)
+
+    def __hash__(self): return id(self)
 
     # reduce
 

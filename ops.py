@@ -24,6 +24,7 @@ class Ops(IntEnum):
     Or = auto()
     _cmp_start = auto()
     Eq = auto()
+    Ne = auto()
     Gt = auto()
     Ge = auto()
     Lt = auto()

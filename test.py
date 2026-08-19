@@ -1055,6 +1055,88 @@ class Test(unittest.TestCase):
         self._assert_list_close(b.grad.tolist(), [3.0, 4.0])
 
     #
+    # cmp
+    #
+
+    def test_eq_same(self):
+        a = ndarray.array([1, 2, 3])
+        b = ndarray.array([1, 2, 3])
+        c = a.equal(b)
+        c.materialize()
+        self.assertEqual(c.tolist(), [1, 1, 1])
+
+    def test_eq_different(self):
+        a = ndarray.array([1, 2, 3])
+        b = ndarray.array([1, 0, 3])
+        c = a.equal(b)
+        c.materialize()
+        self.assertEqual(c.tolist(), [1, 0, 1])
+
+    def test_ne(self):
+        a = ndarray.array([1, 2, 3])
+        b = ndarray.array([1, 0, 3])
+        c = a.not_equal(b)
+        c.materialize()
+        self.assertEqual(c.tolist(), [0, 1, 0])
+
+    def test_gt(self):
+        a = ndarray.array([3, 1, 2])
+        b = ndarray.array([1, 2, 2])
+        c = a.greater(b)
+        c.materialize()
+        self.assertEqual(c.tolist(), [1, 0, 0])
+
+    def test_ge(self):
+        a = ndarray.array([3, 1, 2])
+        b = ndarray.array([1, 2, 2])
+        c = a.greater_equal(b)
+        c.materialize()
+        self.assertEqual(c.tolist(), [1, 0, 1])
+
+    def test_lt(self):
+        a = ndarray.array([3, 1, 2])
+        b = ndarray.array([1, 2, 2])
+        c = a.less(b)
+        c.materialize()
+        self.assertEqual(c.tolist(), [0, 1, 0])
+
+    def test_le(self):
+        a = ndarray.array([3, 1, 2])
+        b = ndarray.array([1, 2, 2])
+        c = a.less_equal(b)
+        c.materialize()
+        self.assertEqual(c.tolist(), [0, 1, 1])
+
+    def test_cmp_result_dtype_is_int64(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = ndarray.array([1.0, 0.0, 3.0])
+        c = a.equal(b)
+        self.assertEqual(c.dtype, int64)
+
+    def test_cmp_with_broadcast(self):
+        a = ndarray.array([1, 2, 3])
+        b = ndarray.array([2])
+        c = a.greater(b)
+        c.materialize()
+        self.assertEqual(c.tolist(), [0, 0, 1])
+
+    def test_cmp_used_as_mask(self):
+        a = ndarray.array([1.0, 2.0, 3.0, 2.0])
+        b = ndarray.array([2.0])
+        mask = a.equal(b).to(float64)
+        result = a * mask
+        result.materialize()
+        self._assert_list_close(result.tolist(), [0.0, 2.0, 0.0, 2.0])
+
+    def test_cmp_backward_raises(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = ndarray.array([1.0, 2.0, 3.0])
+        c = a.equal(b)
+        c.materialize()
+        with self.assertRaises(RuntimeError):
+            c.backward()
+
+    #
     # cast
     #
 

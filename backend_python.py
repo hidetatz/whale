@@ -41,6 +41,7 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def _and(self, l, r): return f"{l} and {r}"
     def _or(self, l, r): return f"{l} or {r}"
     def eq(self, l, r): return f"{l} == {r}"
+    def ne(self, l, r): return f"{l} != {r}"
     def gt(self, l, r): return f"{l} > {r}"
     def ge(self, l, r): return f"{l} >= {r}"
     def lt(self, l, r): return f"{l} < {r}"
