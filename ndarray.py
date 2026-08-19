@@ -100,6 +100,15 @@ class Func:
     def _le_forward(self): return self._cmp_forward()
     def _le_backward(self, grad): self._cmp_backward_error("<=")
 
+    # ternary
+
+    def _where_forward(self):
+        # use inputs[1] dtype as inputs[0] is the condition (= integer)
+        return ndarray._from_prim(val=None, dtype=self.inputs[1].dtype, shape=self.inputs[0].shape, strides=util.strides_from_shape(self.inputs[0].shape), offset=0, ctx=self)
+    def _where_backward(self, grad):
+        cond = self.inputs[0]
+        return None, where(cond, grad, zeros_like(grad)), where(cond, zeros_like(grad), grad)
+
     # reduce
 
     def _reduce_forward(self):
@@ -333,27 +342,26 @@ class ndarray:
         return Func(Ops.Slice).forward((self,), subscript=tuple(norm))
 
     def broadcast_to(self, shape):
+        if self.shape == shape: return self
         return Func(Ops.Broadcast).forward((self,), shape=shape)
 
-    def broadcasted(self, r):
+    def broadcasted(self, *arrs):
+        all_arrs = [self] + list(arrs)
         # determine the new shape
-        ls1 = list(self.shape)
-        ls2 = list(r.shape)
-        maxlen = max(len(ls1), len(ls2))
-        ls1 = [1] * (maxlen - len(ls1)) + ls1
-        ls2 = [1] * (maxlen - len(ls2)) + ls2
+        shapes = [list(a.shape) for a in all_arrs]
+        maxlen = max(*[len(shape) for shape in shapes])
+        padded_shapes = [[1] * (maxlen - len(shape)) + shape for shape in shapes]
         newshape = []
-        for d1, d2 in zip(ls1, ls2):
-            if d1 == d2: newshape.append(d1)
-            elif d1 == 1: newshape.append(d2)
-            elif d2 == 1: newshape.append(d1)
-            else: raise RuntimeError(f"shapes are not broadcastable: {self.shape} and {r.shape}")
+        for dim in range(len(padded_shapes[0])):
+            size = 1
+            for shape in padded_shapes:
+                if shape[dim] == 1: pass
+                elif size == 1: size = shape[dim]
+                elif size != shape[dim]: raise RuntimeError(f"shapes are not broadcastable: {shapes}")
+            newshape.append(size)
 
         newshape = tuple(newshape)
-        l = self
-        if l.shape != newshape: l = l.broadcast_to(newshape)
-        if r.shape != newshape: r = r.broadcast_to(newshape)
-        return l, r
+        return [arr.broadcast_to(newshape) for arr in all_arrs]
 
     def reshape(self, *shape):
         if math.prod(shape) != math.prod(self.shape): raise RuntimeError(f"invalid reshape {shape} for size {math.prod(self.shape)}")
@@ -434,6 +442,10 @@ class ndarray:
             return str(self._to_ndlist())
 
     def inputs(self): return list(self.ctx.inputs) if self.ctx and self.ctx.inputs else []
+
+def where(condition: ndarray, x: ndarray, y: ndarray):
+    cond, x, y = condition.broadcasted(x, y)
+    return Func(Ops.Where).forward((cond, x, y))
 
 #
 # factories

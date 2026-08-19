@@ -1137,6 +1137,84 @@ class Test(unittest.TestCase):
             c.backward()
 
     #
+    # where
+    #
+
+    def test_where_basic(self):
+        cond = ndarray.array([1, 0, 1, 0])
+        x = ndarray.array([1.0, 2.0, 3.0, 4.0])
+        y = ndarray.array([10.0, 20.0, 30.0, 40.0])
+        z = ndarray.where(cond, x, y)
+        z.materialize()
+        self._assert_list_close(z.tolist(), [1.0, 20.0, 3.0, 40.0])
+
+    def test_where_all_true(self):
+        cond = ndarray.array([1, 1, 1])
+        x = ndarray.array([1.0, 2.0, 3.0])
+        y = ndarray.array([9.0, 9.0, 9.0])
+        z = ndarray.where(cond, x, y)
+        z.materialize()
+        self._assert_list_close(z.tolist(), [1.0, 2.0, 3.0])
+
+    def test_where_all_false(self):
+        cond = ndarray.array([0, 0, 0])
+        x = ndarray.array([1.0, 2.0, 3.0])
+        y = ndarray.array([9.0, 9.0, 9.0])
+        z = ndarray.where(cond, x, y)
+        z.materialize()
+        self._assert_list_close(z.tolist(), [9.0, 9.0, 9.0])
+
+    def test_where_with_cmp(self):
+        a = ndarray.array([1.0, 5.0, 3.0, 2.0])
+        z = ndarray.where(a.greater(ndarray.array([3.0])), a, ndarray.full_like(a, 0.0))
+        z.materialize()
+        self._assert_list_close(z.tolist(), [0.0, 5.0, 0.0, 0.0])
+
+    def test_where_broadcast_cond(self):
+        cond = ndarray.array([1, 0])
+        x = ndarray.array([[1.0, 2.0], [3.0, 4.0]])
+        y = ndarray.array([[10.0, 20.0], [30.0, 40.0]])
+        z = ndarray.where(cond, x, y)
+        z.materialize()
+        self._assert_list_close(z.tolist(), [[1.0, 20.0], [3.0, 40.0]])
+
+    def test_where_result_dtype(self):
+        cond = ndarray.array([1, 0])
+        x = ndarray.array([1.0, 2.0])
+        y = ndarray.array([3.0, 4.0])
+        z = ndarray.where(cond, x, y)
+        self.assertEqual(z.dtype, float64)
+
+    def test_backward_where_x_grad(self):
+        x = ndarray.array([1.0, 2.0, 3.0])
+        y = ndarray.array([10.0, 20.0, 30.0])
+        cond = ndarray.array([1, 0, 1])
+        z = ndarray.where(cond, x, y)
+        z.sum().backward()
+        x.grad.materialize()
+        self._assert_list_close(x.grad.tolist(), [1.0, 0.0, 1.0])
+
+    def test_backward_where_y_grad(self):
+        x = ndarray.array([1.0, 2.0, 3.0])
+        y = ndarray.array([10.0, 20.0, 30.0])
+        cond = ndarray.array([1, 0, 1])
+        z = ndarray.where(cond, x, y)
+        z.sum().backward()
+        y.grad.materialize()
+        self._assert_list_close(y.grad.tolist(), [0.0, 1.0, 0.0])
+
+    def test_backward_where_weighted(self):
+        x = ndarray.array([2.0, 3.0, 4.0])
+        y = ndarray.array([10.0, 20.0, 30.0])
+        cond = ndarray.array([1, 0, 1])
+        w = ndarray.array([1.0, 2.0, 3.0])
+        (ndarray.where(cond, x, y) * w).sum().backward()
+        x.grad.materialize()
+        y.grad.materialize()
+        self._assert_list_close(x.grad.tolist(), [1.0, 0.0, 3.0])
+        self._assert_list_close(y.grad.tolist(), [0.0, 2.0, 0.0])
+
+    #
     # max
     #
 
