@@ -8,7 +8,7 @@ import materialize
 import util
 from buffer import Buffer, CPUBuff, DevBuff
 from ops import Ops
-from dtype import int64, float64
+from datatype import int64, float64
 
 class Context:
     def __init__(self, op):

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-import dtype
+from datatype import int32, int64, float32, float64
 
 class LangSpec(ABC): pass
 
@@ -117,10 +117,10 @@ class HighLevelLangSpec(LangSpec):
 
 class CCompatibleLangSpec(HighLevelLangSpec):
     def typename(self, dt):
-        if dt == dtype.int32: return "int32_t"
-        elif dt == dtype.int64: return "int64_t"
-        elif dt == dtype.float32: return "float"
-        elif dt == dtype.float64: return "double"
+        if dt == int32: return "int32_t"
+        elif dt == int64: return "int64_t"
+        elif dt == float32: return "float"
+        elif dt == float64: return "double"
         else: raise RuntimeError(f"unknown dtype: {dt}")
     def import_lib(self, lib): return f"#include <{lib}>"
     def default_library(self): return ["stdint.h", "math.h"]

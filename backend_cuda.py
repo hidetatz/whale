@@ -7,7 +7,7 @@ from ctypes import CDLL
 import compiler
 import executor
 import langspec
-import dtype
+from datatype import int64
 from kernel import Kernel
 
 class CUDALangSpec(langspec.CCompatibleLangSpec):
@@ -19,8 +19,8 @@ class CUDALangSpec(langspec.CCompatibleLangSpec):
             f"#pragma unroll {factor}",
             self.sequential_loop_start(index, start, end, step),
         ]
-    def gpu_block_index(self, index, start, end, step, idx): return self.init(dtype.int64, index, f"blockIdx.{idx}")
-    def gpu_thread_index(self, index, start, end, step, idx): return self.init(dtype.int64, index, f"threadIdx.{idx}")
+    def gpu_block_index(self, index, start, end, step, idx): return self.init(int64, index, f"blockIdx.{idx}")
+    def gpu_thread_index(self, index, start, end, step, idx): return self.init(int64, index, f"threadIdx.{idx}")
 
 class CUDA:
     def __init__(self):

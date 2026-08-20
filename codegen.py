@@ -1,9 +1,9 @@
 from functools import reduce
 
 import algo
-import dtype
 import sched
 import util
+from datatype import int64
 from ops import Ops
 
 class CodeGenerator:
@@ -65,7 +65,7 @@ class HighLevelLangCodeGenerator(CodeGenerator):
 
         # extract original loop from split outer and inner
         for sp in schedule.splits:
-            self.write(l.init(dtype.int64, sp.orig.name, l.add(l.mul(sp.o.name, sp.factor), sp.i.name)))
+            self.write(l.init(int64, sp.orig.name, l.add(l.mul(sp.o.name, sp.factor), sp.i.name)))
 
         for sp in schedule.splits:
             if sp.tail_guard_required:

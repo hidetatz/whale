@@ -3,7 +3,7 @@ import unittest
 
 import materialize
 import ndarray
-from dtype import float64, int64
+from datatype import float64, int64
 
 class Test(unittest.TestCase):
     def setUp(self):

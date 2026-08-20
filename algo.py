@@ -1,7 +1,7 @@
 from functools import reduce
 
 from buffer import Buffer
-from dtype import DType, float64, int64
+from datatype import dtype, float64, int64
 from ops import Ops
 from util import strjoin, argsort, strides_from_shape
 
@@ -33,7 +33,7 @@ class ConstExpr:
     def __str__(self): return f"ConstExpr({self.val})"
 
 class CastExpr:
-    def __init__(self, expr: Expr, dtype: DType):
+    def __init__(self, expr: Expr, dtype: dtype):
         self.expr = expr
         self.dtype = dtype
 
@@ -51,7 +51,7 @@ class BinaryExpr:
     def __str__(self): return f"BinaryExpr({self.op})"
 
 class TernaryExpr:
-    def __init__(self, op: Ops, e1: Expr, e2: Expr, e3: Expr, dtype: DType):
+    def __init__(self, op: Ops, e1: Expr, e2: Expr, e3: Expr, dtype: dtype):
         self.op = op
         self.e1 = e1
         self.e2 = e2
@@ -101,7 +101,7 @@ class BufferExpr:
 Expr = IndexExpr | ConstExpr | CastExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
 
 class Func:
-    def __init__(self, out_loops: list[LoopIndex], out_shape: list[int], out_dtype: DType, expr: Expr, out_buffer: Buffer):
+    def __init__(self, out_loops: list[LoopIndex], out_shape: list[int], out_dtype: dtype, expr: Expr, out_buffer: Buffer):
         self.out_loops = out_loops
         self.out_shape = out_shape
         self.out_dtype = out_dtype
