@@ -4,3 +4,6 @@ test-short:
 test: test-short
 	WHALE_BACKEND=CLANG python test.py
 	WHALE_BACKEND=CUDA python test.py
+
+lint:
+	pylint --disable=all --enable=W0611 *.py

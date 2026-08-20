@@ -8,7 +8,7 @@ import materialize
 import util
 from buffer import Buffer, CPUBuff, DevBuff
 from ops import Ops
-from dtype import int32, int64, float32, float64
+from dtype import int64, float64
 
 class Context:
     def __init__(self, op):
@@ -515,7 +515,7 @@ def full_like(t, val):
     return full(t.shape, val)
 
 def ones_like(t):
-    val = 1 if t.dtype == int32 or t.dtype == int64 else 1.0
+    val = 1 if t.dtype.is_int() else 1.0
     return full_like(t, val)
 
 def zeros_like(t):

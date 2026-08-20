@@ -1,16 +1,17 @@
 from abc import ABC, abstractmethod
 
 import buffer
+import kernel
 
 class Executor(ABC): pass
 
 class CPUExecutor(Executor):
     @abstractmethod
-    def execute(self, kern: Kernel, params: list[buffer.Buffer]): ...
+    def execute(self, kern: kernel.Kernel, params: list[buffer.Buffer]): ...
 
 class GPUExecutor(Executor):
     @abstractmethod
-    def execute(self, kern: Kernel, params: list[buffer.Buffer], grid: tuple[int, int, int], block: tuple[int, int, int]): ...
+    def execute(self, kern: kernel.Kernel, params: list[buffer.Buffer], grid: tuple[int, int, int], block: tuple[int, int, int]): ...
     @abstractmethod
     def memalloc(self, length, ctype): ...
     @abstractmethod

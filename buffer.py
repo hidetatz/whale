@@ -1,6 +1,5 @@
 import sys
 from dataclasses import dataclass
-from dtype import int64, float64
 
 class CPUBuff:
     def __init__(self, val=None):

@@ -1,7 +1,6 @@
 import math
 import unittest
 
-import backend
 import materialize
 import ndarray
 from dtype import float64, int64
