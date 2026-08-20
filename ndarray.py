@@ -142,6 +142,12 @@ class Func:
         mask = mask / mask.sum(self.attrs["axis"], keepdims=True)
         return grad.broadcast_to(self.input.shape) * mask
 
+    def _matmul_forward(self):
+        newshape = (self.inputs[0].shape[0], self.inputs[1].shape[1])
+        return ndarray._from_prim(val=None, dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(newshape), offset=0, ctx=self)
+    def _matmul_backward(self, grad):
+        return grad.matmul(self.inputs[1].T), self.inputs[0].T.matmul(grad)
+
     # view
 
     def _reshape_forward(self):
@@ -309,6 +315,12 @@ class ndarray:
 
     def sum(self, axis=None, keepdims=False): return self.__reduce(Ops.Sum, axis, keepdims)
     def max(self, axis=None, keepdims=False): return self.__reduce(Ops.Max, axis, keepdims)
+
+    def matmul(self, r):
+        if self.ndim != 2 or r.ndim != 2: raise RuntimeError(f"matmul requires 2-D ndarrays, got {self.ndim} @ {r.ndim}")
+        if self.shape[1] != r.shape[0]: raise RuntimeError(f"matmul impossible for ndarrays {self.shape} and {r.shape}")
+        return Func(Ops.Matmul).forward((self, r))
+    def __matmul__(self, r): return self.matmul(r)
 
     # view and copy
 

@@ -1137,6 +1137,71 @@ class Test(unittest.TestCase):
             c.backward()
 
     #
+    # matmul
+    #
+
+    def test_matmul_square(self):
+        a = ndarray.array([[1.0, 2.0], [3.0, 4.0]])
+        b = ndarray.array([[5.0, 6.0], [7.0, 8.0]])
+        c = a @ b
+        c.materialize()
+        self._assert_list_close(c.tolist(), [[19.0, 22.0], [43.0, 50.0]])
+
+    def test_matmul_rectangular(self):
+        a = ndarray.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])  # (2, 3)
+        b = ndarray.array([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])  # (3, 2)
+        c = a @ b
+        c.materialize()
+        self.assertEqual(c.shape, (2, 2))
+        self._assert_list_close(c.tolist(), [[4.0, 5.0], [10.0, 11.0]])
+
+    def test_matmul_identity(self):
+        a = ndarray.array([[1.0, 2.0], [3.0, 4.0]])
+        eye = ndarray.array([[1.0, 0.0], [0.0, 1.0]])
+        c = a @ eye
+        c.materialize()
+        self._assert_list_close(c.tolist(), [[1.0, 2.0], [3.0, 4.0]])
+
+    def test_matmul_shape_error(self):
+        a = ndarray.array([[1.0, 2.0], [3.0, 4.0]])
+        b = ndarray.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        with self.assertRaises(RuntimeError):
+            a @ b
+
+    def test_matmul_chained(self):
+        a = ndarray.array([[1.0, 0.0], [0.0, 2.0]])
+        b = ndarray.array([[3.0, 0.0], [0.0, 4.0]])
+        c = ndarray.array([[1.0, 1.0], [1.0, 1.0]])
+        d = (a @ b) @ c
+        d.materialize()
+        self._assert_list_close(d.tolist(), [[3.0, 3.0], [8.0, 8.0]])
+
+    def test_backward_matmul_grad_a(self):
+        a = ndarray.array([[1.0, 2.0], [3.0, 4.0]])
+        b = ndarray.array([[5.0, 6.0], [7.0, 8.0]])
+        (a @ b).sum().backward()
+        a.grad.materialize()
+        # grad_A = grad_C @ B.T, grad_C = ones(2,2), B.T = [[5,7],[6,8]]
+        self._assert_list_close(a.grad.tolist(), [[11.0, 15.0], [11.0, 15.0]])
+
+    def test_backward_matmul_grad_b(self):
+        a = ndarray.array([[1.0, 2.0], [3.0, 4.0]])
+        b = ndarray.array([[5.0, 6.0], [7.0, 8.0]])
+        (a @ b).sum().backward()
+        b.grad.materialize()
+        # grad_B = A.T @ grad_C, A.T = [[1,3],[2,4]], grad_C = ones(2,2)
+        self._assert_list_close(b.grad.tolist(), [[4.0, 4.0], [6.0, 6.0]])
+
+    def test_backward_matmul_rectangular(self):
+        a = ndarray.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])  # (2, 3)
+        b = ndarray.array([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])  # (3, 2)
+        (a @ b).sum().backward()
+        a.grad.materialize()
+        b.grad.materialize()
+        self.assertEqual(a.grad.shape, (2, 3))
+        self.assertEqual(b.grad.shape, (3, 2))
+
+    #
     # where
     #
 

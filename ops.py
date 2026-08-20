@@ -39,6 +39,7 @@ class Ops(IntEnum):
     _reduce_start = auto()
     Sum = auto()
     Max = auto()
+    Matmul = auto()
     _reduce_end = auto()
 
     _view_start = auto()
@@ -48,7 +49,6 @@ class Ops(IntEnum):
     Transpose = auto()
     _view_end = auto()
 
-    Matmul = auto()
     Contiguous = auto()
     Pad = auto()
     Dilate = auto()

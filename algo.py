@@ -252,22 +252,35 @@ def convert(arr):
             )
 
         elif a.ctx.op.is_reduce():
-            axis = a.ctx.attrs["axis"]
-            keepdims = a.ctx.attrs["keepdims"]
-            # create LoopIndices for reduced axis {axis: LoopIndex(size for the axis)}
-            reduced = {ax: LoopIndex(loopvar_name(i, prefix="r"), a.ctx.inputs[0].shape[ax], ) for i, ax in enumerate(sorted(axis))}
+            if a.ctx.op == Ops.Matmul:
+                k = LoopIndex(loopvar_name(0, prefix="r"), inputs[0].out_loops[1].extent)
+                e = ReduceExpr(
+                    op=Ops.Sum,
+                    expr=BinaryExpr(
+                        op=Ops.Mul,
+                        l=FuncExpr(func=inputs[0], indices=[IndexExpr(out_loops[0]), IndexExpr(k)]),
+                        r=FuncExpr(func=inputs[1], indices=[IndexExpr(k), IndexExpr(out_loops[1])]),
+                    ),
+                    reduced=[k],
+                )
 
-            # pick up the non-reduced axis loopvars from out_loops.
-            # if not keepdims, the indices only contains the spatial indices.
-            spatial_loopvars = iter(lv for i, lv in enumerate(out_loops) if i not in axis) if keepdims else iter(out_loops)
-            # create input indices from pre-created loopvars.
-            input_indices = [IndexExpr(reduced[dim] if dim in axis else next(spatial_loopvars)) for dim in range(a.ctx.inputs[0].ndim)]
+            else:
+                axis = a.ctx.attrs["axis"]
+                keepdims = a.ctx.attrs["keepdims"]
+                # create LoopIndices for reduced axis {axis: LoopIndex(size for the axis)}
+                reduced = {ax: LoopIndex(loopvar_name(i, prefix="r"), a.ctx.inputs[0].shape[ax], ) for i, ax in enumerate(sorted(axis))}
 
-            e = ReduceExpr(
-                op=a.ctx.op,
-                expr=FuncExpr(func=inputs[0], indices=input_indices),
-                reduced=list(reduced.values()),
-            )
+                # pick up the non-reduced axis loopvars from out_loops.
+                # if not keepdims, the indices only contains the spatial indices.
+                spatial_loopvars = iter(lv for i, lv in enumerate(out_loops) if i not in axis) if keepdims else iter(out_loops)
+                # create input indices from pre-created loopvars.
+                input_indices = [IndexExpr(reduced[dim] if dim in axis else next(spatial_loopvars)) for dim in range(a.ctx.inputs[0].ndim)]
+
+                e = ReduceExpr(
+                    op=a.ctx.op,
+                    expr=FuncExpr(func=inputs[0], indices=input_indices),
+                    reduced=list(reduced.values()),
+                )
 
         elif a.ctx.op == Ops.Contiguous:
             e = FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in out_loops])
