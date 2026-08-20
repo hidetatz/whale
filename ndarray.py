@@ -138,7 +138,7 @@ class Func:
             grad = grad.reshape(*newshape)
 
         out = out.broadcast_to(self.input.shape)
-        mask = self.input == out
+        mask = (self.input == out).to(self.input.dtype)
         mask = mask / mask.sum(self.attrs["axis"], keepdims=True)
         return grad.broadcast_to(self.input.shape) * mask
 
