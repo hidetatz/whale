@@ -1,13 +1,12 @@
 import math
 import weakref
 from functools import reduce
-from operator import mul
+import operator
 
 import backend
 import materialize
 import util
-from buffer import CPUBuff
-from node import Node
+from buffer import Buffer, CPUBuff, DevBuff
 from ops import Ops
 from dtype import int32, int64, float32, float64
 
@@ -62,7 +61,7 @@ class Context:
     def _sqrt_forward(self): return self._elemwise_forward()
     def _sqrt_backward(self, grad): return grad / (self.output() * 2)
 
-    def _cast_forward(self): return ndarray(Node(dtype=self.attrs["dtype"], shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
+    def _cast_forward(self): return ndarray(ndarray.Node(dtype=self.attrs["dtype"], shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
     def _cast_backward(self, grad): return grad.to(self.attrs["orig_dtype"])
 
     # binary
@@ -153,7 +152,7 @@ class Context:
     def _reshape_forward(self):
         inp = self.inputs[0]
         target_shape = self.attrs["shape"]
-        new_node = Node(dtype=inp.dtype, shape=target_shape, strides=util.strides_from_shape(target_shape), offset=0, ctx=self)
+        new_node = ndarray.Node(dtype=inp.dtype, shape=target_shape, strides=util.strides_from_shape(target_shape), offset=0, ctx=self)
         return ndarray(new_node)
     def _reshape_backward(self, grad): return grad.reshape(*self.inputs[0].shape)
 
@@ -164,7 +163,7 @@ class Context:
         padded_strides = [0] * ndim_diff + list(inp.strides)
         padded_src_shape = [1] * ndim_diff + list(inp.shape)
         new_strides = [0 if s == 1 else st for s, st in zip(padded_src_shape, padded_strides)]
-        new_node = Node(dtype=inp.dtype, shape=target_shape, strides=tuple(new_strides), offset=inp.offset, ctx=self)
+        new_node = ndarray.Node(dtype=inp.dtype, shape=target_shape, strides=tuple(new_strides), offset=inp.offset, ctx=self)
         return ndarray(new_node)
     def _broadcast_backward(self, grad):
         orig_shape = self.inputs[0].shape
@@ -177,7 +176,7 @@ class Context:
         axes = self.attrs["axes"]
         new_shape = tuple([self.input.shape[a] for a in axes])
         new_strides = tuple([self.input.strides[a] for a in axes])
-        new_node = Node(dtype=self.input.dtype, shape=new_shape, strides=new_strides, offset=self.input.offset, ctx=self)
+        new_node = ndarray.Node(dtype=self.input.dtype, shape=new_shape, strides=new_strides, offset=self.input.offset, ctx=self)
         return ndarray(new_node)
     def _transpose_backward(self, grad):
         return grad.transpose(*util.argsort(self.attrs["axes"]))
@@ -192,7 +191,7 @@ class Context:
                     newoffset += s.start * self.input.strides[dim]
                     newshape.append(max(0, (s.stop - s.start + s.step - 1) // s.step))
                     newstrides.append(self.input.strides[dim] * s.step)
-        return ndarray(Node(dtype=self.input.dtype, shape=tuple(newshape), strides=tuple(newstrides), offset=newoffset, ctx=self))
+        return ndarray(ndarray.Node(dtype=self.input.dtype, shape=tuple(newshape), strides=tuple(newstrides), offset=newoffset, ctx=self))
     def _slice_backward(self, grad):
         grad_dim = 0
         for inpdim, s in enumerate(self.attrs["subscript"]):
@@ -212,13 +211,13 @@ class Context:
 
     # movement
 
-    def _contiguous_forward(self): return ndarray(Node(dtype=self.input.dtype, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
+    def _contiguous_forward(self): return ndarray(ndarray.Node(dtype=self.input.dtype, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
     def _contiguous_backward(self, grad): return grad
 
     def _pad_forward(self):
         newshape = list(self.input.shape)
         newshape[self.attrs["dim"]] += (self.attrs["before"] + self.attrs["after"])
-        return ndarray(Node(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self))
+        return ndarray(ndarray.Node(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self))
     def _pad_backward(self, grad):
         dim = self.attrs["dim"]
         before = self.attrs["before"]
@@ -229,13 +228,29 @@ class Context:
         dim = self.attrs["dim"]
         newshape = list(self.input.shape)
         newshape[dim] = (newshape[dim] - 1) * self.attrs["step"] + 1
-        return ndarray(Node(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self))
+        return ndarray(ndarray.Node(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self))
     def _dilate_backward(self, grad):
         subscript = tuple(slice(None, None, self.attrs["step"]) if d == self.attrs["dim"] else slice(None) for d in range(grad.ndim))
         return grad[subscript]
 
 class ndarray:
-    def __init__(self, node: Node):
+    class Node:
+        def __init__(self, dtype, shape, strides, offset, val=None, ctx=None, buffer=None):
+            if buffer is not None:
+                self.buffer = buffer
+            else:
+                if val is not None:
+                    self.buffer = Buffer(dtype=dtype, length=len(val), cpu=CPUBuff(val), dev=DevBuff())
+                else:
+                    length = reduce(operator.mul, shape, 1)
+                    self.buffer = Buffer(dtype=dtype, length=length, cpu=None, dev=DevBuff())
+            self.dtype = dtype
+            self.shape = shape
+            self.strides = strides
+            self.offset = offset
+            self.ctx = ctx
+
+    def __init__(self, node: ndarray.Node):
         self.node = node
         self.grad = None
 
@@ -243,7 +258,7 @@ class ndarray:
 
     @classmethod
     def _from_prim(cls, val, dtype, shape, strides, offset, ctx):
-        return cls(Node(dtype=dtype, shape=shape, strides=strides, offset=offset, val=val, ctx=ctx))
+        return cls(cls.Node(dtype=dtype, shape=shape, strides=strides, offset=offset, val=val, ctx=ctx))
 
     @classmethod
     def wrap(cls, v): return v if isinstance(v, ndarray) else array(v)
