@@ -11,7 +11,7 @@ from node import Node
 from ops import Ops
 from dtype import int32, int64, float32, float64
 
-class Func:
+class Context:
     def __init__(self, op):
         self.op = op
         self.inputs = []
@@ -269,7 +269,7 @@ class ndarray:
 
     # unary
 
-    def __unary(self, f): return Func(f).forward((self,))
+    def __unary(self, f): return Context(f).forward((self,))
 
     def __neg__(self): return self.__unary(Ops.Neg)
     def sin(self): return self.__unary(Ops.Sin)
@@ -282,7 +282,7 @@ class ndarray:
 
     def __binary(self, r, f):
         l, r = self.broadcasted(ndarray.wrap(r))
-        return Func(f).forward((l, r))
+        return Context(f).forward((l, r))
 
     def __add__(self, r): return self.__binary(r, Ops.Add)
     def __sub__(self, r): return self.__binary(r, Ops.Sub)
@@ -311,7 +311,7 @@ class ndarray:
         if isinstance(axis, int): axis = (axis,)
         if not axis: axis = (list(range(self.ndim)))
         axis = [a % self.ndim for a in axis]
-        return Func(f).forward((self,), axis=axis, keepdims=keepdims)
+        return Context(f).forward((self,), axis=axis, keepdims=keepdims)
 
     def sum(self, axis=None, keepdims=False): return self.__reduce(Ops.Sum, axis, keepdims)
     def max(self, axis=None, keepdims=False): return self.__reduce(Ops.Max, axis, keepdims)
@@ -319,7 +319,7 @@ class ndarray:
     def matmul(self, r):
         if self.ndim != 2 or r.ndim != 2: raise RuntimeError(f"matmul requires 2-D ndarrays, got {self.ndim} @ {r.ndim}")
         if self.shape[1] != r.shape[0]: raise RuntimeError(f"matmul impossible for ndarrays {self.shape} and {r.shape}")
-        return Func(Ops.Matmul).forward((self, r))
+        return Context(Ops.Matmul).forward((self, r))
     def __matmul__(self, r): return self.matmul(r)
 
     # view and copy
@@ -351,11 +351,11 @@ class ndarray:
                     # todo: support advanced indexing
                     raise RuntimeError(f"currently ndarray indexing supports only integer or slice")
 
-        return Func(Ops.Slice).forward((self,), subscript=tuple(norm))
+        return Context(Ops.Slice).forward((self,), subscript=tuple(norm))
 
     def broadcast_to(self, shape):
         if self.shape == shape: return self
-        return Func(Ops.Broadcast).forward((self,), shape=shape)
+        return Context(Ops.Broadcast).forward((self,), shape=shape)
 
     def broadcasted(self, *arrs):
         all_arrs = [self] + list(arrs)
@@ -377,7 +377,7 @@ class ndarray:
 
     def reshape(self, *shape):
         if math.prod(shape) != math.prod(self.shape): raise RuntimeError(f"invalid reshape {shape} for size {math.prod(self.shape)}")
-        return Func(Ops.Reshape).forward((self.contiguous(),), shape=shape)
+        return Context(Ops.Reshape).forward((self.contiguous(),), shape=shape)
 
     @property
     def T(self):
@@ -386,22 +386,22 @@ class ndarray:
 
     def transpose(self, *axes):
         if sorted(axes) != list(range(self.ndim)): raise RuntimeError(f"transapose axes must be wrong: {axes}")
-        return Func(Ops.Transpose).forward((self,), axes=axes)
+        return Context(Ops.Transpose).forward((self,), axes=axes)
 
     def to(self, dt):
         if dt == self.dtype: return self
-        return Func(Ops.Cast).forward((self, ), orig_dtype=self.dtype, dtype=dt)
+        return Context(Ops.Cast).forward((self, ), orig_dtype=self.dtype, dtype=dt)
 
     # movement
 
     def is_contiguous(self): return self.strides == util.strides_from_shape(self.shape)
-    def contiguous(self): return self if self.is_contiguous() else Func(Ops.Contiguous).forward((self,))
+    def contiguous(self): return self if self.is_contiguous() else Context(Ops.Contiguous).forward((self,))
     def pad(self, dim, before, after):
         if self.ndim <= dim: raise RuntimeError(f"too big dim {dim} for {self.ndim}-dimensional array in pad")
-        return self if (before == 0 and after == 0) else Func(Ops.Pad).forward((self,), dim=dim, before=before, after=after)
+        return self if (before == 0 and after == 0) else Context(Ops.Pad).forward((self,), dim=dim, before=before, after=after)
     def dilate(self, dim, step):
         if self.ndim <= dim: raise RuntimeError(f"too big dim {dim} for {self.ndim}-dimensional array in dilate")
-        return self if step == 1 else Func(Ops.Dilate).forward((self,), dim=dim, step=step)
+        return self if step == 1 else Context(Ops.Dilate).forward((self,), dim=dim, step=step)
 
     # gradient
 
@@ -457,7 +457,7 @@ class ndarray:
 
 def where(condition: ndarray, x: ndarray, y: ndarray):
     cond, x, y = condition.broadcasted(x, y)
-    return Func(Ops.Where).forward((cond, x, y))
+    return Context(Ops.Where).forward((cond, x, y))
 
 #
 # factories
@@ -466,7 +466,7 @@ def where(condition: ndarray, x: ndarray, y: ndarray):
 def _const(shape, val):
     dtype = int64 if val and type(val[0]) is int else float64
     strides = util.strides_from_shape(shape)
-    return ndarray._from_prim(val, dtype, shape, strides, 0, Func(Ops.Const))
+    return ndarray._from_prim(val, dtype, shape, strides, 0, Context(Ops.Const))
 
 def array(val):
     flattened = []
