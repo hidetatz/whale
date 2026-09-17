@@ -90,13 +90,13 @@ class FuncExpr:
     def __str__(self): return f"FuncExpr(indices=[{strjoin(', ', self.indices)}])"
 
 class BufferExpr:
-    def __init__(self, node: 'node.Node', indices: list[Expr]):
-        self.node = node
+    def __init__(self, container: 'ndarray.Container', indices: list[Expr]):
+        self.container = container
         self.indices = indices
-        self.dtype = node.dtype
+        self.dtype = container.dtype
 
     def inputs(self): return []
-    def __str__(self): return f"BufferExpr(indices=[{strjoin(', ', self.indices)}], cpu={self.node.buffer.cpu}, dev={self.node.buffer.dev})"
+    def __str__(self): return f"BufferExpr(indices=[{strjoin(', ', self.indices)}], cpu={self.container.buffer.cpu}, dev={self.container.buffer.dev})"
 
 Expr = IndexExpr | ConstExpr | CastExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
 
@@ -137,8 +137,8 @@ class Func:
         seen = set()
         def walk(e):
             if isinstance(e, BufferExpr):
-                if e.node not in seen:
-                    seen.add(e.node)
+                if e.container not in seen:
+                    seen.add(e.container)
                     bufs.append(e)
             elif isinstance(e, FuncExpr):
                 if e.func not in seen:
@@ -179,7 +179,7 @@ def convert(arr):
         #
 
         if a.ctx.op.is_const():
-            e = BufferExpr(node=a.node, indices=[IndexExpr(l) for l in out_loops])
+            e = BufferExpr(container=a.container, indices=[IndexExpr(l) for l in out_loops])
 
         elif a.ctx.op.is_view():
             if a.ctx.op == Ops.Transpose:
@@ -318,7 +318,7 @@ def convert(arr):
         else:
             raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
 
-        f = Func(out_loops=out_loops, out_shape=a.shape, out_dtype=a.dtype, expr=e, out_buffer=a.node.buffer)
+        f = Func(out_loops=out_loops, out_shape=a.shape, out_dtype=a.dtype, expr=e, out_buffer=a.container.buffer)
         memo[a] = f
         return f
 
@@ -343,7 +343,7 @@ def convert(arr):
         if isinstance(e, BinaryExpr): return BinaryExpr(e.op, replace_index(e.l_expr, index_replace), replace_index(e.r_expr, index_replace))
         if isinstance(e, UnaryExpr): return UnaryExpr(e.op, replace_index(e.expr, index_replace))
         if isinstance(e, FuncExpr): return FuncExpr(e.func, [replace_index(i, index_replace) for i in e.indices])
-        if isinstance(e, BufferExpr): return BufferExpr(e.node, [replace_index(i, index_replace) for i in e.indices])
+        if isinstance(e, BufferExpr): return BufferExpr(e.container, [replace_index(i, index_replace) for i in e.indices])
         if isinstance(e, ReduceExpr): return ReduceExpr(e.op, replace_index(e.expr, index_replace), e.reduced)
         return e # ConstExpr, CastExpr
 

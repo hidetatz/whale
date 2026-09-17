@@ -42,7 +42,7 @@ class Materializer:
 
         for i, (func, schedule) in enumerate(zip(funcs, scheds)):
             bufs, fncs = func.args()
-            params = [func.out_buffer] + [buf.node.buffer for buf in bufs] + [f.func.out_buffer for f in fncs]
+            params = [func.out_buffer] + [buf.container.buffer for buf in bufs] + [f.func.out_buffer for f in fncs]
 
             cache_key = self.func_cache_key(func, schedule)
             # if the same kernel implementation (same func and sched) is already compiled, use it
@@ -85,10 +85,10 @@ class Materializer:
                 case algo.FuncExpr():
                     return ("Fnc", _expr_key(expr.func.expr, buf_ids), tuple(_expr_key(i, buf_ids) for i in expr.indices))
                 case algo.BufferExpr():
-                    nid = id(expr.node)
+                    nid = id(expr.container)
                     if nid not in buf_ids: buf_ids[nid] = len(buf_ids)
                     indices = tuple(_expr_key(i, buf_ids) for i in expr.indices)
-                    return ("Buf", buf_ids[nid], expr.node.shape, expr.node.strides, expr.node.offset, str(expr.node.dtype), indices)
+                    return ("Buf", buf_ids[nid], expr.container.shape, expr.container.strides, expr.container.offset, str(expr.container.dtype), indices)
         
         def _sched_key(schedule):
             def exec_key(e):

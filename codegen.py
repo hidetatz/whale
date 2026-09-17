@@ -57,7 +57,7 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         self.args = args
 
         arg_names = ["out"] + list(args.keys())
-        arg_types = [func.out_dtype] + [expr.node.dtype if isinstance(expr, algo.BufferExpr) else expr.func.out_dtype for expr in args.values()]
+        arg_types = [func.out_dtype] + [expr.container.dtype if isinstance(expr, algo.BufferExpr) else expr.func.out_dtype for expr in args.values()]
         self.write(l.kern_start(kern_name, arg_names, arg_types))
         self.nest()
 
@@ -249,10 +249,10 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         return acc
 
     def render_buffer(self, expr):
-        # get buffer arg name from BufferExpr.node
+        # get buffer arg name from BufferExpr.container
         buf = ""
         for name, e in self.args.items():
-            if isinstance(e, algo.BufferExpr) and e.node is expr.node:
+            if isinstance(e, algo.BufferExpr) and e.container is expr.container:
                 buf = name
                 break
         assert buf != "", "expected buffer is not found in args"
@@ -260,8 +260,8 @@ class HighLevelLangCodeGenerator(CodeGenerator):
         names = [self.render_expr(idx) for idx in expr.indices]
 
         l = self.langspec
-        terms = [l.mul(name, str(st)) for name, st in zip(names, expr.node.strides) if st != 0]
-        flat = reduce(l.add, [str(expr.node.offset)] + terms) if terms else str(expr.node.offset)
+        terms = [l.mul(name, str(st)) for name, st in zip(names, expr.container.strides) if st != 0]
+        flat = reduce(l.add, [str(expr.container.offset)] + terms) if terms else str(expr.container.offset)
         return l.index(buf, flat)
 
     def render_func(self, expr):
