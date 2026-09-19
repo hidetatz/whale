@@ -1396,6 +1396,50 @@ class Test(unittest.TestCase):
         self.assertEqual(a.grad.tolist(), [1, 1, 1])
 
     #
+    # inplace
+    #
+
+    def test_iadd_basic(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        a += ndarray.array([10.0, 20.0, 30.0])
+        a.materialize()
+        self._assert_list_close(a.tolist(), [11.0, 22.0, 33.0])
+
+    def test_iadd_scalar(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        a += 5.0
+        a.materialize()
+        self._assert_list_close(a.tolist(), [6.0, 7.0, 8.0])
+
+    def test_iadd_preserves_identity(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        original_id = id(a)
+        a += ndarray.array([1.0, 1.0, 1.0])
+        self.assertEqual(id(a), original_id)
+
+    def test_iadd_twice(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        a += ndarray.array([1.0, 1.0, 1.0])
+        a += ndarray.array([1.0, 1.0, 1.0])
+        a.materialize()
+        self._assert_list_close(a.tolist(), [3.0, 4.0, 5.0])
+
+    def test_add_method(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        b = ndarray.array([4.0, 5.0, 6.0])
+        c = a.add(b)
+        c.materialize()
+        self._assert_list_close(c.tolist(), [5.0, 7.0, 9.0])
+
+    def test_add_inplace_method(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        original_id = id(a)
+        a.add_(ndarray.array([10.0, 20.0, 30.0]))
+        self.assertEqual(id(a), original_id)
+        a.materialize()
+        self._assert_list_close(a.tolist(), [11.0, 22.0, 33.0])
+
+    #
     # cache
     #
 

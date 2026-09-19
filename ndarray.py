@@ -299,11 +299,23 @@ class ndarray:
         l, r = self.broadcasted(ndarray.wrap(r))
         return Context(f).forward((l, r))
 
-    def __add__(self, r): return self.__binary(r, Ops.Add)
+    def __inplace_binary(self, other, op):
+        cp = ndarray(self.container) # create the copy of self
+        result = cp.__binary(other, op)
+        self.container = result.container
+        return self
+
+    def add(self, other): return self.__binary(other, Ops.Add)
+    def add_(self, other): return self.__inplace_binary(other, Ops.Add)
+
+    def __add__(self, r): return self.add(r)
+    def __radd__(self, l): return self.add(l)
     def __sub__(self, r): return self.__binary(r, Ops.Sub)
     def __mul__(self, r): return self.__binary(r, Ops.Mul)
     def __truediv__(self, r): return self.__binary(r, Ops.Truediv)
     def __pow__(self, r): return self.__binary(r, Ops.Pow)
+
+    def __iadd__(self, other): return self.add_(other)
 
     def equal(self, r): return self.__binary(r, Ops.Eq)
     def __eq__(self, r): return self.equal(r)
