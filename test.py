@@ -1439,6 +1439,48 @@ class Test(unittest.TestCase):
         a.materialize()
         self._assert_list_close(a.tolist(), [11.0, 22.0, 33.0])
 
+    def test_isub_basic(self):
+        a = ndarray.array([10.0, 20.0, 30.0])
+        a -= ndarray.array([1.0, 2.0, 3.0])
+        a.materialize()
+        self._assert_list_close(a.tolist(), [9.0, 18.0, 27.0])
+
+    def test_isub_scalar(self):
+        a = ndarray.array([10.0, 20.0, 30.0])
+        a -= 5.0
+        a.materialize()
+        self._assert_list_close(a.tolist(), [5.0, 15.0, 25.0])
+
+    def test_isub_preserves_identity(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        original_id = id(a)
+        a -= ndarray.array([1.0, 1.0, 1.0])
+        self.assertEqual(id(a), original_id)
+
+    def test_isub_twice(self):
+        a = ndarray.array([10.0, 20.0, 30.0])
+        a -= ndarray.array([1.0, 1.0, 1.0])
+        a -= ndarray.array([1.0, 1.0, 1.0])
+        a.materialize()
+        self._assert_list_close(a.tolist(), [8.0, 18.0, 28.0])
+
+    def test_sub_inplace_method(self):
+        a = ndarray.array([10.0, 20.0, 30.0])
+        original_id = id(a)
+        a.sub_(ndarray.array([1.0, 2.0, 3.0]))
+        self.assertEqual(id(a), original_id)
+        a.materialize()
+        self._assert_list_close(a.tolist(), [9.0, 18.0, 27.0])
+
+    def test_isub_sgd_like(self):
+        # simulates SGD: w -= lr * grad
+        w = ndarray.array([1.0, 2.0, 3.0])
+        grad = ndarray.array([0.1, 0.2, 0.3])
+        lr = 0.1
+        w -= grad * lr
+        w.materialize()
+        self._assert_list_close(w.tolist(), [0.99, 1.98, 2.97])
+
     #
     # cache
     #

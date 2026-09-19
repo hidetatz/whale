@@ -307,15 +307,18 @@ class ndarray:
 
     def add(self, other): return self.__binary(other, Ops.Add)
     def add_(self, other): return self.__inplace_binary(other, Ops.Add)
+    def sub(self, other): return self.__binary(other, Ops.Sub)
+    def sub_(self, other): return self.__inplace_binary(other, Ops.Sub)
 
     def __add__(self, r): return self.add(r)
     def __radd__(self, l): return self.add(l)
-    def __sub__(self, r): return self.__binary(r, Ops.Sub)
+    def __sub__(self, r): return self.sub(r)
     def __mul__(self, r): return self.__binary(r, Ops.Mul)
     def __truediv__(self, r): return self.__binary(r, Ops.Truediv)
     def __pow__(self, r): return self.__binary(r, Ops.Pow)
 
     def __iadd__(self, other): return self.add_(other)
+    def __isub__(self, other): return self.sub_(other)
 
     def equal(self, r): return self.__binary(r, Ops.Eq)
     def __eq__(self, r): return self.equal(r)
