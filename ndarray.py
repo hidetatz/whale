@@ -2,6 +2,7 @@ import math
 import weakref
 from functools import reduce
 import operator
+import random
 
 import backend
 import materialize
@@ -535,3 +536,8 @@ def ones_like(t):
 
 def zeros_like(t):
     return full_like(t, 0)
+
+# random
+
+def rand(*shape): return _const(shape, [random.uniform(0, 1) for _ in range(math.prod(shape))])
+def randn(*shape): return _const(shape, [random.gauss(0, 1) for _ in range(math.prod(shape))])
