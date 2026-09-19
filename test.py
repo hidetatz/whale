@@ -1482,6 +1482,65 @@ class Test(unittest.TestCase):
         self._assert_list_close(w.tolist(), [0.99, 1.98, 2.97])
 
     #
+    # argmax
+    #
+
+    def test_argmax_1d(self):
+        a = ndarray.array([1.0, 5.0, 3.0, 2.0])
+        r = a.argmax(dim=0)
+        r.materialize()
+        self.assertEqual(r.tolist(), 1)
+
+    def test_argmax_1d_first_elem(self):
+        a = ndarray.array([9.0, 1.0, 2.0])
+        r = a.argmax(dim=0)
+        r.materialize()
+        self.assertEqual(r.tolist(), 0)
+
+    def test_argmax_1d_last_elem(self):
+        a = ndarray.array([1.0, 2.0, 9.0])
+        r = a.argmax(dim=0)
+        r.materialize()
+        self.assertEqual(r.tolist(), 2)
+
+    def test_argmax_2d_dim0(self):
+        a = ndarray.array([[1.0, 5.0], [3.0, 2.0]])
+        r = a.argmax(dim=0)
+        r.materialize()
+        self.assertEqual(r.tolist(), [1, 0])
+
+    def test_argmax_2d_dim1(self):
+        a = ndarray.array([[1.0, 5.0, 3.0], [4.0, 2.0, 6.0]])
+        r = a.argmax(dim=1)
+        r.materialize()
+        self.assertEqual(r.tolist(), [1, 2])
+
+    def test_argmax_negative_values(self):
+        a = ndarray.array([-3.0, -1.0, -2.0])
+        r = a.argmax(dim=0)
+        r.materialize()
+        self.assertEqual(r.tolist(), 1)
+
+    def test_argmax_result_dtype(self):
+        a = ndarray.array([1.0, 3.0, 2.0])
+        r = a.argmax(dim=0)
+        self.assertEqual(r.dtype, ndarray.int64)
+
+    def test_argmax_batch(self):
+        # typical MNIST usage: argmax of logits over class dim
+        logits = ndarray.array([[0.1, 0.9, 0.0], [0.8, 0.1, 0.1], [0.2, 0.3, 0.5]])
+        preds = logits.argmax(dim=1)
+        preds.materialize()
+        self.assertEqual(preds.tolist(), [1, 0, 2])
+
+    def test_argmax_ties_returns_last(self):
+        # tie-breaking: returns last occurrence (not first like PyTorch)
+        a = ndarray.array([5.0, 3.0, 5.0])
+        r = a.argmax(dim=0)
+        r.materialize()
+        self.assertEqual(r.tolist(), 2)
+
+    #
     # cache
     #
 

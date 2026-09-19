@@ -1,6 +1,7 @@
 import compiler
 import executor
 import langspec
+from datatype import int32, int64
 from kernel import Kernel
 
 class PythonLangSpec(langspec.HighLevelLangSpec):
@@ -9,7 +10,10 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def indent_str(self): return "    "
     def zero(self, dtype): return "0" if dtype.is_int() else "0.0"
     def inf(self, dtype): return "math.inf"
-    def inf_neg(self, dtype): return "-math.inf"
+    def inf_neg(self, dtype):
+        if dtype == int64: return "-9223372036854775808"
+        if dtype == int32: return "-2147483648"
+        return "-math.inf"
     def kern_start(self, name, arg_names, arg_types): return f"def {name}({', '.join(arg_names)}):"
     def kern_end(self): return ""
     def loop_start(self, index, start, end, step): return f"for {index} in range({start}, {end}, {step}):"

@@ -434,6 +434,11 @@ class ndarray:
         if self.ndim <= dim: raise RuntimeError(f"too big dim {dim} for {self.ndim}-dimensional array in dilate")
         return self if step == 1 else Context(Ops.Dilate).forward((self,), dim=dim, step=step)
 
+    def argmax(self, dim):
+        mask = (self == self.max(axis=dim, keepdims=True))
+        indices = arange(self.shape[dim]).reshape(*[self.shape[i] if i == dim else 1 for i in range(self.ndim)]).broadcast_to(self.shape)
+        return (mask * indices).max(axis=dim)
+
     # gradient
 
     def backward(self):

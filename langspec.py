@@ -127,7 +127,10 @@ class CCompatibleLangSpec(HighLevelLangSpec):
     def indent_str(self): return "    "
     def zero(self, dtype): return "0" if dtype.is_int() else "0.0"
     def inf(self, dtype): return "INFINITY"
-    def inf_neg(self, dtype): return "-INFINITY"
+    def inf_neg(self, dtype):
+        if dtype == int64: return "INT64_MIN"
+        if dtype == int32: return "INT32_MIN"
+        return "-INFINITY"
 
     def kern_end(self): return "}"
     def sequential_loop_start(self, index, start, end, step): return f"for (int {index} = {start}; {index} < {end}; {index} += {step}) {{"
