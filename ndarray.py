@@ -439,6 +439,14 @@ class ndarray:
         indices = arange(self.shape[dim]).reshape(*[self.shape[i] if i == dim else 1 for i in range(self.ndim)]).broadcast_to(self.shape)
         return (mask * indices).max(axis=dim)
 
+    # neural net
+
+    def relu(self): return where(self > 0, self, zeros_like(self))
+
+    def softmax(self, axis=-1):
+        e = (self - self.max(axis=axis, keepdims=True)).exp()
+        return e / e.sum(axis=axis, keepdims=True)
+
     # gradient
 
     def backward(self):
@@ -456,9 +464,12 @@ class ndarray:
         funcs.reverse()
 
         for f in funcs:
-            gxs = f.backward(f.output().grad)
+            out = f.output()
+            if out is None or out.grad is None: continue
+            gxs = f.backward(out.grad)
             for x, gx in zip(f.inputs, gxs):
-                x.grad = gx if x.grad is None else x.grad + gx
+                if gx is not None:
+                    x.grad = gx if x.grad is None else x.grad + gx
 
     # materialization
 

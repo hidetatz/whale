@@ -1541,6 +1541,86 @@ class Test(unittest.TestCase):
         self.assertEqual(r.tolist(), 2)
 
     #
+    # relu
+    #
+
+    def test_relu_positive(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        r = a.relu()
+        r.materialize()
+        self._assert_list_close(r.tolist(), [1.0, 2.0, 3.0])
+
+    def test_relu_negative(self):
+        a = ndarray.array([-1.0, -2.0, -3.0])
+        r = a.relu()
+        r.materialize()
+        self._assert_list_close(r.tolist(), [0.0, 0.0, 0.0])
+
+    def test_relu_mixed(self):
+        a = ndarray.array([-1.0, 0.0, 1.0, -2.0, 3.0])
+        r = a.relu()
+        r.materialize()
+        self._assert_list_close(r.tolist(), [0.0, 0.0, 1.0, 0.0, 3.0])
+
+    def test_relu_zero_grad(self):
+        # gradient at x=0 should be 0, not 0.5
+        a = ndarray.array([0.0])
+        a.relu().sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [0.0])
+
+    def test_relu_backward(self):
+        a = ndarray.array([-1.0, 2.0, -3.0, 4.0])
+        a.relu().sum().backward()
+        a.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [0.0, 1.0, 0.0, 1.0])
+
+    #
+    # softmax
+    #
+
+    def test_softmax_sums_to_one(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        r = a.softmax(axis=0)
+        r.materialize()
+        self.assertAlmostEqual(sum(r.tolist()), 1.0, places=6)
+
+    def test_softmax_values(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        r = a.softmax(axis=0)
+        r.materialize()
+        vals = r.tolist()
+        self.assertTrue(vals[0] < vals[1] < vals[2])
+
+    def test_softmax_2d_axis1(self):
+        a = ndarray.array([[1.0, 2.0, 3.0], [1.0, 1.0, 1.0]])
+        r = a.softmax(axis=1)
+        r.materialize()
+        rows = r.tolist()
+        self.assertAlmostEqual(sum(rows[0]), 1.0, places=6)
+        self.assertAlmostEqual(sum(rows[1]), 1.0, places=6)
+        # uniform input -> uniform output
+        self._assert_list_close(rows[1], [1/3, 1/3, 1/3])
+
+    def test_softmax_numerical_stability(self):
+        # large values should not produce inf
+        a = ndarray.array([1000.0, 1001.0, 999.0])
+        r = a.softmax(axis=0)
+        r.materialize()
+        vals = r.tolist()
+        self.assertAlmostEqual(sum(vals), 1.0, places=6)
+        for v in vals:
+            self.assertFalse(math.isnan(v) or math.isinf(v))
+
+    def test_softmax_backward(self):
+        a = ndarray.array([1.0, 2.0, 3.0])
+        r = a.softmax(axis=0)
+        r.sum().backward()
+        a.grad.materialize()
+        # sum of softmax is always 1, so gradient w.r.t. each input is 0
+        self._assert_list_close(a.grad.tolist(), [0.0, 0.0, 0.0])
+
+    #
     # cache
     #
 
