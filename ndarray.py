@@ -234,6 +234,22 @@ class Context:
         subscript = tuple(slice(None, None, self.attrs["step"]) if d == self.attrs["dim"] else slice(None) for d in range(grad.ndim))
         return grad[subscript]
 
+    def _concatenate_forward(self):
+        dim = self.attrs["dim"]
+        newshape = list(self.inputs[0].shape)
+        for inp in self.inputs[1:]: newshape[dim] += inp.shape[dim]
+        return ndarray(ndarray.Container(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self))
+    def _concatenate_backward(self, grad):
+        dim = self.attrs["dim"]
+        grads = []
+        offset = 0
+        for inp in self.inputs:
+            size = inp.shape[dim]
+            subscript = tuple(slice(offset, offset+size) if d == dim else slice(None) for d in range(grad.ndim))
+            grads.append(grad[subscript])
+            offset += size
+        return tuple(grads)
+
 class ndarray:
     class Container:
         def __init__(self, dtype, shape, strides, offset, val=None, ctx=None, buffer=None):
@@ -358,31 +374,66 @@ class ndarray:
     def __getitem__(self, subscript):
         if not isinstance(subscript, tuple): subscript = (subscript,)
         if self.ndim < len(subscript): raise RuntimeError(f"too many indices for array, array is {self.ndim} dimensional but {len(subscript)} was given")
-        padded = list(subscript) + [slice(None)] * (self.ndim - len(subscript))
-        norm = []
-        for dim, s in enumerate(padded):
-            size = self.shape[dim]
-            match s:
-                case int():
-                    ss = s
-                    if ss < 0: ss += size
-                    if not (0 <= ss < size): raise RuntimeError(f"index {s} is out of bounds for axis {dim} with size {size}")
-                    norm.append(ss)
-                case slice():
-                    start = s.start if s.start is not None else 0
-                    stop = s.stop if s.stop is not None else size
-                    step = s.step if s.step is not None else 1
-                    if start < 0: start += size
-                    if stop < 0: stop += size
-                    if step <= 0: raise RuntimeError(f"step must not be negative in indexing, got {step}")
-                    start = max(0, min(start, size))
-                    stop = max(0, min(stop, size))
-                    norm.append(slice(start, stop, step))
-                case _:
-                    # todo: support advanced indexing
-                    raise RuntimeError(f"currently ndarray indexing supports only integer or slice")
 
-        return Context(Ops.Slice).forward((self,), subscript=tuple(norm))
+        subscript = tuple(array(s) if isinstance(s, list) else s for s in subscript)
+        advance = any(isinstance(s, ndarray) for s in subscript)
+
+        # basic index
+        if not advance:
+            padded = list(subscript) + [slice(None)] * (self.ndim - len(subscript))
+            norm = []
+            for dim, s in enumerate(padded):
+                size = self.shape[dim]
+                match s:
+                    case int():
+                        ss = s
+                        if ss < 0: ss += size
+                        if not (0 <= ss < size): raise RuntimeError(f"index {s} is out of bounds for axis {dim} with size {size}")
+                        norm.append(ss)
+                    case slice():
+                        start = s.start if s.start is not None else 0
+                        stop = s.stop if s.stop is not None else size
+                        step = s.step if s.step is not None else 1
+                        if start < 0: start += size
+                        if stop < 0: stop += size
+                        if step <= 0: raise RuntimeError(f"step must not be negative in indexing, got {step}")
+                        start = max(0, min(start, size))
+                        stop = max(0, min(stop, size))
+                        norm.append(slice(start, stop, step))
+                    case _:
+                        raise RuntimeError(f"invalid type {type(s)} for ndarray indexing")
+
+            return Context(Ops.Slice).forward((self,), subscript=tuple(norm))
+
+        # advanced index
+        adv = [(d, s) for d, s in enumerate(subscript) if isinstance(s, ndarray)]
+        idx_arrs = [s for _, s in adv]
+
+        if len(idx_arrs) > 1: idx_arrs = idx_arrs[0].broadcasted(*idx_arrs[1:])
+        else: idx_arrs = [idx_arrs[0]]
+        out_shape = idx_arrs[0].shape
+        k = math.prod(out_shape)
+
+        adv_dims = {d for d, _ in adv}
+
+        masks = []
+        for i, (dim, _) in enumerate(adv):
+            n = self.shape[dim]
+            idx_flat = idx_arrs[i].reshape(k)
+            mask_i = (arange(n) == idx_flat.reshape(k, 1)).to(self.dtype)
+            new_shape = [k] + [1] * self.ndim
+            new_shape[dim + 1] = n
+            masks.append(mask_i.reshape(*new_shape))
+
+        combined = masks[0]
+        for m in masks[1:]: combined = combined * m
+
+        product = self.reshape(1, *self.shape) * combined
+        sum_axes = tuple(d + 1 for d, _ in adv)
+        result = product.sum(axis=sum_axes)
+
+        non_adv_shape = tuple(s for i, s in enumerate(self.shape) if i not in adv_dims)
+        return result.reshape(*out_shape, *non_adv_shape)
 
     def broadcast_to(self, shape):
         if self.shape == shape: return self
@@ -409,6 +460,12 @@ class ndarray:
     def reshape(self, *shape):
         if math.prod(shape) != math.prod(self.shape): raise RuntimeError(f"invalid reshape {shape} for size {math.prod(self.shape)}")
         return Context(Ops.Reshape).forward((self.contiguous(),), shape=shape)
+
+    def unsqueeze(self, dim):
+        if dim > self.ndim: raise ValueError("unsqueeze dim must be less than or equal to array ndim")
+        newshape = list(self.shape)
+        newshape.insert(dim, 1)
+        return self.reshape(*newshape)
 
     @property
     def T(self):
@@ -557,3 +614,17 @@ def zeros_like(t):
 
 def rand(*shape): return _const(shape, [random.uniform(0, 1) for _ in range(math.prod(shape))])
 def randn(*shape): return _const(shape, [random.gauss(0, 1) for _ in range(math.prod(shape))])
+
+# tensor manipulation
+
+def concat(arrs, dim=0): return cat(arrs, dim)
+def cat(arrs, dim=0):
+    if len(set([a.ndim for a in arrs])) != 1: raise ValueError("all concat arrays must be the same ndim")
+    for d in range(arrs[0].ndim):
+        if d == dim: continue
+        if len(set([a.shape[d] for a in arrs])) != 1: raise ValueError(f"all concat arrays must have the same size on the axis {d}")
+    return Context(Ops.Concatenate).forward(arrs, dim=dim)
+
+def stack(arrs, dim=0):
+    new_arrs = [a.unsqueeze(dim) for a in arrs]
+    return cat(new_arrs, dim)

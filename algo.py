@@ -315,6 +315,38 @@ def convert(arr):
             false_expr = ConstExpr(0)
             e = TernaryExpr(op=Ops.Where, e1=cond, e2=true_expr, e3=false_expr, dtype=true_expr.dtype)
 
+        elif a.ctx.op == Ops.Concatenate:
+            dim = a.ctx.attrs["dim"]
+
+            # recursive concat condition build
+            # when concat((a, b, c), dim=0) while the size of a, b, c is (3, 2), (4, 2), (2, 2), the expr
+            #   (idx < 3) ? a[idx-0, 2] : (idx < 7) ? b[idx-3, 2] : c[idx-7, 2]
+            # is returned.
+            def f(remain, offset):
+                inp = remain[0]
+                inp_size = inp.out_shape[dim]
+                # make new index: do adjust on cancated dim, use the original index for others
+                adjusted_indices = []
+                for d in range(len(out_loops)):
+                    if d == dim:
+                        adjusted_indices.append(BinaryExpr(Ops.Sub, IndexExpr(out_loops[d]), ConstExpr(offset)))
+                    else:
+                        adjusted_indices.append(IndexExpr(out_loops[d]))
+
+                true_expr = FuncExpr(inp, indices=adjusted_indices)
+
+                # on the last input, no condition needed
+                if len(remain) == 1: return true_expr
+
+                cond = BinaryExpr(op=Ops.Lt,
+                    l=IndexExpr(out_loops[dim]),
+                    r=ConstExpr(offset + inp_size),
+                )
+                false_expr = f(remain[1:], offset+inp_size)
+                return TernaryExpr(Ops.Where, e1=cond, e2=true_expr, e3=false_expr, dtype=inp.out_dtype)
+
+            e = f(inputs, 0)
+
         else:
             raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
 
@@ -345,6 +377,7 @@ def convert(arr):
         if isinstance(e, FuncExpr): return FuncExpr(e.func, [replace_index(i, index_replace) for i in e.indices])
         if isinstance(e, BufferExpr): return BufferExpr(e.container, [replace_index(i, index_replace) for i in e.indices])
         if isinstance(e, ReduceExpr): return ReduceExpr(e.op, replace_index(e.expr, index_replace), e.reduced)
+        if isinstance(e, CastExpr): return CastExpr(replace_index(e.expr, index_replace), e.dtype)
         return e # ConstExpr, CastExpr
 
     # count Func reference count

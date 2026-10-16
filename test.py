@@ -1637,5 +1637,217 @@ class Test(unittest.TestCase):
         self.assertEqual(f.tolist(), [0, 2, 4, 6, 8, 10])
         self.assertEqual(list(materialize.materializer.kern_cache.hitcnt.values())[0], 1)
 
+    #
+    # unsqueeze
+    #
+
+    def test_unsqueeze_dim0(self):
+        a = ndarray.array([1, 2, 3])
+        b = a.unsqueeze(0)
+        self.assertEqual(b.shape, (1, 3))
+        self.assertEqual(b.tolist(), [[1, 2, 3]])
+
+    def test_unsqueeze_dim1(self):
+        a = ndarray.array([1, 2, 3])
+        b = a.unsqueeze(1)
+        self.assertEqual(b.shape, (3, 1))
+        self.assertEqual(b.tolist(), [[1], [2], [3]])
+
+    def test_unsqueeze_2d_dim0(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = a.unsqueeze(0)
+        self.assertEqual(b.shape, (1, 2, 2))
+        self.assertEqual(b.tolist(), [[[1, 2], [3, 4]]])
+
+    def test_unsqueeze_2d_dim1(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = a.unsqueeze(1)
+        self.assertEqual(b.shape, (2, 1, 2))
+        self.assertEqual(b.tolist(), [[[1, 2]], [[3, 4]]])
+
+    def test_unsqueeze_is_reshape(self):
+        # unsqueeze は reshape と同じ; materialize 不要
+        a = ndarray.array([[1, 2, 3], [4, 5, 6]])
+        b = a.unsqueeze(0)
+        self.assertEqual(b.shape, (1, 2, 3))
+        self.assertEqual(b.tolist(), [[[1, 2, 3], [4, 5, 6]]])
+
+    #
+    # cat / concat
+    #
+
+    def test_cat_1d(self):
+        a = ndarray.array([1, 2, 3])
+        b = ndarray.array([4, 5])
+        c = ndarray.cat([a, b], dim=0)
+        c.materialize()
+        self.assertEqual(c.shape, (5,))
+        self.assertEqual(c.tolist(), [1, 2, 3, 4, 5])
+
+    def test_cat_2d_dim0(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = ndarray.array([[5, 6]])
+        c = ndarray.cat([a, b], dim=0)
+        c.materialize()
+        self.assertEqual(c.shape, (3, 2))
+        self.assertEqual(c.tolist(), [[1, 2], [3, 4], [5, 6]])
+
+    def test_cat_2d_dim1(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = ndarray.array([[5], [6]])
+        c = ndarray.cat([a, b], dim=1)
+        c.materialize()
+        self.assertEqual(c.shape, (2, 3))
+        self.assertEqual(c.tolist(), [[1, 2, 5], [3, 4, 6]])
+
+    def test_cat_three_arrays(self):
+        a = ndarray.array([1, 2])
+        b = ndarray.array([3, 4])
+        c = ndarray.array([5, 6])
+        d = ndarray.cat([a, b, c], dim=0)
+        d.materialize()
+        self.assertEqual(d.shape, (6,))
+        self.assertEqual(d.tolist(), [1, 2, 3, 4, 5, 6])
+
+    def test_cat_unequal_sizes(self):
+        a = ndarray.array([1, 2, 3])
+        b = ndarray.array([4])
+        c = ndarray.cat([a, b], dim=0)
+        c.materialize()
+        self.assertEqual(c.shape, (4,))
+        self.assertEqual(c.tolist(), [1, 2, 3, 4])
+
+    def test_cat_ndim_mismatch_error(self):
+        a = ndarray.array([1, 2, 3])
+        b = ndarray.array([[4, 5, 6]])
+        with self.assertRaises(ValueError):
+            ndarray.cat([a, b], dim=0)
+
+    def test_cat_shape_mismatch_error(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = ndarray.array([[5, 6, 7]])
+        with self.assertRaises(ValueError):
+            ndarray.cat([a, b], dim=0)
+
+    def test_backward_cat_1d(self):
+        a = ndarray.array([1.0, 2.0])
+        b = ndarray.array([3.0, 4.0, 5.0])
+        ndarray.cat([a, b], dim=0).sum().backward()
+        a.grad.materialize()
+        b.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 1.0])
+        self._assert_list_close(b.grad.tolist(), [1.0, 1.0, 1.0])
+
+    def test_backward_cat_2d_dim0(self):
+        a = ndarray.array([[1.0, 2.0], [3.0, 4.0]])
+        b = ndarray.array([[5.0, 6.0]])
+        ndarray.cat([a, b], dim=0).sum().backward()
+        a.grad.materialize()
+        b.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [[1.0, 1.0], [1.0, 1.0]])
+        self._assert_list_close(b.grad.tolist(), [[1.0, 1.0]])
+
+    def test_backward_cat_weighted(self):
+        a = ndarray.array([1.0, 2.0])
+        b = ndarray.array([3.0, 4.0])
+        w = ndarray.array([1.0, 2.0, 3.0, 4.0])
+        (ndarray.cat([a, b], dim=0) * w).sum().backward()
+        a.grad.materialize()
+        b.grad.materialize()
+        self._assert_list_close(a.grad.tolist(), [1.0, 2.0])
+        self._assert_list_close(b.grad.tolist(), [3.0, 4.0])
+
+    #
+    # stack
+    #
+
+    def test_stack_1d_dim0(self):
+        a = ndarray.array([1, 2, 3])
+        b = ndarray.array([4, 5, 6])
+        c = ndarray.stack([a, b], dim=0)
+        c.materialize()
+        self.assertEqual(c.shape, (2, 3))
+        self.assertEqual(c.tolist(), [[1, 2, 3], [4, 5, 6]])
+
+    def test_stack_1d_dim1(self):
+        a = ndarray.array([1, 2, 3])
+        b = ndarray.array([4, 5, 6])
+        c = ndarray.stack([a, b], dim=1)
+        c.materialize()
+        self.assertEqual(c.shape, (3, 2))
+        self.assertEqual(c.tolist(), [[1, 4], [2, 5], [3, 6]])
+
+    def test_stack_three_1d(self):
+        a = ndarray.array([1, 2])
+        b = ndarray.array([3, 4])
+        c = ndarray.array([5, 6])
+        d = ndarray.stack([a, b, c], dim=0)
+        d.materialize()
+        self.assertEqual(d.shape, (3, 2))
+        self.assertEqual(d.tolist(), [[1, 2], [3, 4], [5, 6]])
+
+    def test_stack_2d_dim0(self):
+        a = ndarray.array([[1, 2], [3, 4]])
+        b = ndarray.array([[5, 6], [7, 8]])
+        c = ndarray.stack([a, b], dim=0)
+        c.materialize()
+        self.assertEqual(c.shape, (2, 2, 2))
+        self.assertEqual(c.tolist(), [[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+
+    #
+    # advanced indexing
+    #
+
+    def test_advanced_index_1d(self):
+        a = ndarray.array([10, 20, 30, 40, 50])
+        idx = ndarray.array([2, 0, 4])
+        b = a[idx]
+        b.materialize()
+        self.assertEqual(b.shape, (3,))
+        self.assertEqual(b.tolist(), [30, 10, 50])
+
+    def test_advanced_index_1d_repeat(self):
+        a = ndarray.array([10, 20, 30])
+        idx = ndarray.array([0, 0, 2])
+        b = a[idx]
+        b.materialize()
+        self.assertEqual(b.tolist(), [10, 10, 30])
+
+    def test_advanced_index_1d_from_list(self):
+        a = ndarray.array([10, 20, 30, 40])
+        b = a[[3, 1]]
+        b.materialize()
+        self.assertEqual(b.tolist(), [40, 20])
+
+    def test_advanced_index_2d_single_axis(self):
+        a = ndarray.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        idx = ndarray.array([0, 2])
+        b = a[idx]
+        b.materialize()
+        self.assertEqual(b.shape, (2, 3))
+        self.assertEqual(b.tolist(), [[1, 2, 3], [7, 8, 9]])
+
+    def test_advanced_index_2d_two_axes(self):
+        # a[row, col] → picks a[0,2], a[1,0], a[2,1]
+        a = ndarray.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        row = ndarray.array([0, 1, 2])
+        col = ndarray.array([2, 0, 1])
+        b = a[row, col]
+        b.materialize()
+        self.assertEqual(b.shape, (3,))
+        self.assertEqual(b.tolist(), [3, 4, 8])
+
+    def test_advanced_index_crossentropy_style(self):
+        # log_probs[arange(N), labels] パターン
+        log_probs = ndarray.array([
+            [-1.0, -2.0, -3.0],
+            [-4.0, -0.5, -6.0],
+        ])
+        labels = ndarray.array([0, 1])
+        result = log_probs[ndarray.arange(2), labels]
+        result.materialize()
+        self.assertEqual(result.shape, (2,))
+        self._assert_list_close(result.tolist(), [-1.0, -0.5])
+
 if __name__ == '__main__':
     unittest.main()

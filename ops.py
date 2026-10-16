@@ -54,6 +54,8 @@ class Ops(IntEnum):
     Dilate = auto()
     Cast = auto()
 
+    Concatenate = auto()
+
     def is_const(self): return self.value == Ops.Const
     def is_unary(self): return Ops._unary_start < self.value < Ops._unary_end
     def is_binary(self): return Ops._binary_start < self.value < Ops._binary_end
