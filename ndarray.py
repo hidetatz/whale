@@ -255,6 +255,8 @@ class Context:
         return tuple(grads)
 
 class ndarray:
+    _container_id_counter = 0
+
     class Container:
         def __init__(self, dtype, shape, strides, offset, val=None, ctx=None, buffer=None):
             if buffer is not None:
@@ -270,6 +272,8 @@ class ndarray:
             self.strides = strides
             self.offset = offset
             self.ctx = ctx
+            ndarray._container_id_counter += 1
+            self.uid = ndarray._container_id_counter
 
     def __init__(self, container: ndarray.Container, requires_grad: bool):
         self.container = container
