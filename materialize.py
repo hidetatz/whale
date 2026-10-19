@@ -82,10 +82,19 @@ class Materializer:
                     return ("Idx", expr.loopvar.name, expr.loopvar.extent)
                 case algo.ConstExpr():
                     return ("Const", expr.val)
+                case algo.CastExpr():
+                    return ("Cast", str(expr.dtype), _expr_key(expr.expr, buf_ids))
+                case algo.TernaryExpr():
+                    return ("Tern", expr.op.name, _expr_key(expr.e1, buf_ids), _expr_key(expr.e2, buf_ids), _expr_key(expr.e3, buf_ids))
                 case algo.FuncExpr():
-                    return ("Fnc", _expr_key(expr.func.expr, buf_ids), tuple(_expr_key(i, buf_ids) for i in expr.indices))
+                    return ("Fnc",
+                            tuple((lv.name, lv.extent) for lv in expr.func.out_loops),
+                            expr.func.out_shape,
+                            str(expr.func.out_dtype),
+                            _expr_key(expr.func.expr, buf_ids),
+                            tuple(_expr_key(i, buf_ids) for i in expr.indices))
                 case algo.BufferExpr():
-                    nid = id(expr.container)
+                    nid = expr.container.uid
                     if nid not in buf_ids: buf_ids[nid] = len(buf_ids)
                     indices = tuple(_expr_key(i, buf_ids) for i in expr.indices)
                     return ("Buf", buf_ids[nid], expr.container.shape, expr.container.strides, expr.container.offset, str(expr.container.dtype), indices)
