@@ -540,7 +540,13 @@ class ndarray:
 
     # materialization
 
-    def materialize(self): materialize.materialize(self)
+    def materialize(self):
+        if self.ctx.op.is_view():
+            # when self is view, materialize it's base and keep viewing it
+            self.base().materialize()
+        else:
+            materialize.materialize(self)
+            self.container.ctx = Context(Ops.Const)
 
     def tolist(self):
         if self.buffer.cpu is None:
