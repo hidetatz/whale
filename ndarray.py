@@ -85,7 +85,7 @@ class Context:
         return y * x ** (y - 1) * grad, (x ** y) * x.log() * grad
 
     def _cmp_forward(self): return ndarray._from_prim(val=None, dtype=int64, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self)
-    def _cmp_backward_error(self, op): raise RuntimeError(f"backward on operation <{op}> is not defined and not callable")
+    def _cmp_backward_error(self, op): raise RuntimeError(f"backward on operation {op} is not defined and not callable")
 
     def _eq_forward(self): return self._cmp_forward()
     def _eq_backward(self, grad): self._cmp_backward_error("==")

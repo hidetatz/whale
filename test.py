@@ -1838,7 +1838,6 @@ class Test(unittest.TestCase):
         self.assertEqual(b.tolist(), [3, 4, 8])
 
     def test_advanced_index_crossentropy_style(self):
-        # log_probs[arange(N), labels] パターン
         log_probs = ndarray.array([
             [-1.0, -2.0, -3.0],
             [-4.0, -0.5, -6.0],
@@ -1848,6 +1847,71 @@ class Test(unittest.TestCase):
         result.materialize()
         self.assertEqual(result.shape, (2,))
         self._assert_list_close(result.tolist(), [-1.0, -0.5])
+
+    #
+    # CrossEntropyLoss
+    #
+
+    def _cross_entropy(self, logits_batch, labels):
+        import math
+        n = len(logits_batch)
+        total = 0.0
+        for logits, label in zip(logits_batch, labels):
+            x = [v - max(logits) for v in logits]
+            s = math.log(sum(math.exp(v) for v in x))
+            total += -(x[label] - s)
+        return total / n
+
+    def _ce_forward(self, logits_list, labels_list):
+        from mnist import CrossEntropyLoss
+        logits = ndarray.array(logits_list)
+        labels = ndarray.array(labels_list)
+        loss = CrossEntropyLoss().forward(logits, labels)
+        loss.materialize()
+        return loss.tolist()
+
+    def test_crossentropy_single_sample(self):
+        logits = [[2.0, 1.0, 0.1]]
+        labels = [0]
+        got = self._ce_forward(logits, labels)
+        self.assertAlmostEqual(got, self._cross_entropy(logits, labels), places=5)
+
+    def test_crossentropy_batch(self):
+        logits = [[1.0, 2.0, 3.0], [1.0, 1.0, 1.0]]
+        labels = [2, 0]
+        got = self._ce_forward(logits, labels)
+        self.assertAlmostEqual(got, self._cross_entropy(logits, labels), places=5)
+
+    def test_crossentropy_uniform_logits(self):
+        # uniform logits → loss = log(C)
+        import math
+        logits = [[0.0, 0.0, 0.0]]
+        labels = [0]
+        got = self._ce_forward(logits, labels)
+        self.assertAlmostEqual(got, math.log(3), places=5)
+
+    def test_crossentropy_high_confidence_correct(self):
+        # 正解クラスに大きなスコア → loss が小さい
+        logits = [[10.0, 0.0, 0.0]]
+        labels = [0]
+        got = self._ce_forward(logits, labels)
+        self.assertLess(got, 0.01)
+
+    def test_crossentropy_high_confidence_wrong(self):
+        # 間違いクラスに大きなスコア → loss が大きい
+        logits = [[10.0, 0.0, 0.0]]
+        labels = [1]
+        got = self._ce_forward(logits, labels)
+        self.assertGreater(got, 9.0)
+
+    def test_crossentropy_numerical_stability(self):
+        # 大きな値でも nan/inf にならない
+        import math
+        logits = [[1000.0, 1001.0, 999.0]]
+        labels = [1]
+        got = self._ce_forward(logits, labels)
+        self.assertFalse(math.isnan(got) or math.isinf(got))
+        self.assertAlmostEqual(got, self._cross_entropy(logits, labels), places=5)
 
 if __name__ == '__main__':
     unittest.main()
