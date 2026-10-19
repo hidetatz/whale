@@ -40,7 +40,8 @@ class Context:
 
     def _elemwise_forward(self):
         i = self.input
-        return ndarray._from_prim(val=None, dtype=i.dtype, shape=i.shape, strides=util.strides_from_shape(i.shape), offset=0, ctx=self)
+        rg = any([inp.requires_grad for inp in self.inputs])
+        return ndarray._from_prim(val=None, dtype=i.dtype, shape=i.shape, strides=util.strides_from_shape(i.shape), offset=0, ctx=self, requires_grad=rg)
 
     # unary
 
@@ -62,7 +63,7 @@ class Context:
     def _sqrt_forward(self): return self._elemwise_forward()
     def _sqrt_backward(self, grad): return grad / (self.output() * 2)
 
-    def _cast_forward(self): return ndarray(ndarray.Container(dtype=self.attrs["dtype"], shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
+    def _cast_forward(self): return ndarray(ndarray.Container(dtype=self.attrs["dtype"], shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self), self.input.requires_grad)
     def _cast_backward(self, grad): return grad.to(self.attrs["orig_dtype"])
 
     # binary
@@ -84,7 +85,7 @@ class Context:
         x, y = self.inputs[0], self.inputs[1]
         return y * x ** (y - 1) * grad, (x ** y) * x.log() * grad
 
-    def _cmp_forward(self): return ndarray._from_prim(val=None, dtype=int64, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self)
+    def _cmp_forward(self): return ndarray._from_prim(val=None, dtype=int64, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self, requires_grad=False)
     def _cmp_backward_error(self, op): raise RuntimeError(f"backward on operation {op} is not defined and not callable")
 
     def _eq_forward(self): return self._cmp_forward()
@@ -103,8 +104,9 @@ class Context:
     # ternary
 
     def _where_forward(self):
+        rg = self.inputs[1].requires_grad or self.inputs[2].requires_grad
         # use inputs[1] dtype as inputs[0] is the condition (= integer)
-        return ndarray._from_prim(val=None, dtype=self.inputs[1].dtype, shape=self.inputs[0].shape, strides=util.strides_from_shape(self.inputs[0].shape), offset=0, ctx=self)
+        return ndarray._from_prim(val=None, dtype=self.inputs[1].dtype, shape=self.inputs[0].shape, strides=util.strides_from_shape(self.inputs[0].shape), offset=0, ctx=self, requires_grad=rg)
     def _where_backward(self, grad):
         cond = self.inputs[0]
         return None, where(cond, grad, zeros_like(grad)), where(cond, zeros_like(grad), grad)
@@ -117,7 +119,7 @@ class Context:
         kd = self.attrs["keepdims"]
         if kd: newshape = [1 if i in axis else s for i, s in enumerate(inp.shape)]
         else: newshape = [s for i, s in enumerate(inp.shape) if i not in axis]
-        return ndarray._from_prim(val=None, dtype=inp.dtype, shape=tuple(newshape), strides=util.strides_from_shape(newshape), offset=0, ctx=self)
+        return ndarray._from_prim(val=None, dtype=inp.dtype, shape=tuple(newshape), strides=util.strides_from_shape(newshape), offset=0, ctx=self,requires_grad=inp.requires_grad)
 
     def _sum_forward(self): return self._reduce_forward()
     def _sum_backward(self, grad):
@@ -144,7 +146,8 @@ class Context:
 
     def _matmul_forward(self):
         newshape = (self.inputs[0].shape[0], self.inputs[1].shape[1])
-        return ndarray._from_prim(val=None, dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(newshape), offset=0, ctx=self)
+        rg = any([inp.requires_grad for inp in self.inputs])
+        return ndarray._from_prim(val=None, dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(newshape), offset=0, ctx=self, requires_grad=rg)
     def _matmul_backward(self, grad):
         return grad.matmul(self.inputs[1].T), self.inputs[0].T.matmul(grad)
 
@@ -154,7 +157,7 @@ class Context:
         inp = self.inputs[0]
         target_shape = self.attrs["shape"]
         new_container = ndarray.Container(dtype=inp.dtype, shape=target_shape, strides=util.strides_from_shape(target_shape), offset=0, ctx=self)
-        return ndarray(new_container)
+        return ndarray(new_container, requires_grad=inp.requires_grad)
     def _reshape_backward(self, grad): return grad.reshape(*self.inputs[0].shape)
 
     def _broadcast_forward(self):
@@ -165,7 +168,7 @@ class Context:
         padded_src_shape = [1] * ndim_diff + list(inp.shape)
         new_strides = [0 if s == 1 else st for s, st in zip(padded_src_shape, padded_strides)]
         new_container = ndarray.Container(dtype=inp.dtype, shape=target_shape, strides=tuple(new_strides), offset=inp.offset, ctx=self)
-        return ndarray(new_container)
+        return ndarray(new_container, requires_grad=inp.requires_grad)
     def _broadcast_backward(self, grad):
         orig_shape = self.inputs[0].shape
         added_axis = tuple(range(grad.ndim - len(orig_shape)))
@@ -178,7 +181,7 @@ class Context:
         new_shape = tuple([self.input.shape[a] for a in axes])
         new_strides = tuple([self.input.strides[a] for a in axes])
         new_container = ndarray.Container(dtype=self.input.dtype, shape=new_shape, strides=new_strides, offset=self.input.offset, ctx=self)
-        return ndarray(new_container)
+        return ndarray(new_container, requires_grad=self.input.requires_grad)
     def _transpose_backward(self, grad):
         return grad.transpose(*util.argsort(self.attrs["axes"]))
 
@@ -192,7 +195,7 @@ class Context:
                     newoffset += s.start * self.input.strides[dim]
                     newshape.append(max(0, (s.stop - s.start + s.step - 1) // s.step))
                     newstrides.append(self.input.strides[dim] * s.step)
-        return ndarray(ndarray.Container(dtype=self.input.dtype, shape=tuple(newshape), strides=tuple(newstrides), offset=newoffset, ctx=self))
+        return ndarray(ndarray.Container(dtype=self.input.dtype, shape=tuple(newshape), strides=tuple(newstrides), offset=newoffset, ctx=self), requires_grad=self.input.requires_grad)
     def _slice_backward(self, grad):
         grad_dim = 0
         for inpdim, s in enumerate(self.attrs["subscript"]):
@@ -212,13 +215,13 @@ class Context:
 
     # movement
 
-    def _contiguous_forward(self): return ndarray(ndarray.Container(dtype=self.input.dtype, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self))
+    def _contiguous_forward(self): return ndarray(ndarray.Container(dtype=self.input.dtype, shape=self.input.shape, strides=util.strides_from_shape(self.input.shape), offset=0, ctx=self), requires_grad=self.input.requires_grad)
     def _contiguous_backward(self, grad): return grad
 
     def _pad_forward(self):
         newshape = list(self.input.shape)
         newshape[self.attrs["dim"]] += (self.attrs["before"] + self.attrs["after"])
-        return ndarray(ndarray.Container(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self))
+        return ndarray(ndarray.Container(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self), requires_grad=self.input.requires_grad)
     def _pad_backward(self, grad):
         dim = self.attrs["dim"]
         before = self.attrs["before"]
@@ -229,16 +232,17 @@ class Context:
         dim = self.attrs["dim"]
         newshape = list(self.input.shape)
         newshape[dim] = (newshape[dim] - 1) * self.attrs["step"] + 1
-        return ndarray(ndarray.Container(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self))
+        return ndarray(ndarray.Container(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self), requires_grad=self.input.requires_grad)
     def _dilate_backward(self, grad):
         subscript = tuple(slice(None, None, self.attrs["step"]) if d == self.attrs["dim"] else slice(None) for d in range(grad.ndim))
         return grad[subscript]
 
     def _concatenate_forward(self):
+        rg = any([inp.requires_grad for inp in self.inputs])
         dim = self.attrs["dim"]
         newshape = list(self.inputs[0].shape)
         for inp in self.inputs[1:]: newshape[dim] += inp.shape[dim]
-        return ndarray(ndarray.Container(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self))
+        return ndarray(ndarray.Container(dtype=self.input.dtype, shape=tuple(newshape), strides=util.strides_from_shape(tuple(newshape)), offset=0, ctx=self), requires_grad=rg)
     def _concatenate_backward(self, grad):
         dim = self.attrs["dim"]
         grads = []
@@ -267,15 +271,16 @@ class ndarray:
             self.offset = offset
             self.ctx = ctx
 
-    def __init__(self, container: ndarray.Container):
+    def __init__(self, container: ndarray.Container, requires_grad: bool):
         self.container = container
         self.grad = None
+        self.requires_grad = requires_grad
 
     # creation
 
     @classmethod
-    def _from_prim(cls, val, dtype, shape, strides, offset, ctx):
-        return cls(cls.Container(dtype=dtype, shape=shape, strides=strides, offset=offset, val=val, ctx=ctx))
+    def _from_prim(cls, val, dtype, shape, strides, offset, ctx, requires_grad):
+        return cls(cls.Container(dtype=dtype, shape=shape, strides=strides, offset=offset, val=val, ctx=ctx), requires_grad)
 
     @classmethod
     def wrap(cls, v): return v if isinstance(v, ndarray) else array(v)
@@ -317,7 +322,7 @@ class ndarray:
         return Context(f).forward((l, r))
 
     def __inplace_binary(self, other, op):
-        cp = ndarray(self.container) # create the copy of self
+        cp = ndarray(self.container, requires_grad=False) # create the copy of self
         result = cp.__binary(other, op)
         self.container = result.container
         return self
@@ -513,6 +518,7 @@ class ndarray:
 
         def dfs(t):
             if t.ctx is None or not t.ctx.inputs or t in seen: return
+            if not t.requires_grad: return
             seen.add(t)
             for i in t.ctx.inputs: dfs(i)
             funcs.append(t.ctx)
@@ -567,12 +573,12 @@ def where(condition: ndarray, x: ndarray, y: ndarray):
 # factories
 # 
 
-def _const(shape, val):
+def _const(shape, val, requires_grad):
     dtype = int64 if val and type(val[0]) is int else float64
     strides = util.strides_from_shape(shape)
-    return ndarray._from_prim(val, dtype, shape, strides, 0, Context(Ops.Const))
+    return ndarray._from_prim(val, dtype, shape, strides, 0, Context(Ops.Const), requires_grad)
 
-def array(val):
+def array(val, requires_grad=False):
     flattened = []
     shape = []
 
@@ -592,28 +598,28 @@ def array(val):
             f(elem, dim + 1)
 
     f(val, 0)
-    return _const(tuple(shape), flattened)
+    return _const(tuple(shape), flattened, requires_grad)
 
-def arange(stop):
-    return array([i for i in range(stop)])
+def arange(stop, requires_grad=False):
+    return array([i for i in range(stop)], requires_grad)
 
-def full(shape, val):
-    return _const(shape, [val] * math.prod(shape))
+def full(shape, val, requires_grad=False):
+    return _const(shape, [val] * math.prod(shape), requires_grad)
 
-def full_like(t, val):
-    return full(t.shape, val)
+def full_like(t, val, requires_grad=False):
+    return full(t.shape, val, requires_grad)
 
-def ones_like(t):
+def ones_like(t, requires_grad=False):
     val = 1 if t.dtype.is_int() else 1.0
-    return full_like(t, val)
+    return full_like(t, val, requires_grad)
 
-def zeros_like(t):
-    return full_like(t, 0)
+def zeros_like(t, requires_grad=False):
+    return full_like(t, 0, requires_grad)
 
 # random
 
-def rand(*shape): return _const(shape, [random.uniform(0, 1) for _ in range(math.prod(shape))])
-def randn(*shape): return _const(shape, [random.gauss(0, 1) for _ in range(math.prod(shape))])
+def rand(*shape, requires_grad=False): return _const(shape, [random.uniform(0, 1) for _ in range(math.prod(shape))], requires_grad)
+def randn(*shape, requires_grad=False): return _const(shape, [random.gauss(0, 1) for _ in range(math.prod(shape))], requires_grad)
 
 # tensor manipulation
 
