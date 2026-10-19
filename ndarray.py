@@ -535,7 +535,7 @@ class ndarray:
             if out is None or out.grad is None: continue
             gxs = f.backward(out.grad)
             for x, gx in zip(f.inputs, gxs):
-                if gx is not None:
+                if gx is not None and x.requires_grad:
                     x.grad = gx if x.grad is None else x.grad + gx
 
     # materialization
