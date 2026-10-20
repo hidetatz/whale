@@ -571,6 +571,8 @@ class ndarray:
         if self.buffer.cpu is None:
             return f"{self.ctx.op.name if self.ctx else "Input"} shape={self.shape} strides={self.strides} offset={self.offset} dtype={self.dtype} cpu={self.buffer.cpu} dev={self.buffer.dev}"
         else:
+            if len(self.buffer.cpu.val) > 20:
+                return f"{self.ctx.op.name if self.ctx else "Input"} shape={self.shape} strides={self.strides} offset={self.offset} dtype={self.dtype} cpu={self.buffer.cpu} dev={self.buffer.dev}"
             return str(self._to_ndlist())
 
     def inputs(self): return list(self.ctx.inputs) if self.ctx and self.ctx.inputs else []

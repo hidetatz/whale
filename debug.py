@@ -1,3 +1,4 @@
+import datetime
 import os
 import typing
 
@@ -9,13 +10,13 @@ def dbg_raw(msg: str):
     print(f"{msg}")
 
 def dbg(msg: str):
-    dbg_raw(f"[debug] {msg}")
+    dbg_raw(f"[debug] <{datetime.datetime.now()}> {msg}")
 
 class TreeNode(typing.Protocol):
     def inputs(self): ...
 
 def dbg_tree(n: TreeNode):
-    def f(_n: tree.Node, depth=0, prefix="        ", last=True):
+    def f(_n, depth=0, prefix="        ", last=True):
         connector = "└─ " if last else "├─ "
         line = prefix + (connector if depth > 0 else "") + _n.__str__()
         inputs = _n.inputs()
