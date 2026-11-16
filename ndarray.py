@@ -280,9 +280,7 @@ class Context:
     def _scatter_forward(self):
         dst_shape = self.attrs["dst_shape"]
         dst_dtype = self.attrs["dst_dtype"]
-        length = math.prod(dst_shape)
-        zero = 0 if dst_dtype.is_int() else 0.0
-        return ndarray._from_prim(val=[zero] * length, dtype=dst_dtype, shape=dst_shape, strides=util.strides_from_shape(dst_shape), offset=0, ctx=self, requires_grad=self.inputs[0].requires_grad)
+        return ndarray._from_prim(val=None, dtype=dst_dtype, shape=dst_shape, strides=util.strides_from_shape(dst_shape), offset=0, ctx=self, requires_grad=self.inputs[0].requires_grad)
 
     def _scatter_backward(self, grad):
         idx_inputs = self.inputs[1:]

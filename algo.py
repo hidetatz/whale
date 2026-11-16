@@ -101,7 +101,7 @@ class BufferExpr:
 Expr = IndexExpr | ConstExpr | CastExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
 
 class Func:
-    def __init__(self, out_loops: list[LoopIndex], out_shape: list[int], out_dtype: dtype, expr: Expr, out_buffer: Buffer, is_scatter: bool = False, scatter_addr_exprs: list = None, scatter_dst_shape: list = None):
+    def __init__(self, out_loops: list[LoopIndex], out_shape: list[int], out_dtype: dtype, expr: Expr, out_buffer: Buffer, is_scatter: bool = False, scatter_addr_exprs: list = None, scatter_dst_shape: list = None, is_matmul: bool = False, matmul_mnk: tuple = None):
         self.out_loops = out_loops
         self.out_shape = out_shape
         self.out_dtype = out_dtype
@@ -110,6 +110,8 @@ class Func:
         self.is_scatter = is_scatter
         self.scatter_addr_exprs = scatter_addr_exprs or []
         self.scatter_dst_shape = scatter_dst_shape or []
+        self.is_matmul = is_matmul
+        self.matmul_mnk = matmul_mnk or (0, 0, 0)
 
     def dependent_funcs(self):
         deps = []
@@ -425,7 +427,9 @@ def convert(arr):
         else:
             raise RuntimeError(f"not implemented op: {a.ctx.op.name}")
 
-        f = Func(out_loops=out_loops, out_shape=a.shape, out_dtype=a.dtype, expr=e, out_buffer=a.container.buffer)
+        is_matmul = a.ctx.op == Ops.Matmul
+        matmul_mnk = (a.shape[0], a.shape[1], a.ctx.inputs[0].shape[1]) if is_matmul else None
+        f = Func(out_loops=out_loops, out_shape=a.shape, out_dtype=a.dtype, expr=e, out_buffer=a.container.buffer, is_matmul=is_matmul, matmul_mnk=matmul_mnk)
         memo[a] = f
         return f
 
@@ -508,7 +512,7 @@ def convert(arr):
             case _: raise RuntimeError(f"unhandled expr: {type(e)}")
 
     fused_scatter_addrs = [try_fuse(e) for e in f.scatter_addr_exprs] if f.is_scatter else []
-    f = Func(out_loops=f.out_loops, out_shape=f.out_shape, out_dtype=f.out_dtype, expr=try_fuse(f.expr), out_buffer=arr.buffer, is_scatter=f.is_scatter, scatter_addr_exprs=fused_scatter_addrs, scatter_dst_shape=f.scatter_dst_shape)
+    f = Func(out_loops=f.out_loops, out_shape=f.out_shape, out_dtype=f.out_dtype, expr=try_fuse(f.expr), out_buffer=arr.buffer, is_scatter=f.is_scatter, scatter_addr_exprs=fused_scatter_addrs, scatter_dst_shape=f.scatter_dst_shape, is_matmul=f.is_matmul, matmul_mnk=f.matmul_mnk)
 
     funcs = []
     seen = set()

@@ -8,7 +8,7 @@ from codegen import CodeGenerator, HighLevelLangCodeGenerator
 from executor import Executor, CPUExecutor, GPUExecutor
 from kernel import Kernel
 from backend_clang import ClangLangSpec, ClangCompiler, ClangExecutor
-from backend_cuda import CUDALangSpec, CUDACompiler, CUDAExecutor, CUDA
+from backend_cuda import CUDALangSpec, CUDACompiler, CUDAExecutor, CUDA, CUBlas
 from backend_python import PythonLangSpec, PythonCompiler, PythonExecutor
 
 class Backend(ABC):
@@ -38,22 +38,30 @@ class CPUBackend(Backend):
         self.executor.execute(kern, params)
 
 class GPUBackend(Backend):
-    def __init__(self, codegenerator: CodeGenerator, compiler: Compiler, executor: GPUExecutor):
+    def __init__(self, codegenerator: CodeGenerator, compiler: Compiler, executor: GPUExecutor, use_cublas: bool = False):
         super().__init__(codegenerator, compiler, executor)
+        self.use_cublas = use_cublas
 
     def invoke_kernel(self, schedule: sched.Schedule, func, kern: Kernel, params: list[buffer.Buffer]):
         e = self.executor
         for i, p in enumerate(params):
             if p.dev.ptr is None:
                 p.dev.ptr = e.memalloc(p.length, p.dtype.ctype())
-                # scatter output must be zeroed before atomicAdd
-                if i == 0 and func.is_scatter:
-                    e.memzero(p.dev.ptr, p.length, p.dtype.ctype())
 
-            # memcpy: copy CPU data to GPU on first use, then clear to avoid redundant copies
+            if i == 0 and func.is_scatter:
+                e.memzero(p.dev.ptr, p.length, p.dtype.ctype())
+
             if i != 0 and p.cpu is not None:
                 e.memcpy_htod(p.dev.ptr, p.cpu.val, p.length, p.dtype.ctype())
                 p.cpu = None
+
+        if self.use_cublas and func.is_matmul:
+            m, n, k = func.matmul_mnk
+            # only use cuBLAS when inputs are fully materialized (not broadcast scalars)
+            if params[1].length == m * k and params[2].length == k * n:
+                # params = [C_out, A, B, ...]
+                e.cublas_matmul(m, n, k, params[1], params[2], params[0], func.out_dtype)
+                return
 
         dim = {"x": 0, "y": 1, "z": 2}
         grid = [1, 1, 1]
@@ -78,7 +86,16 @@ class ClangBackend(CPUBackend):
 class CUDABackend(GPUBackend):
     def __init__(self):
         c = CUDA()
-        super().__init__(HighLevelLangCodeGenerator(CUDALangSpec()), CUDACompiler(c), CUDAExecutor(c))
+        use_cublas = os.environ.get("WHALE_CUBLAS", "0") == "1"
+        cublas = None
+        if use_cublas:
+            try:
+                cublas = CUBlas()
+                print("cuBLAS enabled", flush=True)
+            except Exception as ex:
+                print(f"cuBLAS unavailable: {ex}", flush=True)
+                use_cublas = False
+        super().__init__(HighLevelLangCodeGenerator(CUDALangSpec()), CUDACompiler(c), CUDAExecutor(c, cublas), use_cublas)
 
 def detect(b):
     match b:
