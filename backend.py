@@ -24,13 +24,13 @@ class Backend(ABC):
     def compile(self, name: str, code: str): return self.compiler.compile(name, code)
 
     @abstractmethod
-    def invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]): ...
+    def invoke_kernel(self, schedule: sched.Schedule, func, kern: Kernel, params: list[buffer.Buffer]): ...
 
 class CPUBackend(Backend):
     def __init__(self, codegenerator: CodeGenerator, compiler: Compiler, executor: CPUExecutor):
         super().__init__(codegenerator, compiler, executor)
 
-    def invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]):
+    def invoke_kernel(self, schedule: sched.Schedule, func, kern: Kernel, params: list[buffer.Buffer]):
         for i, p in enumerate(params):
             if p.cpu is None:
                 p.cpu = buffer.CPUBuff([0] * p.length)
@@ -41,15 +41,19 @@ class GPUBackend(Backend):
     def __init__(self, codegenerator: CodeGenerator, compiler: Compiler, executor: GPUExecutor):
         super().__init__(codegenerator, compiler, executor)
 
-    def invoke_kernel(self, schedule: sched.Schedule, kern: Kernel, params: list[buffer.Buffer]):
+    def invoke_kernel(self, schedule: sched.Schedule, func, kern: Kernel, params: list[buffer.Buffer]):
         e = self.executor
         for i, p in enumerate(params):
             if p.dev.ptr is None:
-                # memalloc
                 p.dev.ptr = e.memalloc(p.length, p.dtype.ctype())
+                # scatter output must be zeroed before atomicAdd
+                if i == 0 and func.is_scatter:
+                    e.memzero(p.dev.ptr, p.length, p.dtype.ctype())
 
-            # memcpy
-            if i != 0 and p.cpu is not None: e.memcpy_htod(p.dev.ptr, p.cpu.val, p.length, p.dtype.ctype())
+            # memcpy: copy CPU data to GPU on first use, then clear to avoid redundant copies
+            if i != 0 and p.cpu is not None:
+                e.memcpy_htod(p.dev.ptr, p.cpu.val, p.length, p.dtype.ctype())
+                p.cpu = None
 
         dim = {"x": 0, "y": 1, "z": 2}
         grid = [1, 1, 1]

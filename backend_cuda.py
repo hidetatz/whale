@@ -12,6 +12,7 @@ from kernel import Kernel
 
 class CUDALangSpec(langspec.CCompatibleLangSpec):
     def kern_start(self, name, arg_names, arg_types): return f"extern \"C\" __global__ void {name}({", ".join([f'{self.typename(tp)}* {nm}' for nm, tp in zip(arg_names, arg_types)])}) {{"
+    def scatter_add(self, buf, addr, val): return f"atomicAdd(&{buf}[{addr}], {val});"
     def parallel_loop_start(self, index, start, end, step): raise RuntimeError("cuda backend cannot handle parallel loop: use gpu_blocks/threads instead!")
     def vectorized_loop_start(self, index, start, end, step): raise RuntimeError("cuda backend cannot handle vectorized loop: use gpu_blocks/threads instead!")
     def unrolled_loop_start(self, index, start, end, step, factor):
@@ -78,7 +79,6 @@ class CUDAExecutor(executor.GPUExecutor):
             c_params,
             None, # extra
         )
-        self.cuda.exec("cuCtxSynchronize")
 
     def memalloc(self, length, ctype):
         ptr = c_void_p()
@@ -91,7 +91,11 @@ class CUDAExecutor(executor.GPUExecutor):
     def memcpy_htod(self, dst, src, length, ctype):
         self.cuda.exec("cuMemcpyHtoD", dst, (ctype * length)(*src), sizeof(ctype) * length)
 
+    def memzero(self, ptr, length, ctype):
+        self.cuda.exec("cuMemsetD8", ptr, 0, sizeof(ctype) * length)
+
     def memcpy_dtoh(self, src, length, ctype):
+        self.cuda.exec("cuCtxSynchronize")
         out = (ctype * length)()
         self.cuda.exec("cuMemcpyDtoH", out, src, sizeof(ctype) * length)
         return [out[i] for i in range(length)]

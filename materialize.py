@@ -50,7 +50,7 @@ class Materializer:
                 self.kern_cache.hit(cache_key)
                 if DEBUG:
                     dbg(f"kernel cache hit")
-                backend.bcknd.invoke_kernel(schedule, self.kern_cache.get(cache_key), params)
+                backend.bcknd.invoke_kernel(schedule, func, self.kern_cache.get(cache_key), params)
                 continue
 
             kern_name = f"kern_{cache_key[:16]}"
@@ -63,7 +63,7 @@ class Materializer:
             kern = backend.bcknd.compile(kern_name, code)
             self.kern_cache.save(cache_key, kern)
 
-            backend.bcknd.invoke_kernel(schedule, kern, params)
+            backend.bcknd.invoke_kernel(schedule, func, kern, params)
             self.kern_invoke_hist.append(kern)
 
             if DEBUG:
@@ -117,6 +117,9 @@ class Materializer:
             str(func.out_dtype),
             _expr_key(func.expr, buf_ids),
             _sched_key(schedule),
+            func.is_scatter,
+            tuple(_expr_key(e, buf_ids) for e in func.scatter_addr_exprs) if func.is_scatter else (),
+            tuple(func.scatter_dst_shape) if func.is_scatter else (),
         )
         return hashlib.md5(str(key).encode()).hexdigest()
 

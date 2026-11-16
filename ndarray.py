@@ -254,6 +254,45 @@ class Context:
             offset += size
         return tuple(grads)
 
+    # gather/scatter
+
+    def _gather_forward(self):
+        src = self.inputs[0]
+        adv_dims = self.attrs["adv_dims"]
+        idx_shape = self.attrs["idx_shape"]
+        adv_dim_set = set(adv_dims)
+        remaining_shape = [s for d, s in enumerate(src.shape) if d not in adv_dim_set]
+        out_shape = tuple(idx_shape) + tuple(remaining_shape)
+        return ndarray._from_prim(val=None, dtype=src.dtype, shape=out_shape, strides=util.strides_from_shape(out_shape), offset=0, ctx=self, requires_grad=src.requires_grad)
+
+    def _gather_backward(self, grad):
+        src = self.inputs[0]
+        idx_inputs = self.inputs[1:]
+        scatter_result = Context(Ops.Scatter).forward(
+            (grad, *idx_inputs),
+            adv_dims=self.attrs["adv_dims"],
+            idx_shape=self.attrs["idx_shape"],
+            dst_shape=src.shape,
+            dst_dtype=src.dtype,
+        )
+        return (scatter_result,) + (None,) * len(idx_inputs)
+
+    def _scatter_forward(self):
+        dst_shape = self.attrs["dst_shape"]
+        dst_dtype = self.attrs["dst_dtype"]
+        length = math.prod(dst_shape)
+        zero = 0 if dst_dtype.is_int() else 0.0
+        return ndarray._from_prim(val=[zero] * length, dtype=dst_dtype, shape=dst_shape, strides=util.strides_from_shape(dst_shape), offset=0, ctx=self, requires_grad=self.inputs[0].requires_grad)
+
+    def _scatter_backward(self, grad):
+        idx_inputs = self.inputs[1:]
+        gather_result = Context(Ops.Gather).forward(
+            (grad, *idx_inputs),
+            adv_dims=self.attrs["adv_dims"],
+            idx_shape=self.attrs["idx_shape"],
+        )
+        return (gather_result,) + (None,) * len(idx_inputs)
+
 class ndarray:
     _container_id_counter = 0
 
@@ -414,35 +453,16 @@ class ndarray:
 
             return Context(Ops.Slice).forward((self,), subscript=tuple(norm))
 
-        # advanced index
+        # advanced index — use Gather
         adv = [(d, s) for d, s in enumerate(subscript) if isinstance(s, ndarray)]
         idx_arrs = [s for _, s in adv]
 
-        if len(idx_arrs) > 1: idx_arrs = idx_arrs[0].broadcasted(*idx_arrs[1:])
+        if len(idx_arrs) > 1: idx_arrs = list(idx_arrs[0].broadcasted(*idx_arrs[1:]))
         else: idx_arrs = [idx_arrs[0]]
-        out_shape = idx_arrs[0].shape
-        k = math.prod(out_shape)
+        idx_shape = idx_arrs[0].shape
+        adv_dims = [d for d, _ in adv]
 
-        adv_dims = {d for d, _ in adv}
-
-        masks = []
-        for i, (dim, _) in enumerate(adv):
-            n = self.shape[dim]
-            idx_flat = idx_arrs[i].reshape(k)
-            mask_i = (arange(n) == idx_flat.reshape(k, 1)).to(self.dtype)
-            new_shape = [k] + [1] * self.ndim
-            new_shape[dim + 1] = n
-            masks.append(mask_i.reshape(*new_shape))
-
-        combined = masks[0]
-        for m in masks[1:]: combined = combined * m
-
-        product = self.reshape(1, *self.shape) * combined
-        sum_axes = tuple(d + 1 for d, _ in adv)
-        result = product.sum(axis=sum_axes)
-
-        non_adv_shape = tuple(s for i, s in enumerate(self.shape) if i not in adv_dims)
-        return result.reshape(*out_shape, *non_adv_shape)
+        return Context(Ops.Gather).forward((self, *idx_arrs), adv_dims=adv_dims, idx_shape=idx_shape)
 
     def broadcast_to(self, shape):
         if self.shape == shape: return self
@@ -504,6 +524,14 @@ class ndarray:
         mask = (self == self.max(axis=dim, keepdims=True))
         indices = arange(self.shape[dim]).reshape(*[self.shape[i] if i == dim else 1 for i in range(self.ndim)]).broadcast_to(self.shape)
         return (mask * indices).max(axis=dim)
+
+    # gather/scatter
+
+    def gather(self, dim, index):
+        if not isinstance(index, ndarray): raise RuntimeError("gather index must be a ndarray")
+        if self.ndim != index.ndim: raise RuntimeError("gather input and index dimensions must be the same")
+        if any([index.shape[d] > self.shape[d] for d in range(self.ndim) if d != dim]): raise RuntimeError("gather input size must be bigger than index for all the dimensions except the passed dim")
+        return Context(Ops.Gather).forward((self, index), adv_dims=[dim], idx_shape=index.shape)
 
     # neural net
 
@@ -635,14 +663,14 @@ def randn(*shape, requires_grad=False): return _const(shape, [random.gauss(0, 1)
 
 # tensor manipulation
 
-def concat(arrs, dim=0): return cat(arrs, dim)
-def cat(arrs, dim=0):
-    if len(set([a.ndim for a in arrs])) != 1: raise ValueError("all concat arrays must be the same ndim")
-    for d in range(arrs[0].ndim):
-        if d == dim: continue
-        if len(set([a.shape[d] for a in arrs])) != 1: raise ValueError(f"all concat arrays must have the same size on the axis {d}")
-    return Context(Ops.Concatenate).forward(arrs, dim=dim)
+# def concat(arrs, dim=0): return cat(arrs, dim)
+# def cat(arrs, dim=0):
+#     if len(set([a.ndim for a in arrs])) != 1: raise ValueError("all concat arrays must be the same ndim")
+#     for d in range(arrs[0].ndim):
+#         if d == dim: continue
+#         if len(set([a.shape[d] for a in arrs])) != 1: raise ValueError(f"all concat arrays must have the same size on the axis {d}")
+#     return Context(Ops.Concatenate).forward(arrs, dim=dim)
 
-def stack(arrs, dim=0):
-    new_arrs = [a.unsqueeze(dim) for a in arrs]
-    return cat(new_arrs, dim)
+# def stack(arrs, dim=0):
+#     new_arrs = [a.unsqueeze(dim) for a in arrs]
+#     return cat(new_arrs, dim)

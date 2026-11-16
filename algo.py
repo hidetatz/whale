@@ -101,12 +101,15 @@ class BufferExpr:
 Expr = IndexExpr | ConstExpr | CastExpr | BinaryExpr | UnaryExpr | ReduceExpr | FuncExpr | BufferExpr
 
 class Func:
-    def __init__(self, out_loops: list[LoopIndex], out_shape: list[int], out_dtype: dtype, expr: Expr, out_buffer: Buffer):
+    def __init__(self, out_loops: list[LoopIndex], out_shape: list[int], out_dtype: dtype, expr: Expr, out_buffer: Buffer, is_scatter: bool = False, scatter_addr_exprs: list = None, scatter_dst_shape: list = None):
         self.out_loops = out_loops
         self.out_shape = out_shape
         self.out_dtype = out_dtype
         self.expr = expr
         self.out_buffer = out_buffer
+        self.is_scatter = is_scatter
+        self.scatter_addr_exprs = scatter_addr_exprs or []
+        self.scatter_dst_shape = scatter_dst_shape or []
 
     def dependent_funcs(self):
         deps = []
@@ -120,6 +123,9 @@ class Func:
                 else:
                     dfs(inp)
         dfs(self.expr)
+        if self.is_scatter:
+            for ae in self.scatter_addr_exprs:
+                dfs(ae)
         return deps
 
     def reduced_vars(self):
@@ -140,16 +146,21 @@ class Func:
                 if e.container not in seen:
                     seen.add(e.container)
                     bufs.append(e)
+                for idx in e.indices: walk(idx)
             elif isinstance(e, FuncExpr):
                 if e.func not in seen:
                     seen.add(e.func)
                     fncs.append(e)
+                for idx in e.indices: walk(idx)
             elif isinstance(e, CastExpr): return walk(e.expr)
             elif isinstance(e, TernaryExpr): walk(e.e1); walk(e.e2); walk(e.e3)
             elif isinstance(e, BinaryExpr): walk(e.l_expr); walk(e.r_expr)
             elif isinstance(e, UnaryExpr): walk(e.expr)
             elif isinstance(e, ReduceExpr): walk(e.expr)
         walk(self.expr)
+        if self.is_scatter:
+            for ae in self.scatter_addr_exprs:
+                walk(ae)
         return bufs, fncs
 
     def __str__(self): return f"Func(out_loops=[{strjoin(', ', self.out_loops)}] {self.out_dtype}"
@@ -315,6 +326,70 @@ def convert(arr):
             false_expr = ConstExpr(0)
             e = TernaryExpr(op=Ops.Where, e1=cond, e2=true_expr, e3=false_expr, dtype=true_expr.dtype)
 
+        elif a.ctx.op == Ops.Gather:
+            adv_dims = a.ctx.attrs["adv_dims"]  # list of src dim indices being indexed
+            idx_shape = a.ctx.attrs["idx_shape"]  # shape of index arrays (broadcast shape)
+            idx_len = len(idx_shape)
+            adv_dim_set = set(adv_dims)
+
+            # out_loops = [idx_loops..., remaining_src_loops...]
+            idx_loops = out_loops[:idx_len]
+            remaining_loops_iter = iter(out_loops[idx_len:])
+
+            # inputs[0]=src, inputs[1:]=one idx func per adv_dim (in order)
+            idx_funcs = inputs[1:]
+
+            src_indices = []
+            for d in range(len(a.ctx.inputs[0].shape)):
+                if d in adv_dim_set:
+                    adv_i = adv_dims.index(d)
+                    src_indices.append(FuncExpr(func=idx_funcs[adv_i], indices=[IndexExpr(l) for l in idx_loops]))
+                else:
+                    src_indices.append(IndexExpr(next(remaining_loops_iter)))
+
+            e = FuncExpr(func=inputs[0], indices=src_indices)
+
+        elif a.ctx.op == Ops.Scatter:
+            adv_dims = a.ctx.attrs["adv_dims"]
+            idx_shape = a.ctx.attrs["idx_shape"]
+            dst_shape = list(a.ctx.attrs["dst_shape"])
+            idx_len = len(idx_shape)
+            adv_dim_set = set(adv_dims)
+
+            # Scatter loops over source positions (inputs[0].shape = idx_shape + remaining)
+            src_shape = a.ctx.inputs[0].shape
+            scatter_loops = [LoopIndex(loopvar_name(i), s) for i, s in enumerate(src_shape)]
+            idx_loops = scatter_loops[:idx_len]
+            remaining_loops_list = scatter_loops[idx_len:]
+
+            idx_funcs = inputs[1:]
+
+            # value expr: scatter values[source_loops]
+            e = FuncExpr(func=inputs[0], indices=[IndexExpr(l) for l in scatter_loops])
+
+            # destination address per dim
+            scatter_addr_exprs = []
+            remaining_iter = iter(remaining_loops_list)
+            for d in range(len(dst_shape)):
+                if d in adv_dim_set:
+                    adv_i = adv_dims.index(d)
+                    scatter_addr_exprs.append(FuncExpr(func=idx_funcs[adv_i], indices=[IndexExpr(l) for l in idx_loops]))
+                else:
+                    scatter_addr_exprs.append(IndexExpr(next(remaining_iter)))
+
+            sf = Func(
+                out_loops=scatter_loops,
+                out_shape=list(src_shape),
+                out_dtype=a.dtype,
+                expr=e,
+                out_buffer=a.container.buffer,
+                is_scatter=True,
+                scatter_addr_exprs=scatter_addr_exprs,
+                scatter_dst_shape=dst_shape,
+            )
+            memo[a] = sf
+            return sf
+
         elif a.ctx.op == Ops.Concatenate:
             dim = a.ctx.attrs["dim"]
 
@@ -384,12 +459,19 @@ def convert(arr):
     def count_refs(e, rc):
         if isinstance(e, FuncExpr):
             rc[e.func] = rc.get(e.func, 0) + 1
-            if rc[e.func] == 1: count_refs(e.func.expr, rc)
+            if rc[e.func] == 1:
+                count_refs(e.func.expr, rc)
+                if e.func.is_scatter:
+                    for ae in e.func.scatter_addr_exprs:
+                        count_refs(ae, rc)
         else:
             for inp in e.inputs(): count_refs(inp, rc)
 
     refcount = {}
     count_refs(f.expr, refcount)
+    if f.is_scatter:
+        for ae in f.scatter_addr_exprs:
+            count_refs(ae, refcount)
 
     def try_fuse(e):
         match e:
@@ -401,6 +483,10 @@ def convert(arr):
             case TernaryExpr(): return TernaryExpr(op=e.op, e1=try_fuse(e.e1), e2=try_fuse(e.e2), e3=try_fuse(e.e3), dtype=e.dtype)
             case ReduceExpr(): return ReduceExpr(op=e.op, expr=try_fuse(e.expr), reduced=e.reduced)
             case FuncExpr():
+                if e.func.is_scatter:  # scatter funcs write atomically and cannot be fused into consumers
+                    e.func.expr = try_fuse(e.func.expr)
+                    e.func.scatter_addr_exprs = [try_fuse(ae) for ae in e.func.scatter_addr_exprs]
+                    return FuncExpr(func=e.func, indices=e.indices)
                 is_buffer = isinstance(e.func.expr, BufferExpr) # buffer reference is always fusable
                 contains_reduce = has_reduce(e.func.expr)
                 referenced_only1 = refcount[e.func] == 1
@@ -421,7 +507,8 @@ def convert(arr):
 
             case _: raise RuntimeError(f"unhandled expr: {type(e)}")
 
-    f = Func(out_loops=f.out_loops, out_shape=f.out_shape, out_dtype=f.out_dtype, expr=try_fuse(f.expr), out_buffer=arr.buffer)
+    fused_scatter_addrs = [try_fuse(e) for e in f.scatter_addr_exprs] if f.is_scatter else []
+    f = Func(out_loops=f.out_loops, out_shape=f.out_shape, out_dtype=f.out_dtype, expr=try_fuse(f.expr), out_buffer=arr.buffer, is_scatter=f.is_scatter, scatter_addr_exprs=fused_scatter_addrs, scatter_dst_shape=f.scatter_dst_shape)
 
     funcs = []
     seen = set()

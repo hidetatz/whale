@@ -115,6 +115,9 @@ class HighLevelLangSpec(LangSpec):
     @abstractmethod
     def where(self, cond, t, f): ...
 
+    @abstractmethod
+    def scatter_add(self, buf, addr, val): ...
+
 class CCompatibleLangSpec(HighLevelLangSpec):
     def typename(self, dt):
         if dt == int32: return "int32_t"
@@ -165,6 +168,7 @@ class CCompatibleLangSpec(HighLevelLangSpec):
     def lt(self, l, r): return f"({l} < {r})"
     def le(self, l, r): return f"({l} <= {r})"
     def where(self, cond, t, f): return f"{cond} ? {t} : {f}"
+    def scatter_add(self, buf, addr, val): return f"{buf}[{addr}] += {val};"
 
     @abstractmethod
     def kern_start(self, name, arg_names, arg_types): ...

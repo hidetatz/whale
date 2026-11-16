@@ -28,11 +28,13 @@ def timed_compile(name, code):
     result = orig_compile(name, code)
     compile_count[0] += 1
     compile_time[0] += time.perf_counter() - t
+    sig = next((l for l in code.splitlines() if "void" in l), code.splitlines()[0])
+    # print(f"  [MISS] {name}: {sig.strip()}", flush=True)
     return result
 
-def timed_invoke(schedule, kern, params):
+def timed_invoke(schedule, func, kern, params):
     t = time.perf_counter()
-    result = orig_invoke(schedule, kern, params)
+    result = orig_invoke(schedule, func, kern, params)
     invoke_time[0] += time.perf_counter() - t
     return result
 
@@ -138,12 +140,7 @@ class DataLoader:
 
     def __iter__(self):
         for i in range(0, len(self.indices), self.batch_size):
-            batch_indices = self.indices[i:i+self.batch_size]
-            # batch: [(image0, label0, xxx0...), (image1, label1, xxx1...), ...]
-            batch = [self.dataset[j] for j in batch_indices]
-            # zipped: [(image0, image1, ...), (label0, label1, ...), (xxx0, xxx1, ...), ...]
-            zipped = list(zip(*batch))
-            yield tuple(ndarray.stack(grp, dim=0) for grp in zipped)
+            yield self.dataset[ndarray.array(self.indices[i:i+self.batch_size])]
 
 def accuracy(model, loader):
     correct = 0
@@ -181,7 +178,7 @@ def main():
         print(f"epoch: {epoch+1} {datetime.datetime.now()}")
         total_loss = 0.0
         for i, (images, labels) in enumerate(train_loader):
-            print(f"minibatch: {i+1} {datetime.datetime.now()}")
+            # print(f"minibatch: {i+1} {datetime.datetime.now()}")
             images = images.reshape(images.shape[0], 784)
             images.materialize()
             labels.materialize()
@@ -195,7 +192,7 @@ def main():
 
             mc = materialize.materializer.kern_cache
             hit = mc.total_hits - hit_count[0]
-            print(f"compiles={compile_count[0]} hits={hit} codegen={codegen_time[0]:.2f}s compile={compile_time[0]:.2f}s invoke={invoke_time[0]:.2f}s")
+            # print(f"compiles={compile_count[0]} hits={hit} codegen={codegen_time[0]:.2f}s compile={compile_time[0]:.2f}s invoke={invoke_time[0]:.2f}s")
             compile_count[0] = 0
             codegen_time[0] = compile_time[0] = invoke_time[0] = 0.0
             hit_count[0] = mc.total_hits

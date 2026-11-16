@@ -54,6 +54,7 @@ class PythonLangSpec(langspec.HighLevelLangSpec):
     def lt(self, l, r): return f"{l} < {r}"
     def le(self, l, r): return f"{l} <= {r}"
     def where(self, cond, t, f): return f"{t} if {cond} else {f}"
+    def scatter_add(self, buf, addr, val): return f"{buf}[{addr}] += {val}"
 
 class PythonCompiler(compiler.Compiler):
     def compile(self, name: str, code: str):

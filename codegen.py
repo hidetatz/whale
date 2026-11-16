@@ -75,9 +75,15 @@ class HighLevelLangCodeGenerator(CodeGenerator):
                 self.unnest()
                 self.write(l.if_end())
 
-        result = self.render_expr(func.expr)
-        idx = self.arr_idx_calc_expr(func.out_shape, [lv.name for lv in func.out_loops])
-        self.write(l.assign(l.index("out", idx), result))
+        if func.is_scatter:
+            addr_parts = [self.render_expr(ae) for ae in func.scatter_addr_exprs]
+            scatter_addr = self.arr_idx_calc_expr(func.scatter_dst_shape, addr_parts)
+            result = self.render_expr(func.expr)
+            self.write(l.scatter_add("out", scatter_addr, result))
+        else:
+            result = self.render_expr(func.expr)
+            idx = self.arr_idx_calc_expr(func.out_shape, [lv.name for lv in func.out_loops])
+            self.write(l.assign(l.index("out", idx), result))
 
         loop_finish_fn()
 
@@ -271,5 +277,6 @@ class HighLevelLangCodeGenerator(CodeGenerator):
                 fnc = name
                 break
         assert fnc != "", "expected func result is not found in args"
-        idx = self.arr_idx_calc_expr(expr.func.out_shape, [self.render_expr(idx) for idx in expr.indices])
+        shape = expr.func.scatter_dst_shape if expr.func.is_scatter else expr.func.out_shape
+        idx = self.arr_idx_calc_expr(shape, [self.render_expr(idx) for idx in expr.indices])
         return self.langspec.index(fnc, idx)
