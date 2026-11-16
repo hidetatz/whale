@@ -159,10 +159,10 @@ def main():
     print("start mnist dataset load")
 
     train_dataset = MNIST("dataset/mnist", train=True)
-    train_loader = DataLoader(train_dataset, batch_size=32)
+    train_loader = DataLoader(train_dataset, batch_size=256)
 
     test_dataset = MNIST("dataset/mnist", train=False)
-    test_loader = DataLoader(test_dataset, batch_size=32)
+    test_loader = DataLoader(test_dataset, batch_size=256)
 
     model = Sequential(
         Linear(784, 128),
